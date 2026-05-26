@@ -184,7 +184,120 @@
         }
     </style>
 </head>
-<body class="text-on-background font-body-md antialiased overflow-x-hidden">
+<!-- Alpine.js -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<!-- Auth JS -->
+<script src="js/auth.js"></script>
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('dashboard', () => ({
+            profile: null,
+            adherence: { rate: 0, total: 0, taken: 0 },
+            schedule: [],
+            loading: true,
+
+            async init() {
+                if (!localStorage.getItem('access_token')) {
+                    window.location.href = '/index.html';
+                    return;
+                }
+                await this.fetchData();
+            },
+
+            async fetchData() {
+                try {
+                    const headers = getAuthHeader();
+                    
+                    // Fetch profile
+                    const profRes = await fetch(`${API_BASE_URL}/profile/`, { headers });
+                    this.profile = await profRes.json();
+
+                    // Fetch adherence stats
+                    const adhRes = await fetch(`${API_BASE_URL}/analytics/dashboard`, { headers });
+                    this.adherence = await adhRes.json();
+
+                    // Fetch medicines and reminders for schedule
+                    const medRes = await fetch(`${API_BASE_URL}/medicines/`, { headers });
+                    const medicines = await medRes.json();
+                    
+                    // Simplified schedule construction
+                    this.schedule = [];
+                    for (const med of medicines) {
+                        const remRes = await fetch(`${API_BASE_URL}/reminders/${med.id}`, { headers });
+                        const reminders = await remRes.json();
+                        reminders.forEach(r => {
+                            this.schedule.push({
+                                ...r,
+                                medicine_name: med.name,
+                                dosage: `${med.dosage_amount} ${med.dosage_unit}`
+                            });
+                        });
+                    }
+                    
+                    this.loading = false;
+                    this.initChart();
+                } catch (err) {
+                    console.error("Error fetching dashboard data:", err);
+                }
+            },
+
+            async initChart() {
+                const headers = getAuthHeader();
+                const trendRes = await fetch(`${API_BASE_URL}/analytics/trend`, { headers });
+                const trendData = await trendRes.json();
+                
+                const ctx = document.getElementById('trendChart').getContext('2d');
+                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                gradient.addColorStop(0, 'rgba(0, 242, 255, 0.2)');
+                gradient.addColorStop(1, 'rgba(0, 242, 255, 0)');
+
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: trendData.map(d => d.date),
+                        datasets: [{
+                            label: 'Adherence %',
+                            data: trendData.map(d => d.rate),
+                            borderColor: '#00f2ff',
+                            backgroundColor: gradient,
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, max: 100 },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+            },
+            
+            async markTaken(reminderId) {
+                const headers = getAuthHeader();
+                const now = new Date().toISOString();
+                await fetch(`${API_BASE_URL}/doses/${reminderId}/status`, {
+                    method: 'POST',
+                    headers: { ...headers, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'taken', scheduled_utc: now })
+                });
+                await this.fetchData();
+            }
+        }));
+    });
+</script>
+<body x-data="dashboard" class="text-on-background font-body-md antialiased overflow-x-hidden">
+    <!-- Loading Overlay -->
+    <div x-show="loading" class="fixed inset-0 z-[100] flex items-center justify-center bg-background/90 backdrop-blur-sm">
+        <div class="glass-panel p-lg rounded-3xl flex flex-col items-center gap-md">
+            <span class="material-symbols-outlined animate-spin text-primary text-4xl">refresh</span>
+            <p class="font-label-lg text-label-lg text-primary">Loading your dashboard...</p>
+        </div>
+    </div>
 <div class="flex h-screen w-full">
 <!-- SideNav (Desktop) -->
 <nav class="hidden md:flex flex-col h-full w-64 rounded-r-3xl border-r border-glass-border shadow-2xl shadow-primary/10 bg-glass-surface backdrop-blur-3xl py-md px-md overflow-y-auto no-scrollbar shrink-0 relative z-20">
@@ -249,7 +362,7 @@
 <!-- Header Section -->
 <div class="col-span-1 lg:col-span-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-md mb-md">
 <div>
-<h1 class="font-display-md text-display-md-mobile md:text-display-md text-on-surface mb-xs">Welcome back, Sarah</h1>
+<h1 class="font-display-md text-display-md-mobile md:text-display-md text-on-surface mb-xs">Welcome back, <span x-text="profile ? profile.full_name.split(' ')[0] : '...'">Sarah</span></h1>
 <p class="font-body-md text-body-md text-on-surface-variant">Here is your adherence overview for today.</p>
 </div>
 <div class="hidden md:flex items-center gap-md">
@@ -268,12 +381,12 @@
 <svg class="w-full h-full" viewbox="0 0 120 120">
 <!-- Background Ring -->
 <circle cx="60" cy="60" fill="none" r="54" stroke="rgba(255,255,255,0.05)" stroke-width="8"></circle>
-<!-- Progress Ring (88%) -->
-<circle class="progress-ring__circle" cx="60" cy="60" fill="none" filter="drop-shadow(0 0 8px rgba(0,242,255,0.5))" r="54" stroke="#00f2ff" stroke-dasharray="339.292" stroke-dashoffset="40.715" stroke-linecap="round" stroke-width="8"></circle>
+<!-- Progress Ring -->
+<circle class="progress-ring__circle" cx="60" cy="60" fill="none" filter="drop-shadow(0 0 8px rgba(0,242,255,0.5))" r="54" stroke="#00f2ff" stroke-dasharray="339.292" :stroke-dashoffset="339.292 - (339.292 * adherence.adherence_rate / 100)" stroke-linecap="round" stroke-width="8"></circle>
 </svg>
 <!-- Center Text -->
 <div class="absolute inset-0 flex flex-col items-center justify-center">
-<span class="font-display-lg text-display-lg text-primary glow-cyan">88<span class="text-3xl">%</span></span>
+<span class="font-display-lg text-display-lg text-primary glow-cyan"><span x-text="Math.round(adherence.adherence_rate)">88</span><span class="text-3xl">%</span></span>
 <span class="font-label-sm text-label-sm text-status-success flex items-center gap-xs mt-xs">
 <span class="material-symbols-outlined text-[14px]">trending_up</span> +2% this week
                             </span>
@@ -300,51 +413,22 @@
 <span class="font-label-md text-label-md text-on-surface-variant bg-glass-surface px-md py-xs rounded-full border border-glass-border">Oct 24, 2023</span>
 </div>
 <div class="grid grid-cols-1 md:grid-cols-3 gap-md">
-<!-- Morning (Taken) -->
-<div class="glass-card rounded-2xl p-md border-l-4 border-l-status-success hover:bg-glass-surface transition-colors">
-<div class="flex justify-between items-start mb-sm">
-<div class="flex items-center gap-sm text-status-success">
-<span class="material-symbols-outlined font-variation-fill" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-<span class="font-label-lg text-label-lg">Morning</span>
-</div>
-<span class="font-label-sm text-label-sm text-on-surface-variant">08:00 AM</span>
-</div>
-<h3 class="font-headline-md text-headline-md text-on-surface mb-xs" style="font-size: 18px; line-height: 24px;">Vitamin D</h3>
-<p class="font-body-md text-body-md text-on-surface-variant text-sm mb-md">1 Tablet (50mg) • After meal</p>
-<div class="inline-flex items-center gap-xs font-label-sm text-label-sm text-status-success bg-status-success/10 px-sm py-xs rounded-md">
-                                Taken at 08:15 AM
-                            </div>
-</div>
-<!-- Afternoon (Pending) -->
-<div class="glass-card rounded-2xl p-md border-l-4 border-l-status-warning hover:bg-glass-surface transition-colors shadow-[0_0_20px_rgba(245,158,11,0.05)]">
-<div class="flex justify-between items-start mb-sm">
-<div class="flex items-center gap-sm text-status-warning">
-<span class="material-symbols-outlined">schedule</span>
-<span class="font-label-lg text-label-lg">Afternoon</span>
-</div>
-<span class="font-label-sm text-label-sm text-on-surface-variant">02:00 PM</span>
-</div>
-<h3 class="font-headline-md text-headline-md text-on-surface mb-xs" style="font-size: 18px; line-height: 24px;">Lisinopril</h3>
-<p class="font-body-md text-body-md text-on-surface-variant text-sm mb-md">1 Tablet (10mg) • With water</p>
-<button class="w-full bg-primary text-on-primary-fixed py-sm rounded-lg font-label-lg text-label-lg hover:bg-primary-fixed transition-colors shadow-[0_0_15px_rgba(0,242,255,0.3)]">
-                                Mark as Taken
-                            </button>
-</div>
-<!-- Evening (Scheduled) -->
-<div class="glass-card rounded-2xl p-md border-l-4 border-l-glass-border hover:bg-glass-surface transition-colors opacity-70">
-<div class="flex justify-between items-start mb-sm">
-<div class="flex items-center gap-sm text-on-surface-variant">
-<span class="material-symbols-outlined">dark_mode</span>
-<span class="font-label-lg text-label-lg">Evening</span>
-</div>
-<span class="font-label-sm text-label-sm text-on-surface-variant">08:00 PM</span>
-</div>
-<h3 class="font-headline-md text-headline-md text-on-surface mb-xs" style="font-size: 18px; line-height: 24px;">Metformin</h3>
-<p class="font-body-md text-body-md text-on-surface-variant text-sm mb-md">1 Tablet (500mg) • With dinner</p>
-<div class="inline-flex items-center gap-xs font-label-sm text-label-sm text-on-surface-variant bg-glass-surface px-sm py-xs rounded-md">
-                                Scheduled
-                            </div>
-</div>
+    <template x-for="item in schedule" :key="item.id">
+        <div class="glass-card rounded-2xl p-md border-l-4 border-l-status-warning hover:bg-glass-surface transition-colors">
+            <div class="flex justify-between items-start mb-sm">
+                <div class="flex items-center gap-sm text-status-warning">
+                    <span class="material-symbols-outlined">schedule</span>
+                    <span class="font-label-lg text-label-lg" x-text="item.dose_label">Afternoon</span>
+                </div>
+                <span class="font-label-sm text-label-sm text-on-surface-variant" x-text="item.dose_time_utc">02:00 PM</span>
+            </div>
+            <h3 class="font-headline-md text-headline-md text-on-surface mb-xs" style="font-size: 18px; line-height: 24px;" x-text="item.medicine_name">Lisinopril</h3>
+            <p class="font-body-md text-body-md text-on-surface-variant text-sm mb-md" x-text="item.dosage">1 Tablet (10mg)</p>
+            <button @click="markTaken(item.id)" class="w-full bg-primary text-on-primary-fixed py-sm rounded-lg font-label-lg text-label-lg hover:bg-primary-fixed transition-colors shadow-[0_0_15px_rgba(0,242,255,0.3)]">
+                Mark as Taken
+            </button>
+        </div>
+    </template>
 </div>
 </section>
 </div>

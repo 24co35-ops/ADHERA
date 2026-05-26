@@ -15,29 +15,16 @@ async def register(user_data: UserRegister):
             "options": {
                 "data": {
                     "full_name": user_data.full_name,
-                    "role": user_data.role
+                    "role": user_data.role,
+                    "date_of_birth": user_data.date_of_birth.isoformat() if user_data.date_of_birth else None,
+                    "contact_number": user_data.contact_number,
+                    "timezone": user_data.timezone
                 }
             }
         })
         
         if not auth_response.user:
             raise HTTPException(status_code=400, detail="Registration failed")
-
-        # 2. Create profile in public.profiles
-        # This is often handled by a DB trigger in Supabase, but we'll do it explicitly here for clarity
-        # if the trigger isn't set up yet.
-        profile_data = {
-            "id": auth_response.user.id,
-            "full_name": user_data.full_name,
-            "role": user_data.role,
-            "date_of_birth": user_data.date_of_birth.isoformat() if user_data.date_of_birth else None,
-            "contact_number": user_data.contact_number,
-            "timezone": user_data.timezone
-        }
-        
-        # Use service role to bypass RLS for initial profile creation if needed
-        # or just use the user's session if RLS allows.
-        supabase_admin.table("profiles").insert(profile_data).execute()
         
         return {"message": "Registration successful. Please check your email for verification."}
         

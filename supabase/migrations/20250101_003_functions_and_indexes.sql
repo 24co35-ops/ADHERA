@@ -1,15 +1,24 @@
 -- 3. Functions, Triggers, and Indexes
 
--- Prevent adherence modification trigger
-create or replace function prevent_adherence_modification()
-returns trigger language plpgsql as $$
+-- Auto-expire missed doses after 2 hours
+create or replace function expire_missed_doses()
+returns void language plpgsql as $$
 begin
-  if tg_op = 'UPDATE' then
-    raise exception 'adherence records are immutable';
-  end if;
-  return old;
+  insert into public.adherence (reminder_id, user_id, scheduled_utc, status, outcome_utc)
+  select r.id, r.user_id, now() - interval '2 hours', 'missed', now()
+  from public.reminders r
+  where r.is_active = true
+  and not exists (
+    select 1 from public.adherence a 
+    where a.reminder_id = r.id 
+    and a.scheduled_utc >= now() - interval '2 hours'
+  );
 end;
 $$;
+
+-- Note: In a real Supabase project, you would enable pg_cron and run:
+-- select cron.schedule('expire-missed-doses', '0 * * * *', 'select expire_missed_doses()');
+
 
 create trigger adherence_immutable
   before update or delete on public.adherence

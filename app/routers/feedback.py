@@ -19,3 +19,8 @@ async def create_feedback(feedback: FeedbackCreate, user = Depends(get_current_u
         print(f"EMERGENCY ALERT for user {user['user_id']}: {feedback.description}")
         
     return response.data[0]
+
+@router.get("/")
+async def list_feedback(user = Depends(get_current_user)):
+    response = supabase.table("feedback").select("*").eq("user_id", user["user_id"]).execute()
+    return response.data

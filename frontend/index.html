@@ -237,7 +237,7 @@
 <div class="text-center mt-md">
 <p class="font-body-md text-label-sm text-on-surface-variant">
                     Already have an account? 
-                    <a class="text-primary font-label-lg hover:text-primary-fixed transition-colors" href="#">Sign in here</a>
+                    <a class="text-primary font-label-lg hover:text-primary-fixed transition-colors" href="login.html">Sign in here</a>
 </p>
 </div>
 </div>
@@ -257,8 +257,10 @@
         const result = await register(userData);
         if (result.message) {
             alert(result.message);
+            window.location.href = 'login.html';
         } else {
-            alert('Registration failed');
+            console.error('Registration error:', result);
+            alert('Registration failed: ' + (result.detail || 'Please check your information and try again.'));
         }
     });
 

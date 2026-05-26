@@ -75,6 +75,7 @@ class Reminder(ReminderBase):
 # Adherence and Feedback
 class DoseStatus(BaseModel):
     status: str = Field(pattern="^(taken|missed|snoozed)$")
+    scheduled_utc: str # ISO format
     correction_note: Optional[str] = None
 
 class FeedbackCreate(BaseModel):

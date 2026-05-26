@@ -17,9 +17,10 @@ async def update_dose_status(reminder_id: str, dose_status: DoseStatus, user = D
     data = {
         "reminder_id": reminder_id,
         "user_id": user["user_id"],
-        "scheduled_utc": datetime.now(timezone.utc).isoformat(), # Simplified for now, should be actual scheduled time
+        "scheduled_utc": dose_status.scheduled_utc,
         "status": dose_status.status,
-        "correction_note": dose_status.correction_note
+        "correction_note": dose_status.correction_note,
+        "outcome_utc": datetime.now(timezone.utc).isoformat()
     }
     
     response = supabase.table("adherence").insert(data).execute()
