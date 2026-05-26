@@ -165,6 +165,7 @@
         Alpine.data('medicines', () => ({
             medicines: [],
             selectedMedicine: null,
+            reminders: [],
             loading: true,
             showAddModal: false,
             newMedicine: {
@@ -174,7 +175,10 @@
                 route: 'oral',
                 frequency_type: 'daily',
                 start_date: new Date().toISOString().split('T')[0],
-                instructions: ''
+                instructions: '',
+                reminders: [
+                    { dose_label: 'morning', dose_time_utc: '08:00:00', enabled: true }
+                ]
             },
 
             async init() {
@@ -189,24 +193,79 @@
                 const headers = getAuthHeader();
                 const res = await fetch(`${API_BASE_URL}/medicines/`, { headers });
                 this.medicines = await res.json();
-                if (this.medicines.length > 0) {
-                    this.selectedMedicine = this.medicines[0];
+                if (this.medicines.length > 0 && !this.selectedMedicine) {
+                    await this.selectMedicine(this.medicines[0]);
                 }
                 this.loading = false;
             },
 
-            selectMedicine(med) {
+            async selectMedicine(med) {
                 this.selectedMedicine = med;
+                await this.fetchReminders(med.id);
+            },
+
+            async fetchReminders(medicineId) {
+                const headers = getAuthHeader();
+                const res = await fetch(`${API_BASE_URL}/reminders/${medicineId}`, { headers });
+                this.reminders = await res.json();
+            },
+
+            addReminderRow() {
+                this.newMedicine.reminders.push({ dose_label: 'morning', dose_time_utc: '08:00:00', enabled: true });
+            },
+
+            removeReminderRow(index) {
+                this.newMedicine.reminders.splice(index, 1);
             },
 
             async addMedicine() {
                 const headers = getAuthHeader();
-                await fetch(`${API_BASE_URL}/medicines/`, {
+                // 1. Create Medicine
+                const medRes = await fetch(`${API_BASE_URL}/medicines/`, {
                     method: 'POST',
                     headers: { ...headers, 'Content-Type': 'application/json' },
                     body: JSON.stringify(this.newMedicine)
                 });
+                const medData = await medRes.json();
+                
+                if (medData.id) {
+                    // 2. Create Reminders
+                    for (const rem of this.newMedicine.reminders) {
+                        if (rem.enabled) {
+                            await fetch(`${API_BASE_URL}/reminders/`, {
+                                method: 'POST',
+                                headers: { ...headers, 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    medicine_id: medData.id,
+                                    dose_label: rem.dose_label,
+                                    dose_time_utc: rem.dose_time_utc,
+                                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                                    recurrence_type: this.newMedicine.frequency_type
+                                })
+                            });
+                        }
+                    }
+                }
+
                 this.showAddModal = false;
+                await this.fetchMedicines();
+                // Reset form
+                this.newMedicine = {
+                    name: '', dosage_amount: 0, dosage_unit: 'mg', route: 'oral',
+                    frequency_type: 'daily', start_date: new Date().toISOString().split('T')[0],
+                    instructions: '', reminders: [{ dose_label: 'morning', dose_time_utc: '08:00:00', enabled: true }]
+                };
+            },
+
+            async deleteMedicine() {
+                if (!confirm(`Are you sure you want to delete ${this.selectedMedicine.name}? This will cancel all future reminders.`)) return;
+                
+                const headers = getAuthHeader();
+                await fetch(`${API_BASE_URL}/medicines/${this.selectedMedicine.id}`, {
+                    method: 'DELETE',
+                    headers
+                });
+                this.selectedMedicine = null;
                 await this.fetchMedicines();
             }
         }));
@@ -339,8 +398,35 @@
             </div>
             <div>
                 <label class="block text-label-sm text-on-surface-variant mb-xs">Instructions</label>
-                <textarea x-model="newMedicine.instructions" class="w-full bg-glass-surface border border-glass-border rounded-xl px-md py-sm text-on-surface" rows="3"></textarea>
+                <textarea x-model="newMedicine.instructions" class="w-full bg-glass-surface border border-glass-border rounded-xl px-md py-sm text-on-surface" rows="2"></textarea>
             </div>
+            
+            <!-- Reminders Section in Modal -->
+            <div class="space-y-sm">
+                <div class="flex justify-between items-center">
+                    <label class="block text-label-sm text-on-surface-variant uppercase tracking-wider">Scheduled Reminders</label>
+                    <button type="button" @click="addReminderRow" class="text-primary text-label-sm flex items-center gap-xs hover:underline">
+                        <span class="material-symbols-outlined text-sm">add</span> Add Time
+                    </button>
+                </div>
+                <div class="space-y-xs max-h-32 overflow-y-auto pr-sm custom-scrollbar">
+                    <template x-for="(rem, index) in newMedicine.reminders" :key="index">
+                        <div class="flex items-center gap-sm bg-glass-surface/50 p-xs rounded-lg border border-glass-border">
+                            <select x-model="rem.dose_label" class="bg-transparent border-none text-label-sm focus:ring-0 text-on-surface py-1">
+                                <option value="morning">Morning</option>
+                                <option value="afternoon">Afternoon</option>
+                                <option value="evening">Evening</option>
+                                <option value="night">Night</option>
+                            </select>
+                            <input x-model="rem.dose_time_utc" type="time" step="1" class="bg-transparent border-none text-label-sm focus:ring-0 text-on-surface py-1">
+                            <button type="button" @click="removeReminderRow(index)" class="text-status-error ml-auto p-1 hover:bg-status-error/10 rounded">
+                                <span class="material-symbols-outlined text-sm">delete</span>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
             <div class="flex gap-md pt-md">
                 <button type="button" @click="showAddModal = false" class="flex-1 py-3 rounded-xl border border-glass-border text-on-surface-variant hover:bg-glass-surface transition-all">Cancel</button>
                 <button type="submit" class="flex-1 py-3 rounded-xl bg-primary text-on-primary-fixed font-label-lg glow-cyan">Save Medication</button>
@@ -412,6 +498,30 @@
 </div>
 <!-- Schedule -->
 <div>
+<h4 class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-sm">Schedule</h4>
+<div class="space-y-sm">
+<template x-for="rem in reminders" :key="rem.id">
+<div class="bg-surface-container/50 border border-glass-border rounded-xl p-md flex items-center justify-between">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary text-[20px]" x-show="rem.dose_label === 'morning'">light_mode</span>
+<span class="material-symbols-outlined text-primary text-[20px]" x-show="rem.dose_label === 'afternoon'">sunny</span>
+<span class="material-symbols-outlined text-primary text-[20px]" x-show="rem.dose_label === 'evening'">partly_cloudy_day</span>
+<span class="material-symbols-outlined text-primary text-[20px]" x-show="rem.dose_label === 'night'">dark_mode</span>
+<div>
+<div class="font-label-lg text-label-lg text-on-surface capitalize" x-text="rem.dose_label">Morning</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant" x-text="rem.dose_time_utc">08:00:00</div>
+</div>
+</div>
+<div x-show="rem.warning" class="group relative">
+<span class="material-symbols-outlined text-status-warning text-sm">warning</span>
+<div class="absolute bottom-full right-0 mb-2 w-48 p-2 bg-surface-container-high border border-glass-border rounded-lg text-[10px] text-on-surface opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-xl" x-text="rem.warning"></div>
+</div>
+</div>
+</template>
+</div>
+</div>
+<!-- Timeline -->
+<div>
 <h4 class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-sm">Timeline</h4>
 <div class="grid grid-cols-2 gap-md">
 <div class="bg-surface-container/50 border border-glass-border rounded-xl p-md flex flex-col gap-xs">
@@ -447,10 +557,14 @@
 </div>
 </div>
 <!-- Action Footer -->
-<div class="p-md border-t border-glass-border bg-glass-surface/30 mt-auto z-10">
+<div class="p-md border-t border-glass-border bg-glass-surface/30 mt-auto z-10 flex flex-col gap-sm">
 <button class="w-full py-3 rounded-xl bg-surface-container border border-glass-border text-primary font-label-lg text-label-lg hover:bg-glass-surface hover:border-primary/50 transition-all duration-300 flex justify-center items-center gap-sm">
 <span class="material-symbols-outlined text-[20px]">history</span>
                                 View Full History
+                            </button>
+<button @click="deleteMedicine" class="w-full py-3 rounded-xl bg-status-error/10 border border-status-error/30 text-status-error font-label-lg text-label-lg hover:bg-status-error/20 transition-all duration-300 flex justify-center items-center gap-sm">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+                                Delete Medication
                             </button>
 </div>
 </div>

@@ -71,6 +71,7 @@ class Reminder(ReminderBase):
     medicine_id: str
     user_id: str
     is_active: bool
+    warning: Optional[str] = None
 
 # Adherence and Feedback
 class DoseStatus(BaseModel):

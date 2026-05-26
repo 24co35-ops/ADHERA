@@ -54,7 +54,7 @@ Adhera is a web-based medication adherence platform that:
 
 ### For Healthcare Providers
 - Dashboard showing all assigned patients with overall adherence rates
-- Critical alert indicator for any patient with weekly adherence below 50%
+- Critical alert indicator for any patient with weekly adherence below 70%
 - Full per-patient drill-down: medication history, adherence breakdown, feedback records
 - Emergency email alert within 60 seconds of a patient submitting a Severity 4 report
 - Export patient adherence reports as PDF or CSV

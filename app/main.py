@@ -31,11 +31,7 @@ app.add_middleware(
 )
 
 from fastapi.responses import RedirectResponse
-
-# Root Redirect
-@app.get("/", include_in_schema=False)
-async def root():
-    return RedirectResponse(url="/docs")
+from fastapi.staticfiles import StaticFiles
 
 # Health Check
 @app.get("/v1/health")
@@ -52,3 +48,6 @@ app.include_router(feedback.router, prefix="/v1/feedback", tags=["Feedback"])
 app.include_router(analytics.router, prefix="/v1/analytics", tags=["Analytics"])
 app.include_router(provider.router, prefix="/v1/provider", tags=["Provider"])
 app.include_router(admin.router, prefix="/v1/admin", tags=["Admin"])
+
+# Serve Frontend Static Files
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")

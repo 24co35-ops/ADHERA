@@ -192,16 +192,62 @@
     document.addEventListener('alpine:init', () => {
         Alpine.data('dashboard', () => ({
             profile: null,
-            adherence: { rate: 0, total: 0, taken: 0 },
+            adherence: { weekly_adherence: 0, monthly_adherence: 0, weekly_warning: false, recent_feedback: [] },
             schedule: [],
             loading: true,
+            supabase: null,
+            showFeedbackModal: false,
+            showEmergencyPrompt: false,
+            feedback: {
+                medicine_id: '',
+                description: '',
+                severity: 1,
+                occurred_at: new Date().toISOString().split('T')[0] + 'T12:00'
+            },
+            medicines: [],
+            emergencyContact: { full_name: '', relationship: '', email: '' },
+            showContactModal: false,
 
             async init() {
                 if (!localStorage.getItem('access_token')) {
                     window.location.href = '/index.html';
                     return;
                 }
+                
+                // Initialize Supabase Client for Realtime
+                // Note: In a production app, these would be injected or fetched from a config endpoint
+                const SUPABASE_URL = 'https://your-project.supabase.co';
+                const SUPABASE_ANON_KEY = 'your-anon-key';
+                this.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                
+                this.setupRealtime();
                 await this.fetchData();
+            },
+
+            setupRealtime() {
+                const userId = JSON.parse(atob(localStorage.getItem('access_token').split('.')[1])).sub;
+                
+                this.supabase
+                    .channel('any')
+                    .on('postgres_changes', { 
+                        event: '*', 
+                        schema: 'public', 
+                        table: 'doses',
+                        filter: `user_id=eq.${userId}` 
+                    }, payload => {
+                        console.log('Dose change detected:', payload);
+                        this.fetchData();
+                    })
+                    .on('postgres_changes', { 
+                        event: '*', 
+                        schema: 'public', 
+                        table: 'adherence',
+                        filter: `user_id=eq.${userId}` 
+                    }, payload => {
+                        console.log('Adherence change detected:', payload);
+                        this.fetchData();
+                    })
+                    .subscribe();
             },
 
             async fetchData() {
@@ -212,32 +258,102 @@
                     const profRes = await fetch(`${API_BASE_URL}/profile/`, { headers });
                     this.profile = await profRes.json();
 
+                    // Fetch emergency contact
+                    const contactRes = await fetch(`${API_BASE_URL}/profile/emergency-contact`, { headers });
+                    const contactData = await contactRes.json();
+                    if (contactData) this.emergencyContact = contactData;
+
+                    // Fetch medicines
+                    const medRes = await fetch(`${API_BASE_URL}/medicines/`, { headers });
+                    this.medicines = await medRes.json();
+
                     // Fetch adherence stats
                     const adhRes = await fetch(`${API_BASE_URL}/analytics/dashboard`, { headers });
                     this.adherence = await adhRes.json();
 
-                    // Fetch medicines and reminders for schedule
-                    const medRes = await fetch(`${API_BASE_URL}/medicines/`, { headers });
-                    const medicines = await medRes.json();
+                    // Fetch upcoming doses (Increment 4)
+                    const doseRes = await fetch(`${API_BASE_URL}/doses/upcoming`, { headers });
+                    const doses = await doseRes.json();
                     
-                    // Simplified schedule construction
-                    this.schedule = [];
-                    for (const med of medicines) {
-                        const remRes = await fetch(`${API_BASE_URL}/reminders/${med.id}`, { headers });
-                        const reminders = await remRes.json();
-                        reminders.forEach(r => {
-                            this.schedule.push({
-                                ...r,
-                                medicine_name: med.name,
-                                dosage: `${med.dosage_amount} ${med.dosage_unit}`
-                            });
-                        });
-                    }
+                    this.schedule = doses.map(d => ({
+                        id: d.id,
+                        status: d.status,
+                        scheduled_utc: d.scheduled_utc,
+                        dose_label: d.reminders.dose_label,
+                        medicine_name: d.reminders.medicines.name,
+                        dosage: `${d.reminders.medicines.dosage_amount} ${d.reminders.medicines.dosage_unit}`,
+                        snooze_count: d.snooze_count
+                    }));
                     
                     this.loading = false;
                     this.initChart();
                 } catch (err) {
                     console.error("Error fetching dashboard data:", err);
+                }
+            },
+
+            async submitFeedback() {
+                const headers = getAuthHeader();
+                const res = await fetch(`${API_BASE_URL}/feedback/`, {
+                    method: 'POST',
+                    headers: { ...headers, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.feedback)
+                });
+                
+                if (this.feedback.severity == 4) {
+                    this.showEmergencyPrompt = true;
+                }
+                
+                this.showFeedbackModal = false;
+                // Reset feedback
+                this.feedback = {
+                    medicine_id: '',
+                    description: '',
+                    severity: 1,
+                    occurred_at: new Date().toISOString().split('T')[0] + 'T12:00'
+                };
+                await this.fetchData();
+            },
+
+            async saveEmergencyContact() {
+                const headers = getAuthHeader();
+                await fetch(`${API_BASE_URL}/profile/emergency-contact`, {
+                    method: 'PUT',
+                    headers: { ...headers, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.emergencyContact)
+                });
+                this.showContactModal = false;
+                await this.fetchData();
+            },
+
+            async triggerEmergency() {
+                if (!confirm("This will trigger a high-priority alert to your provider and emergency contact. Proceed?")) return;
+                
+                const headers = getAuthHeader();
+                await fetch(`${API_BASE_URL}/feedback/`, {
+                    method: 'POST',
+                    headers: { ...headers, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        medicine_id: this.medicines[0]?.id || '', // Generic if no medicine
+                        description: "MANUAL EMERGENCY ALERT TRIGGERED",
+                        severity: 4,
+                        occurred_at: new Date().toISOString()
+                    })
+                });
+                this.showEmergencyPrompt = true;
+            },
+
+            async exportCSV() {
+                const headers = getAuthHeader();
+                const res = await fetch(`${API_BASE_URL}/analytics/export/csv`, {
+                    method: 'POST',
+                    headers
+                });
+                const data = await res.json();
+                if (data.download_url) {
+                    window.open(data.download_url, '_blank');
+                } else {
+                    alert("Failed to generate report. Please try again later.");
                 }
             },
 
@@ -277,13 +393,12 @@
                 });
             },
             
-            async markTaken(reminderId) {
+            async updateStatus(doseId, status) {
                 const headers = getAuthHeader();
-                const now = new Date().toISOString();
-                await fetch(`${API_BASE_URL}/doses/${reminderId}/status`, {
+                await fetch(`${API_BASE_URL}/doses/${doseId}/status`, {
                     method: 'POST',
                     headers: { ...headers, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: 'taken', scheduled_utc: now })
+                    body: JSON.stringify({ status })
                 });
                 await this.fetchData();
             }
@@ -312,21 +427,27 @@
 <!-- Nav Links -->
 <ul class="flex flex-col gap-sm flex-grow">
 <li>
-<a class="flex items-center gap-md px-md py-sm rounded-xl font-bold border-l-4 border-primary-fixed-dim text-primary-fixed-dim bg-primary/10 transition-all duration-300" href="#">
+<a aria-label="Dashboard" class="flex items-center gap-md px-md py-sm rounded-xl font-bold border-l-4 border-primary-fixed-dim text-primary-fixed-dim bg-primary/10 transition-all duration-300" href="#">
 <span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
 <span class="font-label-lg text-label-lg">Dashboard</span>
 </a>
 </li>
 <li>
-<a class="flex items-center gap-md px-md py-sm rounded-xl text-on-surface-variant font-medium hover:bg-glass-surface hover:text-primary transition-all duration-300 scale-95 active:scale-90 border-l-4 border-transparent" href="#">
+<a aria-label="Medication Schedule" class="flex items-center gap-md px-md py-sm rounded-xl text-on-surface-variant font-medium hover:bg-glass-surface hover:text-primary transition-all duration-300 scale-95 active:scale-90 border-l-4 border-transparent" href="medicines.html">
 <span class="material-symbols-outlined" data-icon="calendar_today">calendar_today</span>
 <span class="font-label-lg text-label-lg">Schedule</span>
 </a>
 </li>
 <li>
-<a class="flex items-center gap-md px-md py-sm rounded-xl text-on-surface-variant font-medium hover:bg-glass-surface hover:text-primary transition-all duration-300 scale-95 active:scale-90 border-l-4 border-transparent" href="#">
+<a aria-label="Analytics and Trends" class="flex items-center gap-md px-md py-sm rounded-xl text-on-surface-variant font-medium hover:bg-glass-surface hover:text-primary transition-all duration-300 scale-95 active:scale-90 border-l-4 border-transparent" href="#">
 <span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
 <span class="font-label-lg text-label-lg">Analytics</span>
+</a>
+</li>
+<li>
+<a aria-label="Manage Emergency Contact" @click.prevent="showContactModal = true" class="flex items-center gap-md px-md py-sm rounded-xl text-on-surface-variant font-medium hover:bg-glass-surface hover:text-primary transition-all duration-300 scale-95 active:scale-90 border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined" data-icon="contact_emergency">contact_emergency</span>
+<span class="font-label-lg text-label-lg">Emergency Contact</span>
 </a>
 </li>
 <li>
@@ -338,7 +459,7 @@
 </ul>
 <!-- CTA Bottom -->
 <div class="mt-auto pt-xl">
-<button class="w-full flex items-center justify-center gap-sm bg-error-container text-on-error px-md py-sm rounded-xl font-label-lg text-label-lg hover:bg-error transition-colors duration-300">
+<button @click="triggerEmergency" class="w-full flex items-center justify-center gap-sm bg-error-container text-on-error px-md py-sm rounded-xl font-label-lg text-label-lg hover:bg-error transition-colors duration-300">
 <span class="material-symbols-outlined text-[20px]" data-icon="emergency">emergency</span>
                      Emergency Alert
                  </button>
@@ -375,44 +496,55 @@
 <!-- Bento Grid Layout -->
 <!-- 1. At a Glance Ring (Top Left) -->
 <section class="col-span-1 lg:col-span-4 glass-card rounded-[32px] p-lg ambient-shadow flex flex-col items-center justify-center min-h-[300px]">
-<h2 class="font-headline-md text-headline-md text-on-surface w-full text-left mb-auto">Adherence Score</h2>
+<div class="w-full flex justify-between items-center mb-auto">
+    <h2 class="font-headline-md text-headline-md text-on-surface">Weekly Adherence</h2>
+    <div x-show="adherence.weekly_warning" class="bg-status-error/10 text-status-error px-2 py-1 rounded-full text-[10px] font-bold border border-status-error/20 flex items-center gap-1">
+        <span class="material-symbols-outlined text-[12px]">warning</span> LOW
+    </div>
+</div>
 <div class="relative w-48 h-48 flex items-center justify-center mt-md animate-float">
 <!-- SVG Ring -->
 <svg class="w-full h-full" viewbox="0 0 120 120">
 <!-- Background Ring -->
 <circle cx="60" cy="60" fill="none" r="54" stroke="rgba(255,255,255,0.05)" stroke-width="8"></circle>
 <!-- Progress Ring -->
-<circle class="progress-ring__circle" cx="60" cy="60" fill="none" filter="drop-shadow(0 0 8px rgba(0,242,255,0.5))" r="54" stroke="#00f2ff" stroke-dasharray="339.292" :stroke-dashoffset="339.292 - (339.292 * adherence.adherence_rate / 100)" stroke-linecap="round" stroke-width="8"></circle>
+<circle class="progress-ring__circle" cx="60" cy="60" fill="none" filter="drop-shadow(0 0 8px rgba(0,242,255,0.5))" r="54" :stroke="adherence.weekly_warning ? '#EF4444' : '#00f2ff'" stroke-dasharray="339.292" :stroke-dashoffset="339.292 - (339.292 * adherence.weekly_adherence / 100)" stroke-linecap="round" stroke-width="8"></circle>
 </svg>
 <!-- Center Text -->
 <div class="absolute inset-0 flex flex-col items-center justify-center">
-<span class="font-display-lg text-display-lg text-primary glow-cyan"><span x-text="Math.round(adherence.adherence_rate)">88</span><span class="text-3xl">%</span></span>
-<span class="font-label-sm text-label-sm text-status-success flex items-center gap-xs mt-xs">
-<span class="material-symbols-outlined text-[14px]">trending_up</span> +2% this week
+<span class="font-display-lg text-display-lg glow-cyan" :class="adherence.weekly_warning ? 'text-status-error' : 'text-primary'"><span x-text="Math.round(adherence.weekly_adherence)">88</span><span class="text-3xl">%</span></span>
+<span class="font-label-sm text-label-sm flex items-center gap-xs mt-xs" :class="adherence.weekly_warning ? 'text-status-error' : 'text-status-success'">
+<span class="material-symbols-outlined text-[14px]" x-text="adherence.weekly_adherence >= 70 ? 'trending_up' : 'trending_down'">trending_up</span> 
+<span x-text="adherence.monthly_adherence + '% monthly'"></span>
                             </span>
 </div>
 </div>
-<p class="font-body-md text-body-md text-on-surface-variant text-center mt-auto pt-md">You are on track! Keep up the good work.</p>
+<p class="font-body-md text-body-md text-on-surface-variant text-center mt-auto pt-md" x-text="adherence.weekly_warning ? 'Your adherence is below target. Please try to stay on track.' : 'You are doing great! Your adherence is above 70%.'"></p>
 </section>
 <!-- 2. Adherence Trend Chart (Top Right) -->
 <section class="col-span-1 lg:col-span-8 glass-card rounded-[32px] p-lg ambient-shadow flex flex-col min-h-[300px]">
 <div class="flex justify-between items-center mb-md">
 <h2 class="font-headline-md text-headline-md text-on-surface">Weekly Trend</h2>
-<button class="font-label-sm text-label-sm text-primary-fixed-dim hover:text-primary flex items-center gap-xs">
-                            View Details <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
-</button>
+<div class="flex gap-sm">
+    <button @click="exportCSV" class="font-label-sm text-label-sm text-primary-fixed-dim hover:text-primary flex items-center gap-xs bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
+        <span class="material-symbols-outlined text-[16px]">download</span> Export My Data
+    </button>
+    <button class="font-label-sm text-label-sm text-primary-fixed-dim hover:text-primary flex items-center gap-xs">
+        View Details <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+    </button>
+</div>
 </div>
 <div class="flex-grow w-full h-full relative">
 <canvas id="trendChart"></canvas>
 </div>
 </section>
-<!-- 3. Today's Schedule Timeline (Bottom Full Width) -->
-<section class="col-span-1 lg:col-span-12 glass-card rounded-[32px] p-lg ambient-shadow">
+<!-- 3. Today's Schedule Timeline (Bottom Left) -->
+<section class="col-span-1 lg:col-span-8 glass-card rounded-[32px] p-lg ambient-shadow">
 <div class="flex justify-between items-center mb-lg">
 <h2 class="font-headline-md text-headline-md text-on-surface">Today's Schedule</h2>
 <span class="font-label-md text-label-md text-on-surface-variant bg-glass-surface px-md py-xs rounded-full border border-glass-border">Oct 24, 2023</span>
 </div>
-<div class="grid grid-cols-1 md:grid-cols-3 gap-md">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
     <template x-for="item in schedule" :key="item.id">
         <div class="glass-card rounded-2xl p-md border-l-4 border-l-status-warning hover:bg-glass-surface transition-colors">
             <div class="flex justify-between items-start mb-sm">
@@ -424,22 +556,148 @@
             </div>
             <h3 class="font-headline-md text-headline-md text-on-surface mb-xs" style="font-size: 18px; line-height: 24px;" x-text="item.medicine_name">Lisinopril</h3>
             <p class="font-body-md text-body-md text-on-surface-variant text-sm mb-md" x-text="item.dosage">1 Tablet (10mg)</p>
-            <button @click="markTaken(item.id)" class="w-full bg-primary text-on-primary-fixed py-sm rounded-lg font-label-lg text-label-lg hover:bg-primary-fixed transition-colors shadow-[0_0_15px_rgba(0,242,255,0.3)]">
-                Mark as Taken
-            </button>
+            <div class="flex flex-col gap-sm">
+                <button @click="updateStatus(item.id, 'taken')" class="w-full bg-primary text-on-primary-fixed py-2 rounded-lg font-label-lg text-label-sm hover:bg-primary-fixed transition-colors shadow-lg shadow-primary/10 flex items-center justify-center gap-xs">
+                    <span class="material-symbols-outlined text-[18px]">check_circle</span> Mark Taken
+                </button>
+                <div class="flex gap-sm">
+                    <button @click="updateStatus(item.id, 'snoozed')" class="flex-1 bg-glass-surface border border-glass-border text-on-surface-variant py-2 rounded-lg font-label-lg text-label-sm hover:bg-glass-surface/50 transition-colors flex items-center justify-center gap-xs">
+                        <span class="material-symbols-outlined text-[18px]">snooze</span> Snooze <span x-show="item.snooze_count > 0" class="text-[10px] opacity-70" x-text="`(${item.snooze_count}/3)`"></span>
+                    </button>
+                    <button @click="updateStatus(item.id, 'missed')" class="flex-1 bg-status-error/10 border border-status-error/30 text-status-error py-2 rounded-lg font-label-lg text-label-sm hover:bg-status-error/20 transition-colors flex items-center justify-center gap-xs">
+                        <span class="material-symbols-outlined text-[18px]">close</span> Missed
+                    </button>
+                </div>
+            </div>
         </div>
     </template>
 </div>
+</section>
+
+<!-- 4. Recent Feedback (Bottom Right) -->
+<section class="col-span-1 lg:col-span-4 glass-card rounded-[32px] p-lg ambient-shadow flex flex-col">
+    <h2 class="font-headline-md text-headline-md text-on-surface mb-lg">Recent Experience</h2>
+    <div class="flex flex-col gap-md flex-1">
+        <template x-for="f in adherence.recent_feedback" :key="f.id">
+            <div class="bg-glass-surface/30 border border-glass-border rounded-2xl p-md flex flex-col gap-xs">
+                <div class="flex justify-between items-center">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold" :class="{
+                        'bg-status-success/10 text-status-success': f.severity === 1,
+                        'bg-status-warning/10 text-status-warning': f.severity === 2,
+                        'bg-status-error/10 text-status-error': f.severity >= 3
+                    }" x-text="'Severity ' + f.severity"></span>
+                    <span class="text-[10px] text-on-surface-variant" x-text="new Date(f.occurred_at).toLocaleDateString()"></span>
+                </div>
+                <p class="text-label-sm text-on-surface line-clamp-2" x-text="f.description"></p>
+            </div>
+        </template>
+        <div x-show="adherence.recent_feedback.length === 0" class="flex-1 flex flex-col items-center justify-center text-center p-md opacity-50">
+            <span class="material-symbols-outlined text-4xl mb-2">sentiment_satisfied</span>
+            <p class="text-label-sm">No recent side effects reported.</p>
+        </div>
+    </div>
 </section>
 </div>
 <!-- Bottom spacing for mobile nav -->
 <div class="h-24 md:hidden"></div>
 </main>
 <!-- Floating Action Button (Quick Report) -->
-<button class="fixed bottom-6 right-6 md:bottom-12 md:right-12 z-50 flex items-center justify-center gap-sm bg-surface-tint text-on-primary-fixed px-lg py-md rounded-full shadow-[0_0_30px_rgba(0,219,231,0.4)] hover:scale-105 hover:shadow-[0_0_40px_rgba(0,219,231,0.6)] transition-all duration-300 font-label-lg text-label-lg">
+<button @click="showFeedbackModal = true" class="fixed bottom-6 right-6 md:bottom-12 md:right-12 z-50 flex items-center justify-center gap-sm bg-surface-tint text-on-primary-fixed px-lg py-md rounded-full shadow-[0_0_30px_rgba(0,219,231,0.4)] hover:scale-105 hover:shadow-[0_0_40px_rgba(0,219,231,0.6)] transition-all duration-300 font-label-lg text-label-lg">
 <span class="material-symbols-outlined text-[24px]">report_problem</span>
 <span class="hidden md:inline">Report Side Effect</span>
 </button>
+
+<!-- Feedback Modal -->
+<div x-show="showFeedbackModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 backdrop-blur-md px-md" x-cloak>
+    <div class="glass-card w-full max-w-lg rounded-[32px] p-xl relative ambient-shadow border border-glass-border">
+        <button @click="showFeedbackModal = false" class="absolute top-6 right-6 text-on-surface-variant hover:text-on-surface">
+            <span class="material-symbols-outlined">close</span>
+        </button>
+        
+        <h2 class="font-headline-lg text-headline-lg text-on-surface mb-md">Report Side Effect</h2>
+        <form @submit.prevent="submitFeedback" class="space-y-md">
+            <div>
+                <label class="block text-label-sm text-on-surface-variant mb-xs">Related Medication</label>
+                <select x-model="feedback.medicine_id" class="w-full bg-glass-surface border border-glass-border rounded-xl px-md py-sm text-on-surface" required>
+                    <option value="">Select a medicine...</option>
+                    <template x-for="med in medicines" :key="med.id">
+                        <option :value="med.id" x-text="med.name"></option>
+                    </template>
+                </select>
+            </div>
+            <div>
+                <label class="block text-label-sm text-on-surface-variant mb-xs">Severity Level (1-4)</label>
+                <div class="grid grid-cols-4 gap-sm">
+                    <template x-for="s in [1,2,3,4]">
+                        <button type="button" @click="feedback.severity = s" 
+                            class="py-2 rounded-lg border border-glass-border transition-all font-bold"
+                            :class="feedback.severity === s ? 'bg-primary text-on-primary-fixed border-primary' : 'bg-glass-surface text-on-surface-variant hover:border-primary/50'"
+                            x-text="s">
+                        </button>
+                    </template>
+                </div>
+                <p x-show="feedback.severity === 4" class="text-status-error text-[10px] mt-2 font-bold flex items-center gap-1 animate-pulse">
+                    <span class="material-symbols-outlined text-sm">warning</span> SEVERITY 4 TRIGGERS EMERGENCY ESCALATION
+                </p>
+            </div>
+            <div>
+                <label class="block text-label-sm text-on-surface-variant mb-xs">When did this occur?</label>
+                <input x-model="feedback.occurred_at" type="datetime-local" class="w-full bg-glass-surface border border-glass-border rounded-xl px-md py-sm text-on-surface" required>
+            </div>
+            <div>
+                <label class="block text-label-sm text-on-surface-variant mb-xs">Describe what you are feeling</label>
+                <textarea x-model="feedback.description" maxlength="2000" class="w-full bg-glass-surface border border-glass-border rounded-xl px-md py-sm text-on-surface" rows="3" required placeholder="Describe symptoms, duration, etc."></textarea>
+            </div>
+            <button type="submit" class="w-full py-4 rounded-2xl bg-primary text-on-primary-fixed font-label-lg glow-cyan mt-md">Submit Report</button>
+        </form>
+    </div>
+</div>
+
+<!-- Emergency Contact Modal -->
+<div x-show="showContactModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 backdrop-blur-md px-md" x-cloak>
+    <div class="glass-card w-full max-w-md rounded-[32px] p-xl relative ambient-shadow border border-glass-border">
+        <button @click="showContactModal = false" class="absolute top-6 right-6 text-on-surface-variant hover:text-on-surface">
+            <span class="material-symbols-outlined">close</span>
+        </button>
+        
+        <h2 class="font-headline-lg text-headline-lg text-on-surface mb-md">Emergency Contact</h2>
+        <p class="text-label-sm text-on-surface-variant mb-lg">This person will be notified in case of a high-severity side effect report.</p>
+        
+        <form @submit.prevent="saveEmergencyContact" class="space-y-md">
+            <div>
+                <label class="block text-label-sm text-on-surface-variant mb-xs">Full Name</label>
+                <input x-model="emergencyContact.full_name" type="text" class="w-full bg-glass-surface border border-glass-border rounded-xl px-md py-sm text-on-surface" required placeholder="John Doe">
+            </div>
+            <div>
+                <label class="block text-label-sm text-on-surface-variant mb-xs">Relationship</label>
+                <input x-model="emergencyContact.relationship" type="text" class="w-full bg-glass-surface border border-glass-border rounded-xl px-md py-sm text-on-surface" required placeholder="e.g. Spouse, Parent">
+            </div>
+            <div>
+                <label class="block text-label-sm text-on-surface-variant mb-xs">Email Address</label>
+                <input x-model="emergencyContact.email" type="email" class="w-full bg-glass-surface border border-glass-border rounded-xl px-md py-sm text-on-surface" required placeholder="john@example.com">
+            </div>
+            <button type="submit" class="w-full py-4 rounded-2xl bg-primary text-on-primary-fixed font-label-lg glow-cyan mt-md">Save Contact</button>
+        </form>
+    </div>
+</div>
+
+<!-- Emergency Prompt (ADH-FR-34) -->
+<div x-show="showEmergencyPrompt" class="fixed inset-0 z-[70] flex items-center justify-center bg-status-error/20 backdrop-blur-xl px-md" x-cloak>
+    <div class="glass-card w-full max-w-md rounded-[32px] p-xl text-center border-2 border-status-error/50 shadow-[0_0_50px_rgba(239,68,68,0.3)]">
+        <div class="w-20 h-20 bg-status-error/10 rounded-full flex items-center justify-center mx-auto mb-md border border-status-error/30">
+            <span class="material-symbols-outlined text-status-error text-5xl animate-pulse">emergency</span>
+        </div>
+        <h2 class="font-headline-lg text-headline-lg text-on-surface mb-sm">Emergency Alert Triggered</h2>
+        <p class="text-body-md text-on-surface-variant mb-xl">Your provider and emergency contact have been notified. Please contact emergency services immediately if you are in danger.</p>
+        
+        <div class="flex flex-col gap-md">
+            <a href="tel:911" class="w-full py-4 rounded-2xl bg-status-error text-white font-label-lg flex items-center justify-center gap-sm shadow-xl">
+                <span class="material-symbols-outlined">call</span> Call Emergency Services (911)
+            </a>
+            <button @click="showEmergencyPrompt = false" class="w-full py-3 rounded-xl border border-glass-border text-on-surface-variant hover:bg-glass-surface transition-all">Dismiss</button>
+        </div>
+    </div>
+</div>
 <!-- Mobile Bottom Nav (Simulated Shell) -->
 <nav class="md:hidden fixed bottom-0 left-0 w-full h-20 bg-glass-surface backdrop-blur-3xl border-t border-glass-border z-40 flex justify-around items-center px-sm pb-2">
 <a class="flex flex-col items-center gap-1 text-primary-fixed-dim" href="#">

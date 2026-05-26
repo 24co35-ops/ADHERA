@@ -8,12 +8,13 @@ router = APIRouter()
 async def get_provider_dashboard(user = Depends(require_role("provider"))):
     # 1. Fetch assigned patients
     assignments = supabase.table("assignments")\
-        .select("patient_id, profiles(id, full_name, contact_number)")\
+        .select("patient_id, profiles(id, full_name, email, contact_number)")\
         .eq("provider_id", user["user_id"])\
         .eq("status", "active")\
         .execute()
     
-    patient_ids = [a["patient_id"] for a in assignments.data]
+    patients = [a["profiles"] for a in assignments.data]
+    patient_ids = [p["id"] for p in patients]
     
     if not patient_ids:
         return {
@@ -22,47 +23,51 @@ async def get_provider_dashboard(user = Depends(require_role("provider"))):
             "alerts": []
         }
 
-    # 2. Fetch adherence data for these patients
+    # 2. Fetch adherence summary (daily stats)
+    # Fetch data from the last 7 days for risk analysis
+    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
     adherence_data = supabase.table("adherence")\
         .select("user_id, status")\
         .in_("user_id", patient_ids)\
+        .gte("scheduled_utc", week_ago)\
         .execute()
     
-    # 3. Fetch recent alerts (feedback/side effects)
+    # 3. Fetch recent side-effect alerts (ADH-FR-42)
     alerts = supabase.table("feedback")\
-        .select("*, profiles(full_name)")\
+        .select("*, profiles(full_name), medicines(name)")\
         .in_("user_id", patient_ids)\
         .order("created_at", desc=True)\
-        .limit(5)\
+        .limit(10)\
         .execute()
 
-    # Calculate stats
-    total_doses = len(adherence_data.data)
-    taken_doses = len([d for d in adherence_data.data if d["status"] == "taken"])
-    avg_adherence = (taken_doses / total_doses * 100) if total_doses > 0 else 0
-    
-    # Critical risk: patients with < 70% adherence (simplified)
-    patient_stats = {}
+    # Process stats
+    patient_stats = {pid: {"taken": 0, "total": 0} for pid in patient_ids}
     for d in adherence_data.data:
         uid = d["user_id"]
-        if uid not in patient_stats:
-            patient_stats[uid] = {"taken": 0, "total": 0}
         patient_stats[uid]["total"] += 1
         if d["status"] == "taken":
             patient_stats[uid]["taken"] += 1
             
-    critical_risk = 0
-    for uid, s in patient_stats.items():
-        if (s["taken"] / s["total"]) < 0.7:
-            critical_risk += 1
+    critical_risk_count = 0
+    total_taken = 0
+    total_scheduled = 0
+    
+    for pid, s in patient_stats.items():
+        total_taken += s["taken"]
+        total_scheduled += s["total"]
+        rate = (s["taken"] / s["total"]) if s["total"] > 0 else 1.0
+        if rate < 0.7:
+            critical_risk_count += 1
+
+    avg_adherence = (total_taken / total_scheduled * 100) if total_scheduled > 0 else 0
 
     return {
         "stats": {
-            "avg_adherence": avg_adherence,
+            "avg_adherence": round(avg_adherence, 1),
             "active_patients": len(patient_ids),
-            "critical_risk": critical_risk
+            "critical_risk": critical_risk_count
         },
-        "patients": assignments.data,
+        "patients": patients,
         "alerts": alerts.data
     }
 

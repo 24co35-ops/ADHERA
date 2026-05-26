@@ -21,11 +21,7 @@ create policy "providers_see_assigned_profiles"
 create policy "admins_all_profiles"
   on public.profiles for all
   using (
-    exists (
-      select 1 from public.profiles
-      where id = auth.uid()
-        and role = 'admin'
-    )
+    (select role from public.profiles where id = auth.uid()) = 'admin'
   );
 
 -- MEDICINES
