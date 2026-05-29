@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, HTTPException, status, Depends
 from app.models.schemas import UserRegister, UserLogin, Token
 from app.db.supabase import supabase, supabase_admin
@@ -58,3 +59,10 @@ async def login(credentials: UserLogin):
 async def logout():
     supabase.auth.sign_out()
     return {"message": "Logged out successfully"}
+
+@router.get("/config")
+async def get_config():
+    return {
+        "supabase_url": os.environ.get("SUPABASE_URL"),
+        "supabase_anon_key": os.environ.get("SUPABASE_ANON_KEY")
+    }

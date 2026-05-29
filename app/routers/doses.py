@@ -15,6 +15,7 @@ async def update_dose_status(dose_id: str, dose_status: DoseStatus, user = Depen
     
     current_dose = dose.data[0]
     new_status = dose_status.status
+    correction_note = dose_status.correction_note
     
     # 2. Handle Snooze logic (ADH-FR-29)
     if new_status == "snoozed":
@@ -33,6 +34,7 @@ async def update_dose_status(dose_id: str, dose_status: DoseStatus, user = Depen
     # 3. Update dose record
     update_data = {
         "status": new_status,
+        "correction_note": correction_note,
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
     

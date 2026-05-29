@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.models.schemas import MedicineCreate, Medicine
 from app.db.supabase import supabase
@@ -9,7 +9,7 @@ router = APIRouter()
 @router.post("/", response_model=Medicine, status_code=status.HTTP_201_CREATED)
 async def create_medicine(medicine: MedicineCreate, user = Depends(get_current_user)):
     # Basic validation
-    if medicine.start_date < date.today():
+    if medicine.start_date < datetime.now(timezone.utc).date():
         raise HTTPException(status_code=400, detail="Start date cannot be in the past")
     
     data = medicine.model_dump()
