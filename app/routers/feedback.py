@@ -2,8 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.models.schemas import FeedbackCreate
 from app.db.supabase import supabase, supabase_admin
 from app.auth.dependencies import get_current_user
-import requests
-import os
 
 router = APIRouter()
 

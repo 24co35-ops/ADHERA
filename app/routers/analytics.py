@@ -51,6 +51,9 @@ async def export_adherence_csv(user = Depends(get_current_user)):
     file_path = f"{user['user_id']}/adherence_report_{timestamp}.csv"
     
     # Check if storage client is available (supabase_admin has service role for bucket access)
+    if not supabase_admin:
+        raise HTTPException(status_code=503, detail="Storage service unavailable: SUPABASE_SERVICE_ROLE_KEY not configured")
+
     try:
         # Note: Bucket 'reports' must exist and have RLS or be private
         storage_res = supabase_admin.storage.from_("reports").upload(
@@ -61,7 +64,7 @@ async def export_adherence_csv(user = Depends(get_current_user)):
         
         # 4. Generate Signed URL (valid for 15 minutes)
         signed_url = supabase_admin.storage.from_("reports").create_signed_url(file_path, 900)
-        return {"download_url": signed_url["signedURL"]}
+        return {"download_url": signed_url["signedUrl"]}
         
     except Exception as e:
         print(f"Storage Error: {e}")
