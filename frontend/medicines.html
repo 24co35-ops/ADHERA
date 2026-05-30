@@ -87,6 +87,13 @@
                 form: { name: '', dosage_amount: '', dosage_unit: 'mg', route: 'oral', frequency_type: 'daily', start_date: new Date().toISOString().split('T')[0], end_date: '', instructions: '' },
                 async init() {
                     if (!this.token) return window.location.href = 'index.html';
+                    const payload = JSON.parse(atob(this.token.split('.')[1]));
+                    if (payload.role !== 'patient') {
+                        if (payload.role === 'patient') return window.location.href = 'dashboard.html';
+                        if (payload.role === 'provider') return window.location.href = 'provider-dashboard.html';
+                        if (payload.role === 'admin') return window.location.href = 'admin-dashboard.html';
+                        return window.location.href = 'index.html';
+                    }
                     await this.fetchMedicines();
                 },
                 async api(path, method = 'GET', body = null) {

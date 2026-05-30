@@ -41,6 +41,8 @@
                 patient: {}, pid: new URLSearchParams(window.location.search).get('id'),
                 async init() {
                     if (!this.token || !this.pid) return window.location.href = 'provider-dashboard.html';
+                    const payload = JSON.parse(atob(this.token.split('.')[1]));
+                    if (payload.role !== 'provider') return window.location.href = 'index.html';
                     await this.fetchPatient();
                 },
                 async api(path, method = 'GET') {

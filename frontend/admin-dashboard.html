@@ -74,6 +74,13 @@
                 pending: [], assignments: [],
                 async init() {
                     if (!this.token) return window.location.href = 'index.html';
+                    const payload = JSON.parse(atob(this.token.split('.')[1]));
+                    if (payload.role !== 'admin') {
+                        if (payload.role === 'patient') return window.location.href = 'dashboard.html';
+                        if (payload.role === 'provider') return window.location.href = 'provider-dashboard.html';
+                        if (payload.role === 'admin') return window.location.href = 'admin-dashboard.html';
+                        return window.location.href = 'index.html';
+                    }
                     await Promise.all([this.fetchPending(), this.fetchAssignments()]);
                 },
                 async api(path, method = 'GET', body = null) {
