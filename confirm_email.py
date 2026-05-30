@@ -8,6 +8,6 @@ supabase = create_client(url, key)
 
 users = supabase.auth.admin.list_users()
 for u in users:
-    if u.email == "localtest@adhera.app" and not u.email_confirmed_at:
+    if u.email == "backendtest@adhera.app" and not getattr(u, 'email_confirmed_at', None):
         supabase.auth.admin.update_user_by_id(u.id, {"email_confirm": True})
         print(f"Confirmed {u.email}")

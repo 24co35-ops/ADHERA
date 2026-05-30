@@ -7,23 +7,52 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body { background: #0f172a; color: #f8fafc; font-family: sans-serif; }
-        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; }
+        input, select, textarea { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.12) !important; color: #e2e2e8 !important; border-radius: 12px !important; }
+        input:focus, select:focus, textarea:focus { outline: none !important; border-color: #00dbe7 !important; }
+        button[type="submit"], button.bg-cyan-600 { background: #00dbe7 !important; color: #002022 !important; border-radius: 12px !important; }
+        button.bg-slate-700 { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 12px !important; }
         [x-cloak] { display: none !important; }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center" x-data="loginData()">
     <div class="glass p-8 rounded-xl shadow-2xl w-full max-w-md">
-        <h1 class="text-3xl font-bold mb-6 text-cyan-400 text-center">Adhera</h1>
+        <div class="flex justify-center w-full mb-4" style="height: 60px;">
+    <div style="transform: scale(0.3); transform-origin: center;">
+        <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F2FF" />
+      <stop offset="100%" stop-color="#3B82F6" />
+    </linearGradient>
+    <filter id="blur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" />
+    </filter>
+  </defs>
+  <circle cx="100" cy="100" r="80" fill="url(#glow)" fill-opacity="0.1" stroke="url(#glow)" stroke-width="2" />
+  <circle cx="100" cy="100" r="60" fill="white" fill-opacity="0.05" style="backdrop-filter: blur(10px)" stroke="white" stroke-opacity="0.2" />
+  <path d="M100 60L135 140H115L100 105L85 140H65L100 60Z" fill="url(#glow)" />
+  <rect x="92" y="110" width="16" height="4" rx="2" fill="white" fill-opacity="0.8" />
+</svg>
+    </div>
+</div>
+        <!-- Registration success banner -->
+        <div x-show="registered" x-cloak class="bg-emerald-900/50 text-emerald-400 border border-emerald-500/30 p-3 rounded-xl mb-4 text-sm text-center">Registration successful. Please log in.</div>
+        <!-- Pending approval banner -->
+        <div x-show="pendingApproval" x-cloak class="bg-amber-900/50 text-amber-400 border border-amber-500/30 p-3 rounded-xl mb-4 text-sm text-center">Your provider account is pending admin approval. You will be notified once approved.</div>
+        <!-- Disabled account banner -->
+        <div x-show="accountDisabled" x-cloak class="bg-red-900/50 text-red-400 border border-red-500/30 p-3 rounded-xl mb-4 text-sm text-center">Your account has been disabled. Contact support.</div>
         <form @submit.prevent="login" class="space-y-4">
             <div>
                 <label class="block text-sm font-medium mb-1">Email</label>
-                <input type="email" x-model="email" class="w-full p-2 rounded bg-slate-800 border border-slate-700 text-white" required :disabled="loading">
+                <input id="email" type="email" x-model="email" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
             </div>
             <div>
                 <label class="block text-sm font-medium mb-1">Password</label>
-                <input type="password" x-model="password" class="w-full p-2 rounded bg-slate-800 border border-slate-700 text-white" required :disabled="loading">
+                <input id="password" type="password" x-model="password" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
             </div>
             <div x-show="error" x-cloak class="text-red-400 text-sm" x-text="error"></div>
             <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center" :disabled="loading">
@@ -31,42 +60,64 @@
                 <span x-text="loading ? 'Logging in...' : 'Login'"></span>
             </button>
             <div class="text-center text-sm mt-4">
-                <a href="register.html" class="text-cyan-400 hover:underline">Create an account</a>
+                <a href="register.html" class=" hover:underline">Create an account</a>
             </div>
         </form>
     </div>
 
     <script>
         const config = {
-            SUPABASE_URL: "http://localhost:8000", // API URL for local dev
+            SUPABASE_URL: "http://localhost:8000",
             SUPABASE_ANON_KEY: "anon_key_here"
         };
-        
+
         function loginData() {
             return {
                 email: '', password: '', error: null, loading: false,
+                registered: false, pendingApproval: false, accountDisabled: false,
+                init() {
+                    const params = new URLSearchParams(window.location.search);
+                    if (params.get('registered') === 'true') {
+                        this.registered = true;
+                        window.history.replaceState({}, '', window.location.pathname);
+                    }
+                },
                 async login() {
                     this.error = null; this.loading = true;
+                    this.pendingApproval = false; this.accountDisabled = false; this.registered = false;
                     try {
                         const res = await fetch(`${config.SUPABASE_URL}/v1/auth/login`, {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ email: this.email, password: this.password })
                         });
                         const data = await res.json();
-                        if (!data.success) throw new Error(data.error?.message || "Login failed");
-                        
+
+                        if (res.status === 403) {
+                            const detail = data.detail || data.error || {};
+                            const code = typeof detail === 'object' ? detail.code : '';
+                            if (code === 'ACCOUNT_PENDING_APPROVAL') {
+                                this.pendingApproval = true;
+                                return;
+                            } else if (code === 'ACCOUNT_DISABLED') {
+                                this.accountDisabled = true;
+                                return;
+                            }
+                            this.error = 'Invalid email or password.';
+                            return;
+                        }
+
+                        if (!data.success) throw new Error('Invalid email or password.');
+
                         const token = data.data.access_token;
                         sessionStorage.setItem("jwt", token);
-                        
-                        // Decode JWT payload without library
                         const payload = JSON.parse(atob(token.split('.')[1]));
                         const role = payload.user_metadata?.role || 'patient';
-                        
+
                         if (role === 'provider') window.location.href = 'provider-dashboard.html';
                         else if (role === 'admin') window.location.href = 'admin-dashboard.html';
                         else window.location.href = 'dashboard.html';
-                        
-                    } catch (e) { this.error = e.message; }
+
+                    } catch (e) { this.error = 'Invalid email or password.'; }
                     finally { this.loading = false; }
                 }
             }

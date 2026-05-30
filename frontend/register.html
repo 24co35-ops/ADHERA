@@ -6,50 +6,55 @@
     <title>Adhera - Register</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <style>
-        body { background: #0f172a; color: #f8fafc; font-family: sans-serif; }
-        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; }
+        input, select, textarea { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.12) !important; color: #e2e2e8 !important; border-radius: 12px !important; }
+        input:focus, select:focus, textarea:focus { outline: none !important; border-color: #00dbe7 !important; }
+        button[type="submit"], button.bg-cyan-600 { background: #00dbe7 !important; color: #002022 !important; border-radius: 12px !important; }
+        button.bg-slate-700 { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 12px !important; }
         [x-cloak] { display: none !important; }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4" x-data="registerData()">
     <div class="glass p-8 rounded-xl shadow-2xl w-full max-w-lg">
-        <h1 class="text-3xl font-bold mb-6 text-cyan-400 text-center">Register</h1>
+        <h1 class="text-3xl font-bold mb-6  text-center">Register</h1>
         <div x-show="successMessage" x-cloak class="bg-green-900/50 text-green-400 p-4 rounded mb-4" x-text="successMessage"></div>
         <form @submit.prevent="register" class="space-y-4" x-show="!successMessage">
             <div>
                 <label class="block text-sm font-medium mb-1">Full Name</label>
-                <input type="text" x-model="form.full_name" class="w-full p-2 rounded bg-slate-800 border border-slate-700 text-white" required :disabled="loading">
+                <input type="text" x-model="form.full_name" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
             </div>
             <div>
                 <label class="block text-sm font-medium mb-1">Email</label>
-                <input type="email" x-model="form.email" class="w-full p-2 rounded bg-slate-800 border border-slate-700 text-white" required :disabled="loading">
+                <input type="email" x-model="form.email" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
             </div>
             <div>
                 <label class="block text-sm font-medium mb-1">Password</label>
-                <input type="password" x-model="form.password" class="w-full p-2 rounded bg-slate-800 border border-slate-700 text-white" required :disabled="loading">
+                <input type="password" x-model="form.password" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium mb-1">Role</label>
-                    <select x-model="form.role" class="w-full p-2 rounded bg-slate-800 border border-slate-700 text-white" required :disabled="loading">
+                    <select x-model="form.role" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
                         <option value="patient">Patient</option>
                         <option value="provider">Provider</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Date of Birth</label>
-                    <input type="date" x-model="form.date_of_birth" class="w-full p-2 rounded bg-slate-800 border border-slate-700 text-white" :disabled="loading">
+                    <input type="date" x-model="form.date_of_birth" class="w-full p-2 rounded bg-transparent border border-transparent text-white" :disabled="loading">
                 </div>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium mb-1">Contact Number</label>
-                    <input type="text" x-model="form.contact_number" class="w-full p-2 rounded bg-slate-800 border border-slate-700 text-white" :disabled="loading">
+                    <input type="text" x-model="form.contact_number" class="w-full p-2 rounded bg-transparent border border-transparent text-white" :disabled="loading">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Timezone (IANA)</label>
-                    <input type="text" x-model="form.timezone" class="w-full p-2 rounded bg-slate-800 border border-slate-700 text-white" required :disabled="loading" placeholder="e.g. UTC">
+                    <input type="text" x-model="form.timezone" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading" placeholder="e.g. UTC">
                 </div>
             </div>
             <div class="flex items-start mt-4">
@@ -62,7 +67,7 @@
                 <span x-text="loading ? 'Registering...' : 'Register'"></span>
             </button>
             <div class="text-center text-sm mt-4">
-                <a href="index.html" class="text-cyan-400 hover:underline">Back to Login</a>
+                <a href="index.html" class=" hover:underline">Back to Login</a>
             </div>
         </form>
     </div>
@@ -82,11 +87,10 @@
                         });
                         const data = await res.json();
                         if (!data.success) throw new Error(data.error?.message || "Registration failed");
-                        if (this.form.role === 'provider') this.successMessage = "Pending approval. Please wait for an admin to approve your account.";
-                        else {
-                            // In real app, might auto-login or ask to login. Requirements say "Patient success -> /dashboard.html".
-                            // But they need a token. If registration doesn't return token, redirect to login. Let's redirect to login.
-                            window.location.href = 'index.html';
+                        if (data.data?.pending) {
+                            this.successMessage = "Registration submitted. An admin will review your account within 24 hours.";
+                        } else {
+                            window.location.href = 'index.html?registered=true';
                         }
                     } catch (e) { this.error = e.message; }
                     finally { this.loading = false; }

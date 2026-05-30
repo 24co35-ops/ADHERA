@@ -25,3 +25,11 @@ class ReminderCreate(BaseModel):
     timezone: str
     recurrence_type: str
     recurrence_params: Optional[dict[str, Any]] = None
+
+class ReminderUpdate(BaseModel):
+    dose_label: Optional[str] = None
+    dose_time_utc: Optional[str] = None
+    timezone: Optional[str] = None
+    recurrence_type: Optional[str] = None
+    recurrence_params: Optional[dict[str, Any]] = None
+    is_active: Optional[bool] = None

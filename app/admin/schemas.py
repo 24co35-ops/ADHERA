@@ -11,4 +11,7 @@ class AssignmentUpdate(BaseModel):
     note: Optional[str] = None
 
 class UserUpdate(BaseModel):
-    is_active: bool
+    is_active: Optional[bool] = None
+
+class RejectBody(BaseModel):
+    reason: str

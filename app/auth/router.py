@@ -17,6 +17,10 @@ except ImportError:
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=SuccessResponse[dict])
 @limiter.limit("10/minute")
 async def register(request: Request, user_data: UserRegister):
+    # Admin cannot self-register
+    if user_data.role == "admin":
+        raise HTTPException(status_code=403, detail="Admin accounts cannot be self-registered.")
+
     try:
         res = supabase.auth.sign_up({
             "email": user_data.email,
@@ -33,7 +37,30 @@ async def register(request: Request, user_data: UserRegister):
         })
         if not res.user:
             raise HTTPException(status_code=400, detail="Registration failed.")
-        return SuccessResponse(data={"message": "Registration successful."})
+
+        # Patient: auto-approved. Provider: pending approval.
+        is_active = user_data.role == "patient"
+
+        from app.db.supabase import supabase_admin
+        if supabase_admin:
+            try:
+                supabase_admin.table("profiles").insert({
+                    "id": res.user.id,
+                    "full_name": user_data.full_name,
+                    "role": user_data.role,
+                    "date_of_birth": user_data.date_of_birth.isoformat() if user_data.date_of_birth else None,
+                    "contact_number": user_data.contact_number,
+                    "timezone": user_data.timezone,
+                    "is_active": is_active,
+                }).execute()
+            except Exception as ex:
+                print(f"Failed to create profile: {repr(ex)}")
+
+        log_audit_action("USER_REGISTERED", res.user.id, {"role": user_data.role, "is_active": is_active})
+
+        if user_data.role == "provider":
+            return SuccessResponse(data={"message": "Registration submitted. An admin will review your account within 24 hours.", "pending": True})
+        return SuccessResponse(data={"message": "Registration successful.", "pending": False})
     except AuthApiError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -48,14 +75,36 @@ async def login(request: Request, credentials: UserLogin):
         if not res.session:
             log_audit_action("LOGIN_FAILED", None, {"email": credentials.email})
             raise HTTPException(status_code=401, detail="Invalid email or password.")
+
+        # Check profile approval status
+        from app.db.supabase import supabase_admin
+        if supabase_admin:
+            user_id = res.user.id if res.user else None
+            if user_id:
+                prof = supabase_admin.table("profiles").select("role, is_active").eq("id", user_id).execute()
+                if prof.data:
+                    p = prof.data[0]
+                    if p.get("role") == "provider" and not p.get("is_active", True):
+                        raise HTTPException(
+                            status_code=403,
+                            detail={"code": "ACCOUNT_PENDING_APPROVAL", "message": "Your account is pending admin approval."}
+                        )
+                    if not p.get("is_active", True) and p.get("role") != "provider":
+                        raise HTTPException(
+                            status_code=403,
+                            detail={"code": "ACCOUNT_DISABLED", "message": "Your account has been disabled."}
+                        )
+
         return SuccessResponse(data=Token(
             access_token=res.session.access_token,
             refresh_token=res.session.refresh_token,
             token_type="bearer"
         ))
+    except HTTPException:
+        raise
     except AuthApiError as e:
         log_audit_action("LOGIN_FAILED", None, {"email": credentials.email, "reason": str(e)})
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
 
 @router.post("/logout", response_model=SuccessResponse[dict])
 @limiter.limit("10/minute")
@@ -72,7 +121,7 @@ async def forgot_password(request: Request, body: ForgotPassword):
     try:
         supabase.auth.reset_password_email(body.email)
     except Exception:
-        pass # ADH-FR-09: No email enumeration
+        pass
     return SuccessResponse(data={"message": "Reset link sent if email exists."})
 
 @router.post("/reset-password", response_model=SuccessResponse[dict])

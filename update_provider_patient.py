@@ -1,0 +1,175 @@
+html = r'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Details</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; }
+        input, select, textarea { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.12) !important; color: #e2e2e8 !important; border-radius: 12px !important; }
+        input:focus, select:focus, textarea:focus { outline: none !important; border-color: #00dbe7 !important; }
+        [x-cloak] { display: none !important; }
+        .tab-active { color: #00dbe7; border-bottom: 2px solid #00dbe7; }
+    </style>
+</head>
+<body x-data="patientData()" class="min-h-screen flex flex-col">
+    <nav class="glass p-4 sticky top-0 z-50 flex justify-between items-center mb-6 rounded-none border-t-0 border-l-0 border-r-0">
+        <a href="dashboard.html" class="flex items-center" style="height:40px;overflow:visible;">
+            <div style="transform:scale(0.25);transform-origin:left center;width:50px;">
+                <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00F2FF"/><stop offset="100%" stop-color="#3B82F6"/></linearGradient></defs><circle cx="100" cy="100" r="80" fill="url(#glow)" fill-opacity="0.1" stroke="url(#glow)" stroke-width="2"/><circle cx="100" cy="100" r="60" fill="white" fill-opacity="0.05" stroke="white" stroke-opacity="0.2"/><path d="M100 60L135 140H115L100 105L85 140H65L100 60Z" fill="url(#glow)"/><rect x="92" y="110" width="16" height="4" rx="2" fill="white" fill-opacity="0.8"/></svg>
+            </div>
+            <span style="color:#00dbe7;font-weight:700;font-size:1.5rem;letter-spacing:-0.02em;">Adhera</span>
+        </a>
+        <div class="space-x-4 text-sm">
+            <a href="provider-dashboard.html" class="hover:text-cyan-400">← Back</a>
+            <button @click="logout" class="text-red-400 hover:text-red-300">Logout</button>
+        </div>
+    </nav>
+
+    <main class="flex-1 px-4 md:px-8 max-w-[1280px] mx-auto w-full space-y-6 pb-12">
+        <!-- Patient Header -->
+        <div class="glass p-6 rounded-xl">
+            <h2 class="text-2xl font-bold" x-text="patient.full_name || 'Loading...'"></h2>
+            <div class="text-slate-400 text-sm mt-1" x-text="patient.contact_number || patient.timezone || ''"></div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-6 border-b border-white/10 pb-0">
+            <button @click="tab='overview'" class="pb-2 text-sm font-semibold transition-colors" :class="tab==='overview' ? 'tab-active' : 'text-slate-400 hover:text-white'">Overview</button>
+            <button @click="tab='adherence'" class="pb-2 text-sm font-semibold transition-colors" :class="tab==='adherence' ? 'tab-active' : 'text-slate-400 hover:text-white'">Adherence</button>
+            <button @click="tab='medicines'" class="pb-2 text-sm font-semibold transition-colors" :class="tab==='medicines' ? 'tab-active' : 'text-slate-400 hover:text-white'">Medicines & Timings</button>
+            <button @click="tab='feedback'; fetchFeedback()" class="pb-2 text-sm font-semibold transition-colors" :class="tab==='feedback' ? 'tab-active' : 'text-slate-400 hover:text-white'">Feedback</button>
+        </div>
+
+        <!-- Overview Tab -->
+        <div x-show="tab==='overview'" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="glass p-4 rounded-xl text-center"><span class="text-xs text-slate-400 uppercase tracking-wider block mb-1">Overall Adherence</span><span class="text-3xl font-bold text-cyan-300" x-text="(adherenceData.overall_percentage||0)+'%'"></span></div>
+            <div class="glass p-4 rounded-xl text-center"><span class="text-xs text-slate-400 uppercase tracking-wider block mb-1">Streak</span><span class="text-3xl font-bold" x-text="stats.streak||0"></span></div>
+            <div class="glass p-4 rounded-xl text-center"><span class="text-xs text-slate-400 uppercase tracking-wider block mb-1">Missed This Month</span><span class="text-3xl font-bold text-red-400" x-text="stats.missed_this_month||0"></span></div>
+            <div class="glass p-4 rounded-xl text-center"><span class="text-xs text-slate-400 uppercase tracking-wider block mb-1">Weekly</span><span class="text-3xl font-bold" x-text="(stats.weekly_adherence||0)+'%'"></span></div>
+        </div>
+
+        <!-- Adherence Tab -->
+        <div x-show="tab==='adherence'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="glass p-6 rounded-xl"><h3 class="font-bold mb-3">Weekly</h3><div class="h-48"><canvas id="ppWeekly"></canvas></div></div>
+            <div class="glass p-6 rounded-xl"><h3 class="font-bold mb-3">Monthly</h3><div class="h-48"><canvas id="ppMonthly"></canvas></div></div>
+        </div>
+
+        <!-- Medicines & Timings Tab -->
+        <div x-show="tab==='medicines'" class="space-y-4">
+            <div x-show="medsLoading" class="text-slate-400">Loading medicines...</div>
+            <template x-for="med in patientMeds" :key="med.id">
+                <div class="glass p-4 rounded-xl">
+                    <div class="flex justify-between items-center cursor-pointer" @click="toggleMedTimings(med.id)">
+                        <div><span class="font-bold text-cyan-50" x-text="med.name"></span><span class="text-sm text-slate-400 ml-2" x-text="med.dosage_amount+' '+med.dosage_unit+' '+med.route"></span></div>
+                        <svg class="w-4 h-4 text-slate-400 transition-transform" :class="expandedMed===med.id?'rotate-180':''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                    <div x-show="expandedMed===med.id" class="mt-3 border-t border-white/10 pt-3 space-y-2" x-cloak>
+                        <div class="flex justify-between items-center"><span class="text-xs text-slate-400 font-bold uppercase">Timings</span><button @click="addTimingFor=med.id;addForm={dose_label:'',dose_time_utc:'',recurrence_type:'daily',timezone:'UTC'}" class="text-xs text-cyan-400">+ Add</button></div>
+                        <template x-for="r in (timings[med.id]||[])" :key="r.id">
+                            <div class="bg-white/5 rounded-lg p-2 flex justify-between items-center text-sm">
+                                <div><span class="text-cyan-100" x-text="r.dose_label"></span> <span class="text-slate-400 ml-1" x-text="r.dose_time_utc"></span> <span class="text-slate-500 ml-1" x-text="r.recurrence_type"></span></div>
+                                <div class="flex gap-2"><button @click="editRem=r.id;editRemForm={dose_label:r.dose_label,dose_time_utc:r.dose_time_utc,recurrence_type:r.recurrence_type}" class="text-xs text-cyan-400">Edit</button><button @click="deleteRem(r.id,med.id)" class="text-xs text-red-400">Del</button></div>
+                            </div>
+                        </template>
+                        <!-- Edit form -->
+                        <div x-show="editRem && timings[med.id]?.some(r=>r.id===editRem)" class="bg-white/5 rounded-lg p-2 space-y-2" x-cloak>
+                            <div class="grid grid-cols-3 gap-2"><input type="text" x-model="editRemForm.dose_label" class="text-sm p-1"><input type="time" x-model="editRemForm.dose_time_utc" class="text-sm p-1"><select x-model="editRemForm.recurrence_type" class="text-sm p-1"><option value="daily">Daily</option><option value="weekday">Weekday</option><option value="alternate">Alternate</option></select></div>
+                            <div class="flex gap-2 justify-end"><button @click="saveEditRem(med.id)" class="text-xs bg-emerald-600 text-white px-2 py-1 rounded">Save</button><button @click="editRem=null" class="text-xs text-slate-400 px-2 py-1">Cancel</button></div>
+                        </div>
+                        <!-- Add form -->
+                        <div x-show="addTimingFor===med.id" class="bg-white/5 rounded-lg border border-cyan-500/20 p-2 space-y-2" x-cloak>
+                            <div class="grid grid-cols-3 gap-2"><input type="text" x-model="addForm.dose_label" placeholder="Label" class="text-sm p-1" maxlength="50"><input type="time" x-model="addForm.dose_time_utc" class="text-sm p-1"><select x-model="addForm.recurrence_type" class="text-sm p-1"><option value="daily">Daily</option><option value="weekday">Weekday</option><option value="alternate">Alternate</option></select></div>
+                            <div class="flex gap-2 justify-end"><button @click="saveAddTiming(med.id)" class="text-xs bg-cyan-600 text-white px-2 py-1 rounded">Add</button><button @click="addTimingFor=null" class="text-xs text-slate-400 px-2 py-1">Cancel</button></div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Feedback Tab -->
+        <div x-show="tab==='feedback'" class="space-y-4">
+            <div x-show="feedbackList.some(f=>f.severity===4)" class="bg-red-900/30 border border-red-500/30 p-3 rounded-xl flex items-center gap-2 text-sm text-red-400" x-cloak>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                ⚠ Emergency feedback on record — verify patient status.
+            </div>
+            <div x-show="fbLoading" class="text-slate-400">Loading feedback...</div>
+            <div x-show="!fbLoading && feedbackList.length===0" class="text-slate-500 py-4 text-center">No feedback submitted yet.</div>
+            <template x-for="fb in feedbackList" :key="fb.id">
+                <div class="glass p-4 rounded-xl">
+                    <div class="flex justify-between mb-2">
+                        <span class="font-medium text-cyan-100" x-text="fb.medicine_name || 'Unknown'"></span>
+                        <span class="text-xs px-2 py-0.5 rounded-full font-bold border" :class="{'bg-emerald-500/20 text-emerald-400 border-emerald-500/30':fb.severity===1,'bg-amber-500/20 text-amber-400 border-amber-500/30':fb.severity===2,'bg-orange-500/20 text-orange-400 border-orange-500/30':fb.severity===3,'bg-rose-500/20 text-rose-400 border-rose-500/30':fb.severity===4}" x-text="['','Mild','Moderate','Severe','Emergency'][fb.severity]+' ('+fb.severity+')'"></span>
+                    </div>
+                    <div class="text-sm text-slate-300 mb-2" x-text="fb.description"></div>
+                    <div class="text-xs text-slate-500 flex gap-4"><span x-text="'Occurred: '+new Date(fb.occurred_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})"></span><span x-text="'Submitted: '+new Date(fb.created_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})"></span></div>
+                </div>
+            </template>
+            <div x-show="feedbackList.length>=20 && !fbLoading" class="text-center"><button @click="loadMoreFb" class="text-sm text-cyan-400 hover:underline">Load more</button></div>
+        </div>
+    </main>
+
+    <script>
+        const config = { SUPABASE_URL: "http://localhost:8000" };
+        function patientData() {
+            return {
+                token: sessionStorage.getItem('jwt'), patient: {}, pid: new URLSearchParams(window.location.search).get('id'),
+                tab: 'overview', stats: {}, adherenceData: {}, trend: [],
+                patientMeds: [], medsLoading: false, expandedMed: null, timings: {},
+                editRem: null, editRemForm: {}, addTimingFor: null, addForm: {},
+                feedbackList: [], fbLoading: false, fbOffset: 0,
+                charts: {},
+                async init() {
+                    if (!this.token || !this.pid) return window.location.href = 'provider-dashboard.html';
+                    const payload = JSON.parse(atob(this.token.split('.')[1]));
+                    const role = payload.user_metadata?.role;
+                    if (role !== 'provider') return window.location.href = 'index.html';
+                    Chart.defaults.color = '#849495'; Chart.defaults.font.family = 'Inter';
+                    await Promise.all([this.fetchPatient(), this.fetchStats(), this.fetchMeds()]);
+                    this.$nextTick(() => this.initCharts());
+                },
+                async api(path, method='GET', body=null) {
+                    const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
+                    if (body) opts.body = JSON.stringify(body);
+                    const res = await fetch(`${config.SUPABASE_URL}/v1${path}`, opts);
+                    if (res.status === 401) { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
+                    const data = await res.json();
+                    if (!data.success) throw new Error(data.error?.message || 'Error');
+                    return data.data;
+                },
+                async fetchPatient() { try { this.patient = await this.api(`/provider/patients/${this.pid}`); } catch(e){} },
+                async fetchStats() {
+                    try {
+                        const [s,a,t] = await Promise.all([this.api(`/analytics/dashboard?patient_id=${this.pid}`),this.api(`/analytics/adherence?patient_id=${this.pid}`),this.api(`/analytics/trend?patient_id=${this.pid}`)]);
+                        this.stats = s; this.adherenceData = a; this.trend = t;
+                    } catch(e){}
+                },
+                async fetchMeds() { this.medsLoading=true; try { this.patientMeds = await this.api(`/medicines/?patient_id=${this.pid}`); } catch(e){} finally { this.medsLoading=false; } },
+                async toggleMedTimings(id) { if(this.expandedMed===id){this.expandedMed=null;return;} this.expandedMed=id; try{this.timings[id]=await this.api(`/medicines/${id}/reminders`);}catch(e){this.timings[id]=[];} },
+                async saveAddTiming(medId) { try{await this.api(`/medicines/${medId}/reminders`,'POST',this.addForm);this.addTimingFor=null;this.timings[medId]=await this.api(`/medicines/${medId}/reminders`);}catch(e){} },
+                async saveEditRem(medId) { try{await this.api(`/reminders/${this.editRem}`,'PATCH',this.editRemForm);this.editRem=null;this.timings[medId]=await this.api(`/medicines/${medId}/reminders`);}catch(e){} },
+                async deleteRem(remId,medId) { if(!confirm('Delete?'))return; try{await this.api(`/reminders/${remId}`,'DELETE');this.timings[medId]=await this.api(`/medicines/${medId}/reminders`);}catch(e){} },
+                async fetchFeedback() { this.fbLoading=true;this.fbOffset=0; try{this.feedbackList=await this.api(`/feedback/?patient_id=${this.pid}&limit=20&offset=0`);}catch(e){this.feedbackList=[];} finally{this.fbLoading=false;} },
+                async loadMoreFb() { this.fbOffset+=20; try{const more=await this.api(`/feedback/?patient_id=${this.pid}&limit=20&offset=${this.fbOffset}`);this.feedbackList=[...this.feedbackList,...more];}catch(e){} },
+                processTrend(days) { const now=new Date();const map={};for(let i=days-1;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);map[d.toISOString().split('T')[0]]={taken:0,total:0};}this.trend.forEach(t=>{const ds=t.scheduled_utc.split('T')[0];if(map[ds]){map[ds].total++;if(t.status==='taken')map[ds].taken++;}});const labels=[],data=[];for(const[date,c] of Object.entries(map)){labels.push(new Date(date).toLocaleDateString(undefined,{month:'short',day:'numeric'}));data.push(c.total>0?Math.round(c.taken/c.total*100):0);}return{labels,data};},
+                initCharts() {
+                    const co={responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:100,grid:{color:'rgba(255,255,255,0.05)'}},x:{grid:{display:false}}},plugins:{legend:{display:false}}};
+                    const w=this.processTrend(7),m=this.processTrend(30);
+                    const wc=document.getElementById('ppWeekly'),mc=document.getElementById('ppMonthly');
+                    if(wc)this.charts.w=new Chart(wc,{type:'bar',data:{labels:w.labels,datasets:[{data:w.data,backgroundColor:'#00dbe7',borderRadius:4}]},options:co});
+                    if(mc)this.charts.m=new Chart(mc,{type:'line',data:{labels:m.labels,datasets:[{data:m.data,borderColor:'#0566d9',backgroundColor:'rgba(5,102,217,0.1)',borderWidth:3,tension:0.4,fill:true,pointRadius:2}]},options:co});
+                },
+                logout() { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
+            }
+        }
+    </script>
+</body>
+</html>'''
+
+with open('frontend/provider-patient.html', 'w', encoding='utf-8') as f:
+    f.write(html)
