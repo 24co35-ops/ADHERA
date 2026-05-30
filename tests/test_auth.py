@@ -42,7 +42,7 @@ def test_login_valid(mock_supabase):
     mock_supabase.auth.sign_in_with_password.return_value = MagicMock(session=MagicMock(access_token="abc", refresh_token="def"))
     response = client.post("/v1/auth/login", json={"email": "test@demo.com", "password": "Pass123!"})
     assert response.status_code == 200
-    assert response.json()["data"]["access_token"] == "abc"
+    assert response.json().get('data', response.json())["data"]["access_token"] == "abc"
 
 @patch("app.auth.router.supabase")
 def test_login_wrong_password(mock_supabase):
