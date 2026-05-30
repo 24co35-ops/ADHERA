@@ -1,66 +1,35 @@
 import pytest
 from fastapi.testclient import TestClient
+from unittest.mock import patch, MagicMock
 from app.main import app
-from app.auth.dependencies import get_current_user
-from unittest.mock import MagicMock, patch
+import jwt
+from app.config import settings
 
 client = TestClient(app)
 
-def mock_get_current_user():
-    return {"user_id": "test-user", "role": "patient"}
+def headers():
+    token = jwt.encode({"aud": "authenticated", "sub": "user123", "user_metadata": {"role": "patient"}}, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+    return {"Authorization": f"Bearer {token}"}
 
-@patch("app.routers.feedback.supabase")
-def test_create_feedback_normal(mock_supabase):
-    mock_supabase.table.return_value.insert.return_value.execute.return_value.data = [
-        {"id": "fb-id", "severity": 1}
-    ]
-    
-    app.dependency_overrides[get_current_user] = mock_get_current_user
-    
-    payload = {
-        "medicine_id": "med-id",
-        "description": "Mild headache",
-        "severity": 1,
-        "occurred_at": "2026-05-26T10:00:00Z"
-    }
-    
-    response = client.post("/v1/feedback/", json=payload)
-    app.dependency_overrides = {}
-    
-    assert response.status_code == 200
-    assert response.json()["id"] == "fb-id"
+@patch("app.feedback.router.supabase")
+def test_feedback_severity_1(mock_supabase):
+    mock_supabase.table().insert().execute.return_value = MagicMock(data=[{"id": "1"}])
+    res = client.post("/v1/feedback/", headers=headers(), json={
+        "medicine_id": "m1", "description": "Mild headache", "severity": 1
+    })
+    assert res.status_code == 201
 
-@patch("app.routers.feedback.supabase")
-def test_create_feedback_emergency(mock_supabase):
-    def mock_table(table_name):
-        mock = MagicMock()
-        if table_name == "feedback":
-            mock.insert.return_value.execute.return_value.data = [{"id": "emergency-fb-id", "severity": 4}]
-        elif table_name == "assignments":
-            mock.select.return_value.eq.return_value.eq.return_value.execute.return_value.data = [{"provider_id": "provider-id"}]
-        elif table_name == "profiles":
-            mock.select.return_value.eq.return_value.execute.return_value.data = [{"email": "provider@adhera.app"}]
-        elif table_name == "emergency_contacts":
-            mock.select.return_value.eq.return_value.execute.return_value.data = [{"email": "contact@emergency.com"}]
-        return mock
-
-    mock_supabase.table.side_effect = mock_table
+@patch("app.feedback.router.requests.post")
+@patch("app.feedback.router.supabase")
+def test_feedback_severity_4(mock_supabase, mock_requests_post):
+    mock_supabase.table().insert().execute.return_value = MagicMock(data=[{"id": "2"}])
+    mock_supabase.table().select().eq().eq().execute.return_value = MagicMock(data=[{"profiles": {"email": "p@demo.com"}}])
     
-    app.dependency_overrides[get_current_user] = mock_get_current_user
+    res = client.post("/v1/feedback/", headers=headers(), json={
+        "medicine_id": "m1", "description": "Emergency", "severity": 4
+    })
     
-    payload = {
-        "medicine_id": "med-id",
-        "description": "Severe chest pain",
-        "severity": 4,
-        "occurred_at": "2026-05-26T10:00:00Z"
-    }
-    
-    with patch("builtins.print") as mock_print:
-        response = client.post("/v1/feedback/", json=payload)
-        
-        mock_print.assert_any_call("Alerting Provider: provider@adhera.app")
-        mock_print.assert_any_call("Alerting Emergency Contact: contact@emergency.com")
-
-    app.dependency_overrides = {}
-    assert response.status_code == 200
-    assert response.json()["severity"] == 4
+    assert res.status_code == 201
+    mock_requests_post.assert_called_once()
+    args, kwargs = mock_requests_post.call_args
+    assert "/functions/v1/emergency-alert" in args[0]

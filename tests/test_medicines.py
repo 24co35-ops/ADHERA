@@ -1,61 +1,47 @@
 import pytest
 from fastapi.testclient import TestClient
+from unittest.mock import patch
 from app.main import app
-from app.auth.dependencies import get_current_user
-from unittest.mock import MagicMock, patch
+import jwt
+from app.config import settings
 
 client = TestClient(app)
 
-def mock_get_current_user():
-    return {"user_id": "test-user", "role": "patient"}
+def get_token(role="patient"):
+    return jwt.encode({"aud": "authenticated", "sub": "user123", "user_metadata": {"role": role}}, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
 
-@patch("app.routers.medicines.supabase")
-def test_create_medicine(mock_supabase):
-    mock_supabase.table.return_value.insert.return_value.execute.return_value.data = [
-        {
-            "id": "med-id",
-            "user_id": "test-user",
-            "name": "Aspirin",
-            "dosage_amount": 100,
-            "dosage_unit": "mg",
-            "route": "oral",
-            "frequency_type": "daily",
-            "start_date": "2026-01-01",
-            "is_active": True
-        }
-    ]
-    
-    app.dependency_overrides[get_current_user] = mock_get_current_user
-    
-    payload = {
-        "name": "Aspirin",
-        "dosage_amount": 100,
-        "dosage_unit": "mg",
-        "route": "oral",
-        "frequency_type": "daily",
-        "start_date": "2026-06-01"
-    }
-    
-    response = client.post("/v1/medicines/", json=payload)
-    app.dependency_overrides = {}
-    
-    assert response.status_code == 201
-    assert response.json()["name"] == "Aspirin"
+def headers(role="patient"):
+    return {"Authorization": f"Bearer {get_token(role)}"}
 
-@patch("app.routers.medicines.supabase")
+@patch("app.medicines.router.supabase")
+def test_create_medicine_valid(mock_supabase):
+    mock_supabase.table().insert().execute.return_value = type('obj', (object,), {'data': [{'id': '1'}]})()
+    res = client.post("/v1/medicines/", headers=headers(), json={
+        "name": "Med A", "dosage_amount": 10, "dosage_unit": "mg", "route": "oral", "frequency_type": "daily", "start_date": "2025-01-01"
+    })
+    assert res.status_code == 201
+
+def test_create_medicine_missing_field():
+    res = client.post("/v1/medicines/", headers=headers(), json={"name": "Med A"})
+    assert res.status_code == 400
+
+@patch("app.medicines.router.supabase")
+def test_create_medicine_prn(mock_supabase):
+    mock_supabase.table().insert().execute.return_value = type('obj', (object,), {'data': [{'id': '1'}]})()
+    res = client.post("/v1/medicines/", headers=headers(), json={
+        "name": "Med PRN", "dosage_amount": 10, "dosage_unit": "mg", "route": "oral", "frequency_type": "prn", "start_date": "2025-01-01"
+    })
+    assert res.status_code == 201
+
+@patch("app.medicines.router.supabase")
+def test_update_medicine_valid(mock_supabase):
+    mock_supabase.table().update().eq().eq().execute.return_value = type('obj', (object,), {'data': [{'id': '1'}]})()
+    res = client.patch("/v1/medicines/1", headers=headers(), json={"dosage_amount": 20})
+    assert res.status_code == 200
+
+@patch("app.medicines.router.supabase")
 def test_soft_delete_medicine(mock_supabase):
-    # Mock update for soft delete
-    mock_supabase.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value.data = [
-        {"id": "med-id", "is_active": False}
-    ]
-    
-    app.dependency_overrides[get_current_user] = mock_get_current_user
-    
-    response = client.delete("/v1/medicines/med-id")
-    app.dependency_overrides = {}
-    
-    assert response.status_code == 200
-    assert response.json()["message"] == "Medicine deleted"
-    
-    # Verify the mock was called with is_active: False
-    mock_supabase.table.return_value.update.assert_called_with({"is_active": False})
+    mock_supabase.table().update().eq().eq().execute.return_value = type('obj', (object,), {'data': [{'id': '1'}]})()
+    res = client.delete("/v1/medicines/1", headers=headers())
+    assert res.status_code == 200
+    mock_supabase.table().update.assert_called_with({"is_active": False})

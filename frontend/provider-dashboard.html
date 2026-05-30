@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Provider Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: sans-serif; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body x-data="providerData()" class="min-h-screen flex flex-col">
+    <!-- Nav Header -->
+    <nav class="glass p-4 sticky top-0 z-50 flex justify-between items-center">
+        <div class="text-xl font-bold text-cyan-400">Adhera Provider</div>
+        <div class="space-x-4">
+            <button @click="logout" class="text-red-400 hover:text-red-300">Logout</button>
+        </div>
+    </nav>
+
+    <main class="flex-1 p-6 max-w-5xl mx-auto w-full space-y-6">
+        <div class="glass p-6 rounded-xl relative">
+            <h2 class="text-2xl font-bold mb-4">My Patients</h2>
+            <div x-show="loading" class="text-slate-400">Loading...</div>
+            <div x-show="!loading && patients.length === 0" class="text-slate-400">No active patients assigned.</div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse" x-show="patients.length > 0">
+                    <thead>
+                        <tr class="border-b border-slate-700">
+                            <th class="p-3">Patient Name</th>
+                            <th class="p-3">Contact</th>
+                            <th class="p-3">Adherence (Weekly)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="p in patients" :key="p.patient_id">
+                            <tr class="border-b border-slate-800 hover:bg-slate-800/50 cursor-pointer transition-colors" @click="window.location.href='provider-patient.html?id=' + p.patient_id">
+                                <td class="p-3 font-medium" x-text="p.profiles.full_name"></td>
+                                <td class="p-3 text-sm text-slate-400" x-text="p.profiles.contact_number"></td>
+                                <td class="p-3">
+                                    <div class="flex items-center">
+                                        <!-- Mock adherence value for now, real endpoint should return it or we fetch per patient -->
+                                        <span class="mr-2">N/A</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const config = { SUPABASE_URL: "http://localhost:8000" };
+        function providerData() {
+            return {
+                token: sessionStorage.getItem('jwt'),
+                patients: [], loading: true,
+                async init() {
+                    if (!this.token) return window.location.href = 'index.html';
+                    await this.fetchPatients();
+                },
+                async api(path, method = 'GET', body = null) {
+                    const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
+                    if (body) opts.body = JSON.stringify(body);
+                    const res = await fetch(`${config.SUPABASE_URL}/v1${path}`, opts);
+                    if (res.status === 401) { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
+                    const data = await res.json();
+                    if (!data.success) throw new Error(data.error?.message || "API Error");
+                    return data.data;
+                },
+                async fetchPatients() {
+                    try { this.patients = await this.api('/provider/patients'); } catch(e){} finally { this.loading = false; }
+                },
+                logout() { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
+            }
+        }
+    </script>
+</body>
+</html>

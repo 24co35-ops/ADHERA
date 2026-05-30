@@ -1,129 +1,81 @@
-import { serve } from "https://deno.land/std/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Resend } from "npm:resend"
+// @ts-ignore
+import webpush from "npm:web-push"
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"))
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+const supabase = createClient(
+  Deno.env.get("SUPABASE_URL") ?? "",
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+)
 
 serve(async (req) => {
-  console.log("Dispatching reminders...")
+  const payload = await req.json()
+  const { reminder_id, user_id, user_email, medicine_name, dosage, dose_label, scheduled_utc, attempt = 1 } = payload
 
-  // 1. Fetch due doses (Pending and due now)
-  const { data: dueDoses, error: doseError } = await supabase
-    .from('doses')
-    .select(`
-      id,
-      scheduled_utc,
-      status,
-      user_id,
-      reminders (
-        id,
-        dose_label,
-        medicines (
-          name,
-          dosage_amount,
-          dosage_unit
-        )
-      ),
-      profiles:user_id (
-        email,
-        full_name
-      )
-    `)
-    .eq('status', 'pending')
-    .lte('scheduled_utc', new Date().toISOString())
-    .is('last_notified_at', null)
+  const results = { email: "pending", push: "pending" }
 
-  if (doseError) return new Response(JSON.stringify({ error: doseError.message }), { status: 500 })
+  const emailBody = `
+    <h2>Time to take ${medicine_name}</h2>
+    <p>Dosage: ${dosage}</p>
+    <p>Time: ${dose_label}</p>
+    <a href="https://adhera.app/doses/${reminder_id}/taken">Mark Taken</a>
+    <br/>
+    <a href="https://adhera.app/doses/${reminder_id}/missed">Mark Missed</a>
+  `
 
-  // 2. Fetch pending retries
-  const { data: retries, error: retryError } = await supabase
-    .from('notification_retries')
-    .select(`
-      id,
-      dose_id,
-      retry_count,
-      doses (
-        id,
+  try {
+    await resend.emails.send({
+      from: "Adhera <reminders@adhera.app>",
+      to: user_email,
+      subject: `Time to take ${medicine_name}`,
+      html: emailBody
+    })
+    results.email = "sent"
+  } catch (err) {
+    results.email = `failed: ${err.message}`
+    if (attempt < 3) {
+      await supabase.table("notification_retries").insert({
+        reminder_id,
         user_id,
-        reminders (
-          medicines (
-            name,
-            dosage_amount,
-            dosage_unit
-          )
-        ),
-        profiles:user_id (
-          email
-        )
-      )
-    `)
-    .eq('is_resolved', false)
-    .lte('next_attempt_at', new Date().toISOString())
-
-  if (retryError) return new Response(JSON.stringify({ error: retryError.message }), { status: 500 })
-
-  const allToProcess = [
-    ...dueDoses.map(d => ({ dose: d, isRetry: false })),
-    ...retries.map(r => ({ dose: r.doses, isRetry: true, retryId: r.id, count: r.retry_count }))
-  ]
-
-  for (const item of allToProcess) {
-    const { dose, isRetry, retryId, count } = item
-    const medicine = dose.reminders.medicines
-    const user = dose.profiles
-
-    try {
-      // Send Email
-      await resend.emails.send({
-        from: "Adhera <reminders@adhera.app>",
-        to: user.email,
-        subject: `Reminder: ${medicine.name}`,
-        html: `<p>Hi ${user.full_name || 'there'}, it is time to take your <b>${medicine.name}</b> (${medicine.dosage_amount} ${medicine.dosage_unit}).</p>`
+        payload,
+        attempt: attempt + 1,
+        next_retry_utc: new Date(Date.now() + 5 * 60000).toISOString()
       })
-
-      // Update dose as notified
-      await supabase.from('doses').update({ last_notified_at: new Date().toISOString() }).eq('id', dose.id)
-      
-      // 2. Browser Push (Placeholder - ADH-FR-23)
-      // if (user.push_subscription) {
-      //   await webpush.sendNotification(user.push_subscription, ...)
-      // }
-
-      if (isRetry) {
-        await supabase.from('notification_retries').update({ is_resolved: true }).eq('id', retryId)
-      }
-
-    } catch (err) {
-      console.error(`Failed to dispatch for dose ${dose.id}:`, err)
-      
-      if (!isRetry) {
-        // Create first retry
-        await supabase.from('notification_retries').insert({
-          dose_id: dose.id,
-          retry_count: 1,
-          next_attempt_at: new Date(Date.now() + 5 * 60000).toISOString(),
-          last_error: err.message
-        })
-      } else if (count < 3) {
-        // Increment retry
-        await supabase.from('notification_retries').update({
-          retry_count: count + 1,
-          next_attempt_at: new Date(Date.now() + 5 * 60000).toISOString(),
-          last_error: err.message
-        }).eq('id', retryId)
-      } else {
-        // Max retries reached
-        await supabase.from('notification_retries').update({
-          is_resolved: true,
-          last_error: `Max retries reached: ${err.message}`
-        }).eq('id', retryId)
-      }
     }
   }
 
-  return new Response(JSON.stringify({ processed: allToProcess.length }), { status: 200 })
+  // Push notification
+  const { data: subData } = await supabase
+    .table("push_subscriptions")
+    .select("subscription")
+    .eq("user_id", user_id)
+    .single()
+
+  if (subData?.subscription) {
+    try {
+      webpush.setVapidDetails(
+        'mailto:reminders@adhera.app',
+        Deno.env.get("VAPID_PUBLIC_KEY") ?? "",
+        Deno.env.get("VAPID_PRIVATE_KEY") ?? ""
+      )
+      await webpush.sendNotification(
+        subData.subscription,
+        JSON.stringify({ medicine_name, dosage, reminder_id })
+      )
+      results.push = "sent"
+    } catch {
+      results.push = "failed"
+    }
+  }
+
+  // Log to system_events
+  await supabase.table("system_events").insert({
+    event_type: "REMINDER_DISPATCH",
+    target_id: reminder_id,
+    metadata: results
+  })
+
+  return new Response(JSON.stringify(results), { headers: { "Content-Type": "application/json" } })
 })

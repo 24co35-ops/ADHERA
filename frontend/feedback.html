@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adhera - Feedback</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        body { background: #0f172a; color: #f8fafc; font-family: sans-serif; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body x-data="feedbackData()" class="min-h-screen flex flex-col">
+    <!-- Nav Header -->
+    <nav class="glass p-4 sticky top-0 z-50 flex justify-between items-center">
+        <div class="text-xl font-bold text-cyan-400">Adhera</div>
+        <div class="space-x-4">
+            <a href="dashboard.html" class="hover:text-cyan-400">Dashboard</a>
+            <a href="medicines.html" class="hover:text-cyan-400">Medicines</a>
+            <a href="feedback.html" class="hover:text-cyan-400">Feedback</a>
+            <button @click="logout" class="text-red-400 hover:text-red-300">Logout</button>
+        </div>
+    </nav>
+
+    <main class="flex-1 p-6 max-w-3xl mx-auto w-full space-y-6">
+        <div class="glass p-6 rounded-xl relative">
+            <h2 class="text-2xl font-bold mb-4">Report Feedback/Side Effect</h2>
+            
+            <div x-show="form.severity == '4'" x-cloak class="bg-red-900/50 text-red-200 border border-red-500 p-4 rounded mb-4">
+                <strong>Warning:</strong> You have selected Emergency severity. Submitting this will immediately alert your provider and emergency contacts.
+            </div>
+
+            <form @submit.prevent="attemptSubmit" class="space-y-4">
+                <div>
+                    <label class="block text-sm mb-1">Medicine</label>
+                    <select x-model="form.medicine_id" class="w-full p-2 rounded bg-slate-800 border-slate-700 text-white" required :disabled="loading">
+                        <template x-for="med in medicines" :key="med.id">
+                            <option :value="med.id" x-text="med.name"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1 flex justify-between">
+                        <span>Description</span>
+                        <span class="text-slate-400 text-xs" x-text="(2000 - form.description.length) + ' left'"></span>
+                    </label>
+                    <textarea x-model="form.description" maxlength="2000" rows="4" class="w-full p-2 rounded bg-slate-800 border-slate-700 text-white" required :disabled="loading"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">Severity</label>
+                    <select x-model="form.severity" class="w-full p-2 rounded bg-slate-800 border-slate-700 text-white" required :disabled="loading">
+                        <option value="1">1 - Mild</option>
+                        <option value="2">2 - Moderate</option>
+                        <option value="3">3 - Severe</option>
+                        <option value="4">4 - Emergency</option>
+                    </select>
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-6 rounded disabled:opacity-50" :disabled="loading">Submit</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="glass p-6 rounded-xl">
+            <h3 class="text-xl font-bold mb-4">History</h3>
+            <div class="space-y-3">
+                <template x-for="fb in history" :key="fb.id">
+                    <div class="bg-slate-800/50 p-4 rounded border border-slate-700">
+                        <div class="flex justify-between items-start mb-2">
+                            <div><span class="text-sm text-slate-400" x-text="new Date(fb.created_at).toLocaleString()"></span></div>
+                            <div class="px-2 py-1 rounded text-xs font-bold" :class="{'bg-red-900/50 text-red-400': fb.severity >= 3, 'bg-yellow-900/50 text-yellow-400': fb.severity < 3}" x-text="'Sev ' + fb.severity"></div>
+                        </div>
+                        <div class="text-sm" x-text="fb.description"></div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </main>
+
+    <!-- Emergency Modal -->
+    <div x-show="showModal" x-cloak class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-slate-900 border border-red-500 p-8 rounded-xl max-w-md w-full text-center space-y-6">
+            <h3 class="text-2xl font-bold text-red-500">EMERGENCY</h3>
+            <p class="text-lg">If you are in immediate danger, please call <strong>112</strong> or your local emergency services immediately.</p>
+            <div class="flex flex-col space-y-3">
+                <button @click="submit" class="bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded w-full">I understand, continue</button>
+                <button @click="showModal = false" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded w-full">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const config = { SUPABASE_URL: "http://localhost:8000" };
+        function feedbackData() {
+            return {
+                token: sessionStorage.getItem('jwt'),
+                medicines: [], history: [], loading: false, showModal: false,
+                form: { medicine_id: '', description: '', severity: '1' },
+                async init() {
+                    if (!this.token) return window.location.href = 'index.html';
+                    await Promise.all([this.fetchMedicines(), this.fetchHistory()]);
+                },
+                async api(path, method = 'GET', body = null) {
+                    const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
+                    if (body) opts.body = JSON.stringify(body);
+                    const res = await fetch(`${config.SUPABASE_URL}/v1${path}`, opts);
+                    if (res.status === 401) { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
+                    const data = await res.json();
+                    if (!data.success) throw new Error(data.error?.message || "API Error");
+                    return data.data;
+                },
+                async fetchMedicines() {
+                    try { this.medicines = await this.api('/medicines/'); if(this.medicines.length) this.form.medicine_id = this.medicines[0].id; } catch(e){}
+                },
+                async fetchHistory() {
+                    try { this.history = await this.api('/feedback/'); this.history.reverse(); } catch(e){}
+                },
+                attemptSubmit() {
+                    if (this.form.severity == 4) this.showModal = true;
+                    else this.submit();
+                },
+                async submit() {
+                    this.showModal = false; this.loading = true;
+                    try {
+                        await this.api('/feedback/', 'POST', { ...this.form, severity: parseInt(this.form.severity) });
+                        this.form.description = ''; this.form.severity = '1';
+                        await this.fetchHistory();
+                    } catch(e){} finally { this.loading = false; }
+                },
+                logout() { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
+            }
+        }
+    </script>
+</body>
+</html>

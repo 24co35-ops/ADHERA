@@ -1,0 +1,27 @@
+from pydantic import BaseModel, EmailStr
+from datetime import date
+from typing import Optional
+
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: str
+    role: str
+    date_of_birth: Optional[date] = None
+    contact_number: Optional[str] = None
+    timezone: str = "UTC"
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class ForgotPassword(BaseModel):
+    email: EmailStr
+
+class ResetPassword(BaseModel):
+    password: str
+
+class Token(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str
