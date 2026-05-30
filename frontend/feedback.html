@@ -137,7 +137,7 @@
                 async api(path, method = 'GET', body = null) {
                     const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
                     if (body) opts.body = JSON.stringify(body);
-                    const res = await fetch(`${config.SUPABASE_URL}/v1${path}`, opts);
+                    const res = await fetch(`${CONFIG.API_BASE}${path}`, opts);
                     if (res.status === 401) { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
                     const data = await res.json();
                     if (!data.success) throw new Error(data.error?.message || "API Error");

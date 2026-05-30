@@ -83,7 +83,7 @@
                     try {
                         const payload = { ...this.form };
                         if (!payload.date_of_birth) delete payload.date_of_birth;
-                        const res = await fetch(`${config.SUPABASE_URL}/v1/auth/register`, {
+                        const res = await fetch(`${CONFIG.API_BASE}/auth/register`, {
                             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
                         });
                         const data = await res.json();

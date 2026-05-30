@@ -163,13 +163,17 @@
     <script>
         const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", ""), SUPABASE_JS_URL: "https://olsgvrmxqsftymsbeqve.supabase.co", SUPABASE_ANON: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sc2d2cm14cXNmdHltc2JlcXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2OTA0MjksImV4cCI6MjA5NTI2NjQyOX0.aZLBUgVPtRaCKbjHu8ljvsKOYWU6TDXO1gAE79jq9cM" };
         
+        let weeklyChartInstance = null;
+        let monthlyChartInstance = null;
+        let chartsInitialized = false;
+        
         function dashboardData() {
             return {
                 token: sessionStorage.getItem('jwt'),
                 doses: [], dosesLoading: true, actionLoading: null,
                 stats: {}, adherence: {}, trend: [],
                 feedback: [], fbLoading: true, loading: true,
-                charts: {}, presenceChannel: null,
+                presenceChannel: null,
                 
                 async init() {
                     if (!this.token) return window.location.href = 'index.html';
@@ -184,7 +188,10 @@
                     Chart.defaults.color = '#849495';
                     Chart.defaults.font.family = 'Inter';
                     
-                    this.initCharts();
+                    if (!chartsInitialized) {
+                        this.initCharts();
+                        chartsInitialized = true;
+                    }
                     await this.fetchAll();
                     this.setupRealtime();
                 },
@@ -194,7 +201,7 @@
                 async api(path, method = 'GET', body = null) {
                     const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
                     if (body) opts.body = JSON.stringify(body);
-                    const res = await fetch(`${config.SUPABASE_URL}/v1${path}`, opts);
+                    const res = await fetch(`${CONFIG.API_BASE}${path}`, opts);
                     if (res.status === 401) { if(this.presenceChannel) this.presenceChannel.untrack(); sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
                     const data = await res.json();
                     if (!data.success) throw new Error(data.error?.message || "API Error");
@@ -271,7 +278,8 @@
                     
                     const wc = document.getElementById('weeklyChart');
                     if(wc) {
-                        this.charts.weekly = new Chart(wc, { 
+                        if (weeklyChartInstance) { weeklyChartInstance.destroy(); weeklyChartInstance = null; }
+                        weeklyChartInstance = new Chart(wc, { 
                             type: 'bar', 
                             data: { labels: [], datasets: [{ data: [], backgroundColor: 'rgba(0, 219, 231, 0.8)', hoverBackgroundColor: '#00dbe7', borderRadius: 4 }] }, 
                             options: commonOptions 
@@ -280,7 +288,8 @@
                     
                     const mc = document.getElementById('monthlyChart');
                     if(mc) {
-                        this.charts.monthly = new Chart(mc, { 
+                        if (monthlyChartInstance) { monthlyChartInstance.destroy(); monthlyChartInstance = null; }
+                        monthlyChartInstance = new Chart(mc, { 
                             type: 'line', 
                             data: { labels: [], datasets: [{ data: [], borderColor: '#0566d9', backgroundColor: 'rgba(5, 102, 217, 0.1)', borderWidth: 3, tension: 0.4, fill: true, pointBackgroundColor: '#111318', pointBorderColor: '#0566d9', pointBorderWidth: 2, pointRadius: 3, pointHoverRadius: 6 }] }, 
                             options: commonOptions 
@@ -289,17 +298,17 @@
                 },
                 updateCharts() {
                     const weekly = this.processTrendData(7);
-                    if (this.charts.weekly) { 
-                        this.charts.weekly.data.labels = weekly.labels;
-                        this.charts.weekly.data.datasets[0].data = weekly.data; 
-                        this.charts.weekly.update(); 
+                    if (weeklyChartInstance) { 
+                        weeklyChartInstance.data.labels = weekly.labels;
+                        weeklyChartInstance.data.datasets[0].data = weekly.data; 
+                        weeklyChartInstance.update('none'); 
                     }
                     
                     const monthly = this.processTrendData(30);
-                    if (this.charts.monthly) { 
-                        this.charts.monthly.data.labels = monthly.labels;
-                        this.charts.monthly.data.datasets[0].data = monthly.data; 
-                        this.charts.monthly.update(); 
+                    if (monthlyChartInstance) { 
+                        monthlyChartInstance.data.labels = monthly.labels;
+                        monthlyChartInstance.data.datasets[0].data = monthly.data; 
+                        monthlyChartInstance.update('none'); 
                     }
                 },
                 setupRealtime() {

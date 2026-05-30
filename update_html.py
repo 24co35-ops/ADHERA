@@ -1,35 +1,43 @@
-import os
+import os, re, glob
 
-html_dir = 'frontend'
-
-for filename in os.listdir(html_dir):
-    if filename.endswith('.html'):
-        filepath = os.path.join(html_dir, filename)
-        with open(filepath, 'r', encoding='utf-8') as f:
-            content = f.read()
-
-        changed = False
-
-        if '<script src="/config.js"></script>' not in content and '<script src="config.js"></script>' not in content:
-            content = content.replace('<head>', '<head>\n    <script src="config.js"></script>', 1)
-            changed = True
+def process():
+    files = glob.glob('frontend/**/*.html', recursive=True)
+    for f in files:
+        with open(f, 'r', encoding='utf-8') as file:
+            content = file.read()
         
-        if '"http://localhost:8000/v1"' in content:
-            content = content.replace('"http://localhost:8000/v1"', 'CONFIG.API_BASE')
-            changed = True
-        if "'http://localhost:8000/v1'" in content:
-            content = content.replace("'http://localhost:8000/v1'", 'CONFIG.API_BASE')
-            changed = True
+        orig_content = content
         
-        if '"http://localhost:8000"' in content:
-            content = content.replace('"http://localhost:8000"', 'CONFIG.API_BASE.replace("/v1", "")')
-            changed = True
-        
-        if "'http://localhost:8000'" in content:
-            content = content.replace("'http://localhost:8000'", 'CONFIG.API_BASE.replace("/v1", "")')
-            changed = True
+        # 1. Ensure config.js is the first script tag
+        if 'src="config.js"' not in content and 'src="/config.js"' not in content and 'src="../config.js"' not in content:
+            # Add correct relative path
+            depth = f.count(os.sep) - 1 # frontend/ is depth 0
+            if '/' in f:
+                depth = f.count('/') - 1
+            
+            prefix = '../' * depth if depth > 0 else ''
+            config_tag = f'<script src="{prefix}config.js"></script>'
+            
+            first_script_idx = content.find('<script')
+            if first_script_idx != -1:
+                content = content[:first_script_idx] + config_tag + '\n    ' + content[first_script_idx:]
+            else:
+                # insert in head
+                head_end_idx = content.find('</head>')
+                if head_end_idx != -1:
+                    content = content[:head_end_idx] + f'    {config_tag}\n' + content[head_end_idx:]
 
-        if changed:
-            with open(filepath, 'w', encoding='utf-8') as f:
-                f.write(content)
-            print(f"Updated {filename}")
+        # 2. Replace URLs
+        content = content.replace('RENDER_URL_PLACEHOLDER/v1', '${CONFIG.API_BASE}')
+        content = content.replace('RENDER_URL_PLACEHOLDER', '${CONFIG.API_BASE}')
+        content = content.replace('https://adhera-api-xxxx.onrender.com/v1', '${CONFIG.API_BASE}')
+        
+        content = content.replace('`${config.SUPABASE_URL}/v1', '`${CONFIG.API_BASE}')
+        content = content.replace('http://localhost:8000/v1', '${CONFIG.API_BASE}')
+        
+        if content != orig_content:
+            with open(f, 'w', encoding='utf-8') as file:
+                file.write(content)
+            print(f"Updated {f}")
+
+process()

@@ -1,16 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from app.db.supabase import supabase_admin
+from app.db.supabase import supabase
 from app.auth.dependencies import get_current_user
 from app.core.responses import SuccessResponse
 from app.feedback.schemas import FeedbackCreate
 from app.services.audit import log_audit_action
-import requests as http_requests
+import requests
 from app.config import settings
 
 router = APIRouter()
 
 def _check_assignment(provider_id: str, patient_id: str):
-    res = supabase_admin.table("assignments").select("id").eq("provider_id", provider_id).eq("patient_id", patient_id).eq("status", "active").execute()
+    res = supabase.table("assignments").select("id").eq("provider_id", provider_id).eq("patient_id", patient_id).eq("status", "active").execute()
     if not res.data:
         raise HTTPException(status_code=403, detail="Not assigned to this patient")
 
@@ -21,18 +21,22 @@ async def create_feedback(feedback: FeedbackCreate, user: dict = Depends(get_cur
         raise HTTPException(status_code=403, detail="Only patients can submit feedback")
     data = feedback.model_dump()
     data["user_id"] = user["user_id"]
-    res = supabase_admin.table("feedback").insert(data).execute()
+    res = supabase.table("feedback").insert(data).execute()
 
     if feedback.severity == 4:
         try:
             url = f"{settings.SUPABASE_URL}/functions/v1/emergency-alert"
             headers = {"Authorization": f"Bearer {settings.SUPABASE_ANON_KEY}", "Content-Type": "application/json"}
-            prov = supabase_admin.table("assignments").select("provider_id").eq("patient_id", user["user_id"]).eq("status", "active").execute()
-            cont = supabase_admin.table("emergency_contacts").select("email").eq("user_id", user["user_id"]).execute()
+            prov = supabase.table("assignments").select("profiles!provider_id(email)").eq("patient_id", user["user_id"]).eq("status", "active").execute()
+            cont = supabase.table("emergency_contacts").select("email").eq("user_id", user["user_id"]).execute()
             provider_email = None
             if prov.data:
-                prof = supabase_admin.table("profiles").select("contact_number").eq("id", prov.data[0]["provider_id"]).execute()
-                provider_email = prof.data[0].get("contact_number") if prof.data else None
+                p_item = prov.data[0]
+                if "profiles" in p_item and isinstance(p_item["profiles"], dict):
+                    provider_email = p_item["profiles"].get("email")
+                elif "provider_id" in p_item:
+                    prof = supabase.table("profiles").select("contact_number").eq("id", p_item["provider_id"]).execute()
+                    provider_email = prof.data[0].get("contact_number") if prof.data else None
             payload = {
                 "patient_id": user["user_id"],
                 "medicine_name": feedback.medicine_id,
@@ -41,7 +45,7 @@ async def create_feedback(feedback: FeedbackCreate, user: dict = Depends(get_cur
                 "provider_email": provider_email,
                 "emergency_contact_email": cont.data[0]["email"] if cont.data else None
             }
-            http_requests.post(url, headers=headers, json=payload, timeout=5)
+            requests.post(url, headers=headers, json=payload, timeout=5)
         except Exception:
             log_audit_action("EMERGENCY_ALERT_FAILED", user["user_id"], {"feedback_id": res.data[0]["id"] if res.data else None})
 
@@ -56,17 +60,17 @@ async def list_feedback(
 ):
     role = user.get("role", "patient")
     if role == "patient":
-        q = supabase_admin.table("feedback").select("*").eq("user_id", user["user_id"]).order("created_at", desc=True).range(offset, offset + limit - 1)
+        q = supabase.table("feedback").select("*").eq("user_id", user["user_id"]).order("created_at", desc=True).range(offset, offset + limit - 1)
     elif role == "provider":
         if not patient_id:
             raise HTTPException(status_code=400, detail="patient_id required for provider")
         _check_assignment(user["user_id"], patient_id)
-        q = supabase_admin.table("feedback").select("*").eq("user_id", patient_id).order("created_at", desc=True).range(offset, offset + limit - 1)
+        q = supabase.table("feedback").select("*").eq("user_id", patient_id).order("created_at", desc=True).range(offset, offset + limit - 1)
     elif role == "admin":
         if patient_id:
-            q = supabase_admin.table("feedback").select("*").eq("user_id", patient_id).order("created_at", desc=True).range(offset, offset + limit - 1)
+            q = supabase.table("feedback").select("*").eq("user_id", patient_id).order("created_at", desc=True).range(offset, offset + limit - 1)
         else:
-            q = supabase_admin.table("feedback").select("*").order("created_at", desc=True).range(offset, offset + limit - 1)
+            q = supabase.table("feedback").select("*").order("created_at", desc=True).range(offset, offset + limit - 1)
     else:
         raise HTTPException(status_code=403, detail="Forbidden")
     res = q.execute()

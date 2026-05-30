@@ -213,6 +213,8 @@
 
     <script>
         const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", ""), SUPABASE_JS_URL: "https://olsgvrmxqsftymsbeqve.supabase.co", SUPABASE_ANON: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sc2d2cm14cXNmdHltc2JlcXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2OTA0MjksImV4cCI6MjA5NTI2NjQyOX0.aZLBUgVPtRaCKbjHu8ljvsKOYWU6TDXO1gAE79jq9cM" };
+        let globalCharts = { w: null, m: null };
+        
         function adminData() {
             return {
                 token: sessionStorage.getItem('jwt'),
@@ -225,7 +227,6 @@
                 detailFeedback: [], detailFbLoading: false,
                 detailMeds: [], detailMedsLoading: false, detailExpandedMed: null, detailTimings: {},
                 dEditRem: null, dEditForm: {}, dAddFor: null, dAddForm: {},
-                detailCharts: {},
                 toast: '', rejectingId: null, rejectReason: '',
                 async init() {
                     if (!this.token) return window.location.href = 'index.html';
@@ -240,7 +241,7 @@
                 async api(path, method='GET', body=null) {
                     const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
                     if (body) opts.body = JSON.stringify(body);
-                    const res = await fetch(`${config.SUPABASE_URL}/v1${path}`, opts);
+                    const res = await fetch(`${CONFIG.API_BASE}${path}`, opts);
                     if (res.status === 401) { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
                     const data = await res.json();
                     if (!data.success) throw new Error(data.error?.message || 'Error');
@@ -274,13 +275,13 @@
                 async dDelRem(remId,medId) { if(!confirm('Delete?'))return; try{await this.api(`/reminders/${remId}`,'DELETE');this.detailTimings[medId]=await this.api(`/medicines/${medId}/reminders`);}catch(e){} },
                 processTrend(days) { const now=new Date();const map={};for(let i=days-1;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);map[d.toISOString().split('T')[0]]={taken:0,total:0};}(this.detailTrend||[]).forEach(t=>{const ds=t.scheduled_utc.split('T')[0];if(map[ds]){map[ds].total++;if(t.status==='taken')map[ds].taken++;}});const labels=[],data=[];for(const[date,c] of Object.entries(map)){labels.push(new Date(date).toLocaleDateString(undefined,{month:'short',day:'numeric'}));data.push(c.total>0?Math.round(c.taken/c.total*100):0);}return{labels,data};},
                 renderDetailCharts() {
-                    if(this.detailCharts.w)this.detailCharts.w.destroy();
-                    if(this.detailCharts.m)this.detailCharts.m.destroy();
+                    if(globalCharts.w)globalCharts.w.destroy();
+                    if(globalCharts.m)globalCharts.m.destroy();
                     const co={responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:100,grid:{color:'rgba(255,255,255,0.05)'}},x:{grid:{display:false}}},plugins:{legend:{display:false}}};
                     const w=this.processTrend(7),m=this.processTrend(30);
                     const wc=document.getElementById('adWeekly'),mc=document.getElementById('adMonthly');
-                    if(wc)this.detailCharts.w=new Chart(wc,{type:'bar',data:{labels:w.labels,datasets:[{data:w.data,backgroundColor:'#00dbe7',borderRadius:4}]},options:co});
-                    if(mc)this.detailCharts.m=new Chart(mc,{type:'line',data:{labels:m.labels,datasets:[{data:m.data,borderColor:'#0566d9',backgroundColor:'rgba(5,102,217,0.1)',borderWidth:3,tension:0.4,fill:true,pointRadius:2}]},options:co});
+                    if(wc)globalCharts.w=new Chart(wc,{type:'bar',data:{labels:w.labels,datasets:[{data:w.data,backgroundColor:'#00dbe7',borderRadius:4}]},options:co});
+                    if(mc)globalCharts.m=new Chart(mc,{type:'line',data:{labels:m.labels,datasets:[{data:m.data,borderColor:'#0566d9',backgroundColor:'rgba(5,102,217,0.1)',borderWidth:3,tension:0.4,fill:true,pointRadius:2}]},options:co});
                 },
                 setupPresence(payload) {
                     try {

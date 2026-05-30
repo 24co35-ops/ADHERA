@@ -117,6 +117,7 @@
 
     <script>
         const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", "") };
+        let globalCharts = { w: null, m: null };
         function patientData() {
             return {
                 token: sessionStorage.getItem('jwt'), patient: {}, pid: new URLSearchParams(window.location.search).get('id'),
@@ -124,7 +125,6 @@
                 patientMeds: [], medsLoading: false, expandedMed: null, timings: {},
                 editRem: null, editRemForm: {}, addTimingFor: null, addForm: {},
                 feedbackList: [], fbLoading: false, fbOffset: 0,
-                charts: {},
                 async init() {
                     if (!this.token || !this.pid) return window.location.href = 'provider-dashboard.html';
                     const payload = JSON.parse(atob(this.token.split('.')[1]));
@@ -137,7 +137,7 @@
                 async api(path, method='GET', body=null) {
                     const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
                     if (body) opts.body = JSON.stringify(body);
-                    const res = await fetch(`${config.SUPABASE_URL}/v1${path}`, opts);
+                    const res = await fetch(`${CONFIG.API_BASE}${path}`, opts);
                     if (res.status === 401) { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
                     const data = await res.json();
                     if (!data.success) throw new Error(data.error?.message || 'Error');
@@ -162,8 +162,8 @@
                     const co={responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:100,grid:{color:'rgba(255,255,255,0.05)'}},x:{grid:{display:false}}},plugins:{legend:{display:false}}};
                     const w=this.processTrend(7),m=this.processTrend(30);
                     const wc=document.getElementById('ppWeekly'),mc=document.getElementById('ppMonthly');
-                    if(wc)this.charts.w=new Chart(wc,{type:'bar',data:{labels:w.labels,datasets:[{data:w.data,backgroundColor:'#00dbe7',borderRadius:4}]},options:co});
-                    if(mc)this.charts.m=new Chart(mc,{type:'line',data:{labels:m.labels,datasets:[{data:m.data,borderColor:'#0566d9',backgroundColor:'rgba(5,102,217,0.1)',borderWidth:3,tension:0.4,fill:true,pointRadius:2}]},options:co});
+                    if(wc){ if(globalCharts.w) globalCharts.w.destroy(); globalCharts.w=new Chart(wc,{type:'bar',data:{labels:w.labels,datasets:[{data:w.data,backgroundColor:'#00dbe7',borderRadius:4}]},options:co}); }
+                    if(mc){ if(globalCharts.m) globalCharts.m.destroy(); globalCharts.m=new Chart(mc,{type:'line',data:{labels:m.labels,datasets:[{data:m.data,borderColor:'#0566d9',backgroundColor:'rgba(5,102,217,0.1)',borderWidth:3,tension:0.4,fill:true,pointRadius:2}]},options:co}); }
                 },
                 logout() { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
             }

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from app.db.supabase import supabase_admin
+from app.db.supabase import supabase
 from app.auth.dependencies import get_current_user
 from app.core.responses import SuccessResponse
 from datetime import datetime, timezone, timedelta
@@ -12,7 +12,7 @@ def get_rate(data: list) -> float:
     return round((tk / t * 100), 1) if t > 0 else 0.0
 
 def _check_assignment(provider_id: str, patient_id: str):
-    res = supabase_admin.table("assignments").select("id").eq("provider_id", provider_id).eq("patient_id", patient_id).eq("status", "active").execute()
+    res = supabase.table("assignments").select("id").eq("provider_id", provider_id).eq("patient_id", patient_id).eq("status", "active").execute()
     if not res.data:
         raise HTTPException(status_code=403, detail="Not assigned to this patient")
 
@@ -39,13 +39,13 @@ async def get_dashboard(patient_id: str = Query(None), user: dict = Depends(get_
 
         if uid is None:
             # Admin platform-wide aggregates
-            active_patients = supabase_admin.table("profiles").select("id", count="exact").eq("role", "patient").eq("is_active", True).execute()
+            active_patients = supabase.table("profiles").select("id", count="exact").eq("role", "patient").eq("is_active", True).execute()
             today_str = now.strftime("%Y-%m-%d")
-            taken_today = supabase_admin.table("adherence").select("id", count="exact").eq("status", "taken").gte("outcome_utc", today_str + "T00:00:00Z").lte("outcome_utc", today_str + "T23:59:59Z").execute()
-            missed_today = supabase_admin.table("adherence").select("id", count="exact").eq("status", "missed").gte("outcome_utc", today_str + "T00:00:00Z").lte("outcome_utc", today_str + "T23:59:59Z").execute()
+            taken_today = supabase.table("adherence").select("id", count="exact").eq("status", "taken").gte("outcome_utc", today_str + "T00:00:00Z").lte("outcome_utc", today_str + "T23:59:59Z").execute()
+            missed_today = supabase.table("adherence").select("id", count="exact").eq("status", "missed").gte("outcome_utc", today_str + "T00:00:00Z").lte("outcome_utc", today_str + "T23:59:59Z").execute()
             # Overall adherence from last 30 days
             d30 = (now - timedelta(days=30)).isoformat()
-            all_adh = supabase_admin.table("adherence").select("status").gte("scheduled_utc", d30).execute()
+            all_adh = supabase.table("adherence").select("status").gte("scheduled_utc", d30).execute()
             return SuccessResponse(data={
                 "overall_adherence_percentage": get_rate(all_adh.data),
                 "active_patients_count": active_patients.count or 0,
@@ -56,7 +56,7 @@ async def get_dashboard(patient_id: str = Query(None), user: dict = Depends(get_
                 "weekly_warning": False
             })
 
-        res = supabase_admin.table("adherence").select("status, scheduled_utc").eq("user_id", uid).execute()
+        res = supabase.table("adherence").select("status, scheduled_utc").eq("user_id", uid).execute()
         w_data = [x for x in res.data if x['scheduled_utc'] >= (now - timedelta(days=7)).isoformat()]
         m_data = [x for x in res.data if x['scheduled_utc'] >= (now - timedelta(days=30)).isoformat()]
         wr = get_rate(w_data)
@@ -101,9 +101,9 @@ async def get_adherence(patient_id: str = Query(None), user: dict = Depends(get_
             # Admin platform-wide
             now = datetime.now(timezone.utc)
             d30 = (now - timedelta(days=30)).isoformat()
-            res = supabase_admin.table("adherence").select("*").gte("scheduled_utc", d30).execute()
+            res = supabase.table("adherence").select("*").gte("scheduled_utc", d30).execute()
             return SuccessResponse(data={"rate": get_rate(res.data), "overall_percentage": get_rate(res.data), "weekly_percentage": get_rate(res.data), "history": res.data[:50]})
-        res = supabase_admin.table("adherence").select("*").eq("user_id", uid).execute()
+        res = supabase.table("adherence").select("*").eq("user_id", uid).execute()
         now = datetime.now(timezone.utc)
         w7 = [x for x in res.data if x['scheduled_utc'] >= (now - timedelta(days=7)).isoformat()]
         return SuccessResponse(data={"rate": get_rate(res.data), "overall_percentage": get_rate(res.data), "weekly_percentage": get_rate(w7), "history": res.data})
@@ -118,9 +118,9 @@ async def get_trend(patient_id: str = Query(None), user: dict = Depends(get_curr
         uid = _resolve_uid(user, patient_id)
         d30 = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
         if uid is None:
-            res = supabase_admin.table("adherence").select("status, scheduled_utc").gte("scheduled_utc", d30).execute()
+            res = supabase.table("adherence").select("status, scheduled_utc").gte("scheduled_utc", d30).execute()
         else:
-            res = supabase_admin.table("adherence").select("status, scheduled_utc").eq("user_id", uid).gte("scheduled_utc", d30).execute()
+            res = supabase.table("adherence").select("status, scheduled_utc").eq("user_id", uid).gte("scheduled_utc", d30).execute()
         return SuccessResponse(data=res.data)
     except HTTPException:
         raise

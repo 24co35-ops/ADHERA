@@ -87,7 +87,7 @@
                     this.error = null; this.loading = true;
                     this.pendingApproval = false; this.accountDisabled = false; this.registered = false;
                     try {
-                        const res = await fetch(`${config.SUPABASE_URL}/v1/auth/login`, {
+                        const res = await fetch(`${CONFIG.API_BASE}/auth/login`, {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ email: this.email, password: this.password })
                         });

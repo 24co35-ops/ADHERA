@@ -16,17 +16,13 @@ if not settings.SUPABASE_JWT_SECRET:
 
 SUPABASE_JWT_SECRET = settings.SUPABASE_JWT_SECRET
 
-# Public client — uses anon key, respects RLS
-supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
-
-# Admin client — uses service role key, bypasses RLS (only for admin operations)
-supabase_admin: Client | None = (
+# Public client — uses service role key if available, otherwise anon key to bypass RLS in backend
+supabase: Client = (
     create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
     if settings.SUPABASE_SERVICE_ROLE_KEY
-    else None
+    else create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
 )
 
-if not supabase_admin:
-    logger.warning(
-        "SUPABASE_SERVICE_ROLE_KEY not set — admin endpoints and CSV export will be unavailable."
-    )
+# Admin client — alias of supabase
+supabase_admin: Client = supabase
+

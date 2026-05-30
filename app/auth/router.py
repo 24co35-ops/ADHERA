@@ -41,10 +41,9 @@ async def register(request: Request, user_data: UserRegister):
         # Patient: auto-approved. Provider: pending approval.
         is_active = user_data.role == "patient"
 
-        from app.db.supabase import supabase_admin
-        if supabase_admin:
+        if supabase:
             try:
-                supabase_admin.table("profiles").insert({
+                supabase.table("profiles").insert({
                     "id": res.user.id,
                     "full_name": user_data.full_name,
                     "role": user_data.role,
@@ -77,11 +76,10 @@ async def login(request: Request, credentials: UserLogin):
             raise HTTPException(status_code=401, detail="Invalid email or password.")
 
         # Check profile approval status
-        from app.db.supabase import supabase_admin
-        if supabase_admin:
+        if supabase:
             user_id = res.user.id if res.user else None
             if user_id:
-                prof = supabase_admin.table("profiles").select("role, is_active").eq("id", user_id).execute()
+                prof = supabase.table("profiles").select("role, is_active").eq("id", user_id).execute()
                 if prof.data:
                     p = prof.data[0]
                     if p.get("role") == "provider" and not p.get("is_active", True):

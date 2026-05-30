@@ -13,8 +13,12 @@ def headers():
 
 @patch("app.analytics.router.supabase")
 def test_adherence_rate(mock_supabase):
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
     mock_supabase.table().select().eq().execute.return_value = MagicMock(data=[
-        {"status": "taken"}, {"status": "taken"}, {"status": "missed"}
+        {"status": "taken", "scheduled_utc": now},
+        {"status": "taken", "scheduled_utc": now},
+        {"status": "missed", "scheduled_utc": now}
     ])
     res = client.get("/v1/analytics/adherence", headers=headers())
     assert res.status_code == 200
