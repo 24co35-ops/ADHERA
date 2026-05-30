@@ -394,6 +394,15 @@ adhera/
 
 ---
 
+## Verified Stable State
+
+All core functionalities have been fixed and verified locally:
+* **Auth & Schema**: Fixed `profiles.email` query errors by retrieving emails directly from Supabase Auth admin API. Admin login and credentials restored.
+* **UI**: Resolved Chart.js infinite recursion (`Maximum call stack size exceeded`) in dashboards by moving chart instances out of Alpine.js reactive proxies.
+* **Testing**: 27/27 backend unit tests passing.
+
+---
+
 ## Contributing
 
 1. Fork the repository and create a feature branch from `main`.
