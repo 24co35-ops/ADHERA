@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="config.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adhera - Register</title>
@@ -72,7 +73,7 @@
         </form>
     </div>
     <script>
-        const config = { SUPABASE_URL: "http://localhost:8000" };
+        const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", "") };
         function registerData() {
             return {
                 form: { full_name: '', email: '', password: '', role: 'patient', date_of_birth: '', contact_number: '', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
