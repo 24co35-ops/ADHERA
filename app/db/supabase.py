@@ -26,3 +26,7 @@ supabase: Client = (
 # Admin client — alias of supabase
 supabase_admin: Client = supabase
 
+# Auth client — separate instance for sign_in/sign_up so it doesn't
+# mutate the shared service-role client's Authorization header
+supabase_auth: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+

@@ -109,14 +109,16 @@
 
                         if (!data.success) throw new Error('Invalid email or password.');
 
-                        const token = data.data.access_token;
-                        sessionStorage.setItem("jwt", token);
-                        const payload = JSON.parse(atob(token.split('.')[1]));
-                        const role = payload.user_metadata?.role || 'patient';
-
-                        if (role === 'provider') window.location.href = 'provider-dashboard.html';
-                        else if (role === 'admin') window.location.href = 'admin-dashboard.html';
-                        else window.location.href = 'dashboard.html';
+                        data.access_token = data.data.access_token;
+                        sessionStorage.setItem('adhera_token', data.access_token);
+                        const showError = (msg) => { this.error = msg; };
+                        const _payload = JSON.parse(atob(data.access_token.split('.')[1]));
+                        if (_payload.role === 'authenticated') { _payload.role = _payload.app_metadata?.role || _payload.user_metadata?.role || 'authenticated'; }
+                        const _role = _payload.role || _payload.app_metadata?.role || _payload.user_metadata?.role;
+                        if (_role === 'patient') window.location.href = 'dashboard.html';
+                        else if (_role === 'provider') window.location.href = 'provider-dashboard.html';
+                        else if (_role === 'admin') window.location.href = 'admin-dashboard.html';
+                        else { showError('Unknown role: ' + _role + '. Contact support.'); }
 
                     } catch (e) { this.error = 'Invalid email or password.'; }
                     finally { this.loading = false; }

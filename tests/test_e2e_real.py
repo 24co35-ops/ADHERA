@@ -32,7 +32,7 @@ def test_step1_register(page: Page):
     url = page.url
     if 'index.html' not in url:
         page_text = page.inner_text('body')
-        assert 'already' in page_text.lower() or 'rate limit' in page_text.lower(), f"Unexpected state: {page_text[:200]}"
+        assert 'already' in page_text.lower() or 'rate limit' in page_text.lower() or 'security purposes' in page_text.lower() or 'request this after' in page_text.lower(), f"Unexpected state: {page_text[:200]}"
     page.screenshot(path=f"{SCREENSHOT_DIR}/step1_register.png")
 
 def test_step2_login(page: Page):
@@ -102,5 +102,5 @@ def test_step8_provider(page: Page):
     page.screenshot(path=f"{SCREENSHOT_DIR}/step8_provider.png")
 
 def test_step9_admin(page: Page):
-    _login(page, "admin@demo.adhera.app", PATIENT_PASS, "admin-dashboard.html")
+    _login(page, "admin@demo.adhera.app", "Admin@1234", "admin-dashboard.html")
     page.screenshot(path=f"{SCREENSHOT_DIR}/step9_admin.png")

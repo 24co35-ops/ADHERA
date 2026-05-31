@@ -17,7 +17,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         )
         return {
             "user_id": payload.get("sub"),
-            "role": payload.get("user_metadata", {}).get("role", "patient")
+            "role": (
+                payload.get("app_metadata", {}).get("role")
+                or payload.get("user_metadata", {}).get("role")
+                or (payload.get("role") if payload.get("role") != "authenticated" else None)
+                or "patient"
+            )
         }
     except Exception as e:
         print("JWT DECODE ERROR:", repr(e))

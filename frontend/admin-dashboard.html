@@ -174,8 +174,9 @@
         </div>
 
         <!-- All Users -->
-        <div class="glass p-6 rounded-xl" x-show="users.length>0" x-cloak>
+        <div class="glass p-6 rounded-xl">
             <h2 class="text-2xl font-bold mb-4">All Users</h2>
+            <div x-show="users.length===0" class="text-slate-400">No users found.</div>
             <div class="space-y-3"><template x-for="u in users" :key="u.id"><div :id="'user-'+u.id" class="bg-white/5 p-4 rounded-xl border border-white/10 hover:bg-white/10 transition-colors">
                 <div class="flex justify-between items-start">
                     <div class="cursor-pointer flex-1" @click="openUserDetail(u)">
@@ -212,12 +213,19 @@
     </main>
 
     <script>
+        const _token = sessionStorage.getItem('adhera_token');
+        if (!_token) { window.location.href = 'index.html'; }
+        const _p = JSON.parse(atob(_token.split('.')[1]));
+        if (_p.role === 'authenticated') { _p.role = _p.app_metadata?.role || _p.user_metadata?.role || 'authenticated'; }
+        const _role = _p.role || _p.app_metadata?.role || _p.user_metadata?.role;
+        if (_role !== 'admin') { window.location.href = 'index.html'; }
+
         const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", ""), SUPABASE_JS_URL: "https://olsgvrmxqsftymsbeqve.supabase.co", SUPABASE_ANON: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sc2d2cm14cXNmdHltc2JlcXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2OTA0MjksImV4cCI6MjA5NTI2NjQyOX0.aZLBUgVPtRaCKbjHu8ljvsKOYWU6TDXO1gAE79jq9cM" };
         let globalCharts = { w: null, m: null };
         
         function adminData() {
             return {
-                token: sessionStorage.getItem('jwt'),
+                token: sessionStorage.getItem('adhera_token'),
                 pending: [], assignments: [], users: [],
                 platformStats: {},
                 searchQuery: '', searchResults: [], isSearching: false,
@@ -229,20 +237,16 @@
                 dEditRem: null, dEditForm: {}, dAddFor: null, dAddForm: {},
                 toast: '', rejectingId: null, rejectReason: '',
                 async init() {
-                    if (!this.token) return window.location.href = 'index.html';
-                    const payload = JSON.parse(atob(this.token.split('.')[1]));
-                    const role = payload.user_metadata?.role;
-                    if (role !== 'admin') return window.location.href = 'index.html';
                     Chart.defaults.color = '#849495'; Chart.defaults.font.family = 'Inter';
                     await Promise.all([this.fetchPending(), this.fetchAssignments(), this.fetchUsers(), this.fetchPlatformStats()]);
-                    this.setupPresence(payload);
+                    this.setupPresence(_p);
                 },
                 showToast(msg) { this.toast=msg; setTimeout(()=>this.toast='',3000); },
                 async api(path, method='GET', body=null) {
                     const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
                     if (body) opts.body = JSON.stringify(body);
                     const res = await fetch(`${CONFIG.API_BASE}${path}`, opts);
-                    if (res.status === 401) { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
+                    if (res.status === 401) { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
                     const data = await res.json();
                     if (!data.success) throw new Error(data.error?.message || 'Error');
                     return data.data;
@@ -304,7 +308,7 @@
                     } catch (e) { console.warn('Presence error:', e); }
                 },
                 formatRelativeTime(iso) { const d=new Date(iso);const s=Math.floor((new Date()-d)/1000); if(s<60)return s+' sec ago'; if(s<3600)return Math.floor(s/60)+' min ago'; if(s<86400)return Math.floor(s/3600)+' hr ago'; return d.toLocaleDateString(); },
-                logout() { if(this.presenceChannel)this.presenceChannel.untrack(); sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
+                logout() { if(this.presenceChannel)this.presenceChannel.untrack(); sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
             }
         }
     </script>

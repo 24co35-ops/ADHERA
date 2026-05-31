@@ -116,20 +116,23 @@
     </main>
 
     <script>
+        const _token = sessionStorage.getItem('adhera_token');
+        if (!_token) { window.location.href = 'index.html'; throw new Error('No token'); }
+        const _payload = JSON.parse(atob(_token.split('.')[1]));
+        const _role = _payload.app_metadata?.role || _payload.user_metadata?.role || _payload.role;
+        if (_role !== 'provider') window.location.href = 'index.html';
+
         const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", "") };
         let globalCharts = { w: null, m: null };
         function patientData() {
             return {
-                token: sessionStorage.getItem('jwt'), patient: {}, pid: new URLSearchParams(window.location.search).get('id'),
+                token: sessionStorage.getItem('adhera_token'), patient: {}, pid: new URLSearchParams(window.location.search).get('id'),
                 tab: 'overview', stats: {}, adherenceData: {}, trend: [],
                 patientMeds: [], medsLoading: false, expandedMed: null, timings: {},
                 editRem: null, editRemForm: {}, addTimingFor: null, addForm: {},
                 feedbackList: [], fbLoading: false, fbOffset: 0,
                 async init() {
-                    if (!this.token || !this.pid) return window.location.href = 'provider-dashboard.html';
-                    const payload = JSON.parse(atob(this.token.split('.')[1]));
-                    const role = payload.user_metadata?.role;
-                    if (role !== 'provider') return window.location.href = 'index.html';
+                    if (!this.pid) return window.location.href = 'provider-dashboard.html';
                     Chart.defaults.color = '#849495'; Chart.defaults.font.family = 'Inter';
                     await Promise.all([this.fetchPatient(), this.fetchStats(), this.fetchMeds()]);
                     this.$nextTick(() => this.initCharts());
@@ -138,7 +141,7 @@
                     const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
                     if (body) opts.body = JSON.stringify(body);
                     const res = await fetch(`${CONFIG.API_BASE}${path}`, opts);
-                    if (res.status === 401) { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
+                    if (res.status === 401) { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
                     const data = await res.json();
                     if (!data.success) throw new Error(data.error?.message || 'Error');
                     return data.data;
@@ -165,7 +168,7 @@
                     if(wc){ if(globalCharts.w) globalCharts.w.destroy(); globalCharts.w=new Chart(wc,{type:'bar',data:{labels:w.labels,datasets:[{data:w.data,backgroundColor:'#00dbe7',borderRadius:4}]},options:co}); }
                     if(mc){ if(globalCharts.m) globalCharts.m.destroy(); globalCharts.m=new Chart(mc,{type:'line',data:{labels:m.labels,datasets:[{data:m.data,borderColor:'#0566d9',backgroundColor:'rgba(5,102,217,0.1)',borderWidth:3,tension:0.4,fill:true,pointRadius:2}]},options:co}); }
                 },
-                logout() { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
+                logout() { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
             }
         }
     </script>

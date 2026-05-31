@@ -84,7 +84,7 @@ async def get_reminders(id: str, user: dict = Depends(get_current_user)):
     return SuccessResponse(data=res.data)
 
 @router.post("/{id}/reminders", response_model=SuccessResponse[dict], status_code=status.HTTP_201_CREATED)
-async def create_reminder(id: str, reminder: ReminderCreate, user: dict = Depends(get_current_user)):
+async def create_reminder(id: str, reminder: dict, user: dict = Depends(get_current_user)):
     med = supabase.table("medicines").select("user_id").eq("id", id).execute()
     if not med.data: raise HTTPException(status_code=404, detail="Medicine not found")
     med_owner = med.data[0]["user_id"]
@@ -93,9 +93,25 @@ async def create_reminder(id: str, reminder: ReminderCreate, user: dict = Depend
         raise HTTPException(status_code=403, detail="Forbidden")
     if role == "provider":
         _check_assignment(user["user_id"], med_owner)
-    data = reminder.model_dump()
-    data["medicine_id"] = id
-    data["user_id"] = med_owner
+    
+    dose_label = reminder.get("dose_label")
+    if not dose_label:
+        raise HTTPException(status_code=422, detail="dose_label required")
+    dose_time = reminder.get("dose_time_utc") or reminder.get("scheduled_time")
+    if not dose_time:
+        raise HTTPException(status_code=422, detail="dose_time_utc/scheduled_time required")
+    if len(dose_time) == 5:
+        dose_time = dose_time + ":00"
+
+    data = {
+        "medicine_id": id,
+        "user_id": med_owner,
+        "dose_label": dose_label.lower(),
+        "dose_time_utc": dose_time,
+        "timezone": reminder.get("timezone") or "UTC",
+        "recurrence_type": reminder.get("recurrence_type") or reminder.get("frequency_type") or "daily",
+        "recurrence_params": reminder.get("recurrence_params")
+    }
     try:
         res = supabase.table("reminders").insert(data).execute()
     except Exception as e:

@@ -161,6 +161,12 @@
     </main>
 
     <script>
+        const _token = sessionStorage.getItem('adhera_token');
+        if (!_token) { window.location.href = 'index.html'; throw new Error('No token'); }
+        const _payload = JSON.parse(atob(_token.split('.')[1]));
+        const _role = _payload.app_metadata?.role || _payload.user_metadata?.role || _payload.role;
+        if (_role !== 'patient') window.location.href = 'index.html';
+
         const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", ""), SUPABASE_JS_URL: "https://olsgvrmxqsftymsbeqve.supabase.co", SUPABASE_ANON: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sc2d2cm14cXNmdHltc2JlcXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2OTA0MjksImV4cCI6MjA5NTI2NjQyOX0.aZLBUgVPtRaCKbjHu8ljvsKOYWU6TDXO1gAE79jq9cM" };
         
         let weeklyChartInstance = null;
@@ -169,22 +175,13 @@
         
         function dashboardData() {
             return {
-                token: sessionStorage.getItem('jwt'),
+                token: sessionStorage.getItem('adhera_token'),
                 doses: [], dosesLoading: true, actionLoading: null,
                 stats: {}, adherence: {}, trend: [],
                 feedback: [], fbLoading: true, loading: true,
                 presenceChannel: null,
                 
                 async init() {
-                    if (!this.token) return window.location.href = 'index.html';
-                    const payload = JSON.parse(atob(this.token.split('.')[1]));
-                    const role = payload.user_metadata?.role || 'patient';
-                    if (role !== 'patient') {
-                        if (role === 'provider') return window.location.href = 'provider-dashboard.html';
-                        if (role === 'admin') return window.location.href = 'admin-dashboard.html';
-                        return window.location.href = 'index.html';
-                    }
-                    
                     Chart.defaults.color = '#849495';
                     Chart.defaults.font.family = 'Inter';
                     
@@ -202,7 +199,7 @@
                     const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
                     if (body) opts.body = JSON.stringify(body);
                     const res = await fetch(`${CONFIG.API_BASE}${path}`, opts);
-                    if (res.status === 401) { if(this.presenceChannel) this.presenceChannel.untrack(); sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
+                    if (res.status === 401) { if(this.presenceChannel) this.presenceChannel.untrack(); sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
                     const data = await res.json();
                     if (!data.success) throw new Error(data.error?.message || "API Error");
                     return data.data;
@@ -236,7 +233,7 @@
                     try { await this.api(`/doses/${doseId}/${status}`, 'POST'); await this.fetchAll(); } catch(e){ console.error(e); }
                     finally { this.actionLoading = null; }
                 },
-                logout() { if(this.presenceChannel) this.presenceChannel.untrack(); sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; },
+                logout() { if(this.presenceChannel) this.presenceChannel.untrack(); sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; },
                 
                 processTrendData(days) {
                     const now = new Date();

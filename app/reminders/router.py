@@ -28,6 +28,11 @@ async def update_reminder(id: str, payload: ReminderUpdate, user: dict = Depends
     data = payload.model_dump(exclude_unset=True)
     if not data:
         raise HTTPException(status_code=400, detail="No fields to update")
+    if "dose_label" in data and data["dose_label"]:
+        data["dose_label"] = data["dose_label"].lower()
+    if "dose_time_utc" in data and data["dose_time_utc"]:
+        if len(data["dose_time_utc"]) == 5:
+            data["dose_time_utc"] = data["dose_time_utc"] + ":00"
     res = supabase.table("reminders").update(data).eq("id", id).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Reminder not found")

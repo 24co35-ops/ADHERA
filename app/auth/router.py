@@ -1,7 +1,7 @@
 import logging
 from fastapi import APIRouter, HTTPException, status, Depends, Request
 from app.auth.schemas import UserRegister, UserLogin, ForgotPassword, ResetPassword, Token
-from app.db.supabase import supabase
+from app.db.supabase import supabase, supabase_auth
 from app.core.responses import SuccessResponse
 from app.core.rate_limit import limiter
 from app.services.audit import log_audit_action
@@ -22,7 +22,7 @@ async def register(request: Request, user_data: UserRegister):
         raise HTTPException(status_code=403, detail="Admin accounts cannot be self-registered.")
 
     try:
-        res = supabase.auth.sign_up({
+        res = supabase_auth.auth.sign_up({
             "email": user_data.email,
             "password": user_data.password,
             "options": {
@@ -67,7 +67,7 @@ async def register(request: Request, user_data: UserRegister):
 @limiter.limit("10/minute")
 async def login(request: Request, credentials: UserLogin):
     try:
-        res = supabase.auth.sign_in_with_password({
+        res = supabase_auth.auth.sign_in_with_password({
             "email": credentials.email,
             "password": credentials.password,
         })
@@ -108,7 +108,7 @@ async def login(request: Request, credentials: UserLogin):
 @limiter.limit("10/minute")
 async def logout(request: Request):
     try:
-        supabase.auth.sign_out()
+        supabase_auth.auth.sign_out()
     except Exception:
         pass
     return SuccessResponse(data={"message": "Logged out."})
@@ -117,7 +117,7 @@ async def logout(request: Request):
 @limiter.limit("3/hour")
 async def forgot_password(request: Request, body: ForgotPassword):
     try:
-        supabase.auth.reset_password_email(body.email)
+        supabase_auth.auth.reset_password_email(body.email)
     except Exception:
         pass
     return SuccessResponse(data={"message": "Reset link sent if email exists."})
@@ -126,7 +126,7 @@ async def forgot_password(request: Request, body: ForgotPassword):
 @limiter.limit("10/minute")
 async def reset_password(request: Request, body: ResetPassword):
     try:
-        res = supabase.auth.update_user({"password": body.password})
+        res = supabase_auth.auth.update_user({"password": body.password})
         if not res.user:
             raise HTTPException(status_code=400, detail="Failed to reset password.")
         return SuccessResponse(data={"message": "Password updated."})

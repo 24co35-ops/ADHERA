@@ -74,6 +74,10 @@
                     <textarea x-model="form.description" maxlength="2000" rows="4" class="w-full p-2 rounded bg-transparent border-transparent text-white" required :disabled="loading"></textarea>
                 </div>
                 <div>
+                    <label class="block text-sm mb-1">Occurrence Datetime</label>
+                    <input type="datetime-local" x-model="form.occurrence_datetime" class="w-full p-2 rounded text-white" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12);" required :disabled="loading">
+                </div>
+                <div>
                     <label class="block text-sm mb-1">Severity</label>
                     <select x-model="form.severity" class="w-full p-2 rounded bg-transparent border-transparent text-white" required :disabled="loading">
                         <option value="1">1 - Mild</option>
@@ -92,12 +96,15 @@
             <h3 class="text-xl font-bold mb-4">History</h3>
             <div class="space-y-3">
                 <template x-for="fb in history" :key="fb.id">
-                    <div class="bg-transparent/50 p-4 rounded border border-transparent">
+                    <div class="bg-transparent/50 p-4 rounded border border-white/10 mb-3">
                         <div class="flex justify-between items-start mb-2">
-                            <div><span class="text-sm text-slate-400" x-text="new Date(fb.created_at).toLocaleString()"></span></div>
+                            <div>
+                                <span class="font-bold text-cyan-400 block" x-text="getMedicineName(fb.medicine_id)"></span>
+                                <span class="text-xs text-slate-400" x-text="'Occurred: ' + new Date(fb.occurred_at).toLocaleString()"></span>
+                            </div>
                             <div class="px-2 py-1 rounded text-xs font-bold" :class="{'bg-red-900/50 text-red-400': fb.severity >= 3, 'bg-yellow-900/50 text-yellow-400': fb.severity < 3}" x-text="'Sev ' + fb.severity"></div>
                         </div>
-                        <div class="text-sm" x-text="fb.description"></div>
+                        <div class="text-sm text-slate-200" x-text="fb.description"></div>
                     </div>
                 </template>
             </div>
@@ -117,28 +124,26 @@
     </div>
 
     <script>
+        const _token = sessionStorage.getItem('adhera_token');
+        if (!_token) { window.location.href = 'index.html'; throw new Error('No token'); }
+        const _payload = JSON.parse(atob(_token.split('.')[1]));
+        const _role = _payload.app_metadata?.role || _payload.user_metadata?.role || _payload.role;
+        if (_role !== 'patient') window.location.href = 'index.html';
+
         const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", "") };
         function feedbackData() {
             return {
-                token: sessionStorage.getItem('jwt'),
+                token: sessionStorage.getItem('adhera_token'),
                 medicines: [], history: [], loading: false, showModal: false,
-                form: { medicine_id: '', description: '', severity: '1' },
+                form: { medicine_id: '', description: '', severity: '1', occurrence_datetime: new Date().toISOString().slice(0, 16) },
                 async init() {
-                    if (!this.token) return window.location.href = 'index.html';
-                    const payload = JSON.parse(atob(this.token.split('.')[1]));
-                    const role = payload.user_metadata?.role || 'patient';
-                    if (role !== 'patient') {
-                        if (role === 'provider') return window.location.href = 'provider-dashboard.html';
-                        if (role === 'admin') return window.location.href = 'admin-dashboard.html';
-                        return window.location.href = 'index.html';
-                    }
                     await Promise.all([this.fetchMedicines(), this.fetchHistory()]);
                 },
                 async api(path, method = 'GET', body = null) {
                     const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
                     if (body) opts.body = JSON.stringify(body);
                     const res = await fetch(`${CONFIG.API_BASE}${path}`, opts);
-                    if (res.status === 401) { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
+                    if (res.status === 401) { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
                     const data = await res.json();
                     if (!data.success) throw new Error(data.error?.message || "API Error");
                     return data.data;
@@ -149,6 +154,10 @@
                 async fetchHistory() {
                     try { this.history = await this.api('/feedback/'); this.history.reverse(); } catch(e){}
                 },
+                getMedicineName(id) {
+                    const med = this.medicines.find(m => m.id === id);
+                    return med ? med.name : 'Unknown Medicine';
+                },
                 attemptSubmit() {
                     if (this.form.severity == 4) this.showModal = true;
                     else this.submit();
@@ -156,12 +165,20 @@
                 async submit() {
                     this.showModal = false; this.loading = true;
                     try {
-                        await this.api('/feedback/', 'POST', { ...this.form, severity: parseInt(this.form.severity) });
+                        const body = {
+                            medicine_id: this.form.medicine_id,
+                            description: this.form.description,
+                            severity: parseInt(this.form.severity),
+                            occurrence_datetime: new Date(this.form.occurrence_datetime).toISOString()
+                        };
+                        console.log("Sending feedback payload:", JSON.stringify(body));
+                        await this.api('/feedback/', 'POST', body);
                         this.form.description = ''; this.form.severity = '1';
+                        this.form.occurrence_datetime = new Date().toISOString().slice(0, 16);
                         await this.fetchHistory();
                     } catch(e){} finally { this.loading = false; }
                 },
-                logout() { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
+                logout() { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
             }
         }
     </script>

@@ -64,9 +64,8 @@
                                         <template x-if="editingReminder !== rem.id">
                                             <div class="flex justify-between items-center w-full">
                                                 <div>
-                                                    <span class="text-sm font-medium text-cyan-100" x-text="rem.dose_label"></span>
-                                                    <span class="text-xs text-slate-400 ml-2" x-text="rem.dose_time_utc"></span>
-                                                    <span class="text-xs text-slate-500 ml-2" x-text="rem.recurrence_type"></span>
+                                                    <span class="text-sm font-medium text-cyan-100" x-text="rem.dose_label.charAt(0).toUpperCase() + rem.dose_label.slice(1)"></span>
+                                                    <span class="text-xs text-slate-400 ml-2" x-text="rem.dose_time_utc.slice(0, 5)"></span>
                                                 </div>
                                                 <div class="flex gap-2">
                                                     <button @click="startEditReminder(rem)" class="text-xs text-cyan-400 hover:underline">Edit</button>
@@ -76,16 +75,10 @@
                                         </template>
                                         <template x-if="editingReminder === rem.id">
                                             <div class="w-full space-y-2">
-                                                <div class="grid grid-cols-3 gap-2">
-                                                    <input type="text" x-model="editForm.dose_label" placeholder="Label" class="text-sm p-1.5">
-                                                    <input type="time" x-model="editForm.dose_time_utc" class="text-sm p-1.5">
-                                                    <select x-model="editForm.recurrence_type" class="text-sm p-1.5">
-                                                        <option value="daily">Daily</option><option value="weekday">Weekday</option><option value="alternate">Alternate</option>
-                                                    </select>
-                                                </div>
-                                                <div class="flex gap-2 justify-end">
-                                                    <button @click="saveEditReminder(rem.id)" class="text-xs bg-emerald-600 text-white px-3 py-1 rounded-lg">Save</button>
-                                                    <button @click="editingReminder=null" class="text-xs text-slate-400 px-3 py-1">Cancel</button>
+                                                <div class="flex gap-2 items-center">
+                                                    <input type="time" x-model="editForm.scheduled_time" class="text-sm p-1.5 rounded text-white bg-transparent border border-white/10" required>
+                                                    <button @click="saveEditReminder(rem.id)" class="text-xs bg-cyan-600 text-white px-3 py-1.5 rounded-lg">Save</button>
+                                                    <button @click="editingReminder=null" class="text-xs text-slate-400 px-3 py-1.5">Cancel</button>
                                                 </div>
                                                 <div x-show="editError" class="text-xs text-red-400" x-text="editError"></div>
                                             </div>
@@ -126,6 +119,8 @@
                 <div><label class="block text-sm mb-1">Frequency</label><select x-model="form.frequency_type" class="w-full p-2 rounded" required><option value="daily">Daily</option><option value="weekday">Weekday</option><option value="alternate">Alternate</option><option value="prn">PRN</option></select></div>
                 <div><label class="block text-sm mb-1">Start Date</label><input type="date" x-model="form.start_date" class="w-full p-2 rounded" required></div>
                 <div><label class="block text-sm mb-1">End Date (Optional)</label><input type="date" x-model="form.end_date" class="w-full p-2 rounded"></div>
+                <div><label class="block text-sm mb-1">Timing (Optional)</label><select x-model="form.timing" class="w-full p-2 rounded"><option value="">None</option><option value="Morning">Morning</option><option value="Afternoon">Afternoon</option><option value="Evening">Evening</option><option value="Night">Night</option></select></div>
+                <div><label class="block text-sm mb-1">Scheduled Time (Optional)</label><input type="time" x-model="form.scheduled_time" class="w-full p-2 rounded"></div>
                 <div class="md:col-span-2"><label class="block text-sm mb-1">Instructions (Optional)</label><input type="text" x-model="form.instructions" class="w-full p-2 rounded"></div>
                 <div class="md:col-span-2 flex justify-end"><button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-6 rounded-lg disabled:opacity-50" :disabled="actionLoading">Add</button></div>
             </form>
@@ -133,31 +128,29 @@
     </main>
 
     <script>
+        const _token = sessionStorage.getItem('adhera_token');
+        if (!_token) { window.location.href = 'index.html'; throw new Error('No token'); }
+        const _payload = JSON.parse(atob(_token.split('.')[1]));
+        const _role = _payload.app_metadata?.role || _payload.user_metadata?.role || _payload.role;
+        if (_role !== 'patient') window.location.href = 'index.html';
+
         const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", "") };
         function medicinesData() {
             return {
-                token: sessionStorage.getItem('jwt'),
+                token: sessionStorage.getItem('adhera_token'),
                 medicines: [], loading: true, actionLoading: false,
                 expandedMed: null, timings: {}, timingsLoading: {},
                 editingReminder: null, editForm: {}, editError: '',
                 addingTimingFor: null, addTimingForm: { dose_label: '', dose_time_utc: '', recurrence_type: 'daily', timezone: 'UTC' }, addTimingError: '',
-                form: { name: '', dosage_amount: '', dosage_unit: 'mg', route: 'oral', frequency_type: 'daily', start_date: new Date().toISOString().split('T')[0], end_date: '', instructions: '' },
+                form: { name: '', dosage_amount: '', dosage_unit: 'mg', route: 'oral', frequency_type: 'daily', start_date: new Date().toISOString().split('T')[0], end_date: '', instructions: '', timing: '', scheduled_time: '' },
                 async init() {
-                    if (!this.token) return window.location.href = 'index.html';
-                    const payload = JSON.parse(atob(this.token.split('.')[1]));
-                    const role = payload.user_metadata?.role || 'patient';
-                    if (role !== 'patient') {
-                        if (role === 'provider') return window.location.href = 'provider-dashboard.html';
-                        if (role === 'admin') return window.location.href = 'admin-dashboard.html';
-                        return window.location.href = 'index.html';
-                    }
                     await this.fetchMedicines();
                 },
                 async api(path, method = 'GET', body = null) {
                     const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
                     if (body) opts.body = JSON.stringify(body);
                     const res = await fetch(`${CONFIG.API_BASE}${path}`, opts);
-                    if (res.status === 401) { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
+                    if (res.status === 401) { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
                     const data = await res.json();
                     if (!data.success) throw new Error(data.error?.message || "API Error");
                     return data.data;
@@ -184,40 +177,60 @@
                         this.addTimingError = e.message.includes('slot') ? 'This time slot already exists for this medicine.' : e.message;
                     }
                 },
-                startEditReminder(rem) { this.editingReminder = rem.id; this.editForm = { dose_label: rem.dose_label, dose_time_utc: rem.dose_time_utc, recurrence_type: rem.recurrence_type }; this.editError = ''; },
+                startEditReminder(rem) { this.editingReminder = rem.id; this.editForm = { scheduled_time: rem.dose_time_utc.slice(0, 5) }; this.editError = ''; },
                 async saveEditReminder(remId) {
                     try {
-                        await this.api(`/reminders/${remId}`, 'PATCH', this.editForm);
+                        const body = { scheduled_time: this.editForm.scheduled_time };
+                        await this.api(`/reminders/${remId}`, 'PATCH', body);
                         this.editingReminder = null;
-                        const medId = this.expandedMed;
-                        await this.fetchTimings(medId);
+                        await this.fetchTimings(this.expandedMed);
                     } catch(e) { this.editError = e.message; }
                 },
                 async deleteReminder(remId) {
                     if (!confirm('Delete this timing?')) return;
                     try {
                         await this.api(`/reminders/${remId}`, 'DELETE');
-                        const medId = this.expandedMed;
-                        await this.fetchTimings(medId);
+                        await this.fetchTimings(this.expandedMed);
                     } catch(e) { console.error(e); }
                 },
                 async addMed() {
                     this.actionLoading = true;
                     try {
-                        const payload = { ...this.form };
-                        if (!payload.end_date) delete payload.end_date;
-                        if (!payload.instructions) delete payload.instructions;
-                        await this.api('/medicines/', 'POST', payload);
+                        const body = {
+                            name: this.form.name,
+                            dosage: parseFloat(this.form.dosage_amount),
+                            unit: this.form.dosage_unit,
+                            route: this.form.route,
+                            frequency_type: this.form.frequency_type,
+                            start_date: this.form.start_date
+                        };
+                        if (this.form.instructions) body.instructions = this.form.instructions;
+                        if (this.form.end_date) body.end_date = this.form.end_date;
+
+                        console.log("Sending medicine payload:", JSON.stringify(body));
+                        const newMedicine = await this.api('/medicines/', 'POST', body);
+                        
+                        if (this.form.timing && this.form.scheduled_time) {
+                            await this.api(`/medicines/${newMedicine.id}/reminders`, 'POST', {
+                                dose_label: this.form.timing,
+                                scheduled_time: this.form.scheduled_time,
+                                frequency_type: this.form.frequency_type || 'daily'
+                            });
+                        }
+                        
                         await this.fetchMedicines();
                         this.form.name = ''; this.form.dosage_amount = '';
-                    } catch(e){} finally { this.actionLoading = false; }
+                        this.form.timing = ''; this.form.scheduled_time = '';
+                    } catch(e){
+                        console.error('Error adding medicine/reminder:', e);
+                    } finally { this.actionLoading = false; }
                 },
                 async deleteMed(id) {
                     if (!confirm('Are you sure?')) return;
                     this.actionLoading = true;
                     try { await this.api(`/medicines/${id}`, 'DELETE'); await this.fetchMedicines(); } catch(e){} finally { this.actionLoading = false; }
                 },
-                logout() { sessionStorage.removeItem('jwt'); window.location.href = 'index.html'; }
+                logout() { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
             }
         }
     </script>
