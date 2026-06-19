@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adhera - Medicines</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="js/i18n.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -25,17 +26,17 @@
             <span style="color:#00dbe7;font-weight:700;font-size:1.5rem;letter-spacing:-0.02em;">Adhera</span>
         </a>
         <div class="space-x-4 text-sm font-medium">
-            <a href="dashboard.html" class="hover:text-cyan-400 transition-colors">Dashboard</a>
-            <a href="medicines.html" class="text-cyan-400">Medicines</a>
-            <a href="feedback.html" class="hover:text-cyan-400 transition-colors">Feedback</a>
-            <a href="profile.html" class="hover:text-cyan-400 transition-colors">Profile</a>
-            <button @click="logout" class="text-red-400 hover:text-red-300 ml-4">Logout</button>
+            <a href="dashboard.html" class="hover:text-cyan-400 transition-colors" x-text="t('nav.dashboard')"></a>
+            <a href="medicines.html" class="text-cyan-400" x-text="t('nav.medicines')"></a>
+            <a href="feedback.html" class="hover:text-cyan-400 transition-colors" x-text="t('nav.feedback')"></a>
+            <a href="profile.html" class="hover:text-cyan-400 transition-colors" x-text="t('nav.profile')"></a>
+            <button @click="logout" class="text-red-400 hover:text-red-300 ml-4" x-text="t('nav.logout')"></button>
         </div>
     </nav>
 
     <main class="flex-1 px-4 md:px-8 max-w-[1280px] mx-auto w-full space-y-6 pb-12">
         <div class="glass p-6 rounded-xl">
-            <h2 class="text-2xl font-bold mb-4">Active Medicines</h2>
+            <h2 class="text-2xl font-bold mb-4" x-text="t('medicines.active_title')"></h2>
             <div x-show="loading" class="space-y-4" x-cloak>
                 <div class="animate-pulse bg-white/5 p-4 rounded-xl border border-white/10 flex justify-between items-center h-20">
                     <div class="space-y-2 flex-1">
@@ -44,7 +45,7 @@
                     </div>
                 </div>
             </div>
-            <div x-show="!loading && medicines.length === 0" class="text-slate-400 py-8 text-center">No active medicines.</div>
+            <div x-show="!loading && medicines.length === 0" class="text-slate-400 py-8 text-center" x-text="t('medicines.empty')"></div>
             <div x-show="!loading" class="space-y-4">
                 <template x-for="med in medicines" :key="med.id">
                     <div class="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
@@ -54,7 +55,7 @@
                                 <div class="text-sm text-slate-400 mt-1" x-text="med.dosage_amount + ' ' + med.dosage_unit + ' • ' + med.route + ' • ' + med.frequency_type"></div>
                             </div>
                             <div class="flex items-center gap-3">
-                                <button @click.stop="deleteMed(med.id)" class="text-red-400 hover:text-red-300 text-sm">Delete</button>
+                                <button @click.stop="deleteMed(med.id)" class="text-red-400 hover:text-red-300 text-sm" x-text="t('btn.delete')"></button>
                                 <svg class="w-5 h-5 text-slate-400 transition-transform duration-200" :class="expandedMed === med.id ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                             </div>
                         </div>
@@ -62,15 +63,15 @@
                         <div x-show="expandedMed === med.id" x-cloak>
                             <div class="p-4 border-t border-white/10 bg-black/20 space-y-3">
                                 <h4 class="font-bold text-sm flex justify-between items-center">
-                                    <span>Timings</span>
-                                    <button @click="showAddTiming(med.id)" class="text-xs bg-cyan-900/50 text-cyan-400 px-3 py-1 rounded-lg border border-cyan-500/30 hover:bg-cyan-900/80">+ Add Timing</button>
+                                    <span x-text="t('timing.title')"></span>
+                                    <button @click="showAddTiming(med.id)" class="text-xs bg-cyan-900/50 text-cyan-400 px-3 py-1 rounded-lg border border-cyan-500/30 hover:bg-cyan-900/80" x-text="t('timing.add_btn')"></button>
                                 </h4>
                                 <div x-show="timingsLoading[med.id]" class="space-y-2" x-cloak>
                                     <div class="animate-pulse bg-white/5 rounded-lg border border-white/5 p-3 h-12 flex items-center">
                                         <div class="h-3 bg-slate-700 rounded w-1/4"></div>
                                     </div>
                                 </div>
-                                <div x-show="!timingsLoading[med.id] && !(timings[med.id]?.length)" class="text-slate-500 text-sm py-2">No timings configured.</div>
+                                <div x-show="!timingsLoading[med.id] && !(timings[med.id]?.length)" class="text-slate-500 text-sm py-2" x-text="t('timing.empty')"></div>
                                 <div x-show="!timingsLoading[med.id]" class="space-y-2">
                                 <template x-for="rem in (timings[med.id] || [])" :key="rem.id">
                                     <div class="bg-white/5 rounded-lg border border-white/5 p-3 flex justify-between items-center">
@@ -81,8 +82,8 @@
                                                     <span class="text-xs text-slate-400 ml-2" x-text="rem.dose_time_utc.slice(0, 5)"></span>
                                                 </div>
                                                 <div class="flex gap-2">
-                                                    <button @click="startEditReminder(rem)" class="text-xs text-cyan-400 hover:underline">Edit</button>
-                                                    <button @click="deleteReminder(rem.id)" class="text-xs text-red-400 hover:underline">Delete</button>
+                                                    <button @click="startEditReminder(rem)" class="text-xs text-cyan-400 hover:underline" x-text="t('btn.edit')"></button>
+                                                    <button @click="deleteReminder(rem.id)" class="text-xs text-red-400 hover:underline" x-text="t('btn.delete')"></button>
                                                 </div>
                                             </div>
                                         </template>
@@ -91,10 +92,10 @@
                                                 <div class="flex flex-wrap gap-3 items-center">
                                                     <input type="time" x-model="editForm.scheduled_time" class="text-sm p-1.5 rounded text-white bg-transparent border border-white/10" required>
                                                     <label class="text-xs text-slate-300 flex items-center gap-1">
-                                                        <input type="checkbox" x-model="editForm.advance_notify" class="rounded border-white/10 text-cyan-600 focus:ring-0"> 10m Advance
+                                                        <input type="checkbox" x-model="editForm.advance_notify" class="rounded border-white/10 text-cyan-600 focus:ring-0"> <span x-text="t('timing.advance_short')"></span>
                                                     </label>
-                                                    <button @click="saveEditReminder(rem.id)" class="text-xs bg-cyan-600 text-white px-3 py-1.5 rounded-lg">Save</button>
-                                                    <button @click="editingReminder=null" class="text-xs text-slate-400 px-3 py-1.5">Cancel</button>
+                                                    <button @click="saveEditReminder(rem.id)" class="text-xs bg-cyan-600 text-white px-3 py-1.5 rounded-lg" x-text="t('btn.save')"></button>
+                                                    <button @click="editingReminder=null" class="text-xs text-slate-400 px-3 py-1.5" x-text="t('btn.cancel')"></button>
                                                 </div>
                                                 <div x-show="editError" class="text-xs text-red-400" x-text="editError"></div>
                                             </div>
@@ -105,20 +106,20 @@
                                 <!-- Add Timing Form -->
                                 <div x-show="addingTimingFor === med.id" class="bg-white/5 rounded-lg border border-cyan-500/20 p-3 space-y-2" x-cloak>
                                     <div class="grid grid-cols-3 gap-2">
-                                        <input type="text" x-model="addTimingForm.dose_label" placeholder="e.g. Morning" class="text-sm p-1.5" maxlength="50">
+                                        <input type="text" x-model="addTimingForm.dose_label" :placeholder="t('timing.label_placeholder')" class="text-sm p-1.5" maxlength="50">
                                         <input type="time" x-model="addTimingForm.dose_time_utc" class="text-sm p-1.5">
                                         <select x-model="addTimingForm.recurrence_type" class="text-sm p-1.5">
-                                            <option value="daily">Daily</option><option value="weekday">Weekday</option><option value="alternate">Alternate</option>
+                                            <option value="daily" x-text="t('recurrence.daily')"></option><option value="weekday" x-text="t('recurrence.weekday')"></option><option value="alternate" x-text="t('recurrence.alternate')"></option>
                                         </select>
                                     </div>
                                     <div class="flex items-center gap-2">
                                         <label class="text-xs text-slate-300 flex items-center gap-1">
-                                            <input type="checkbox" x-model="addTimingForm.advance_notify" class="rounded border-white/10 text-cyan-600 focus:ring-0"> 10-Minute Advance Notification
+                                            <input type="checkbox" x-model="addTimingForm.advance_notify" class="rounded border-white/10 text-cyan-600 focus:ring-0"> <span x-text="t('timing.advance_notify')"></span>
                                         </label>
                                     </div>
                                     <div class="flex gap-2 justify-end">
-                                        <button @click="saveAddTiming(med.id)" class="text-xs bg-cyan-600 text-white px-3 py-1 rounded-lg">Add</button>
-                                        <button @click="addingTimingFor=null" class="text-xs text-slate-400 px-3 py-1">Cancel</button>
+                                        <button @click="saveAddTiming(med.id)" class="text-xs bg-cyan-600 text-white px-3 py-1 rounded-lg" x-text="t('btn.add')"></button>
+                                        <button @click="addingTimingFor=null" class="text-xs text-slate-400 px-3 py-1" x-text="t('btn.cancel')"></button>
                                     </div>
                                     <div x-show="addTimingError" class="text-xs text-red-400" x-text="addTimingError"></div>
                                 </div>
@@ -131,21 +132,21 @@
         </div>
 
         <div class="glass p-6 rounded-xl">
-            <h2 class="text-xl font-bold mb-4">Add Medicine</h2>
+            <h2 class="text-xl font-bold mb-4" x-text="t('medicines.add_title')"></h2>
             <form @submit.prevent="addMed" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label class="block text-sm mb-1">Name</label><input type="text" x-model="form.name" class="w-full p-2 rounded" required></div>
+                <div><label class="block text-sm mb-1" x-text="t('form.name')"></label><input type="text" x-model="form.name" class="w-full p-2 rounded" required></div>
                 <div class="grid grid-cols-2 gap-2">
-                    <div><label class="block text-sm mb-1">Amount</label><input type="number" x-model="form.dosage_amount" class="w-full p-2 rounded" required></div>
-                    <div><label class="block text-sm mb-1">Unit</label><select x-model="form.dosage_unit" class="w-full p-2 rounded" required><option value="mg">mg</option><option value="ml">ml</option><option value="units">units</option></select></div>
+                    <div><label class="block text-sm mb-1" x-text="t('form.amount')"></label><input type="number" x-model="form.dosage_amount" class="w-full p-2 rounded" required></div>
+                    <div><label class="block text-sm mb-1" x-text="t('form.unit')"></label><select x-model="form.dosage_unit" class="w-full p-2 rounded" required><option value="mg" x-text="t('unit.mg')"></option><option value="ml" x-text="t('unit.ml')"></option><option value="units" x-text="t('unit.units')"></option></select></div>
                 </div>
-                <div><label class="block text-sm mb-1">Route</label><select x-model="form.route" class="w-full p-2 rounded" required><option value="oral">Oral</option><option value="topical">Topical</option><option value="injection">Injection</option><option value="inhaled">Inhaled</option><option value="other">Other</option></select></div>
-                <div><label class="block text-sm mb-1">Frequency</label><select x-model="form.frequency_type" class="w-full p-2 rounded" required><option value="daily">Daily</option><option value="weekday">Weekday</option><option value="alternate">Alternate</option><option value="prn">PRN</option></select></div>
-                <div><label class="block text-sm mb-1">Start Date</label><input type="date" x-model="form.start_date" class="w-full p-2 rounded" required></div>
-                <div><label class="block text-sm mb-1">End Date (Optional)</label><input type="date" x-model="form.end_date" class="w-full p-2 rounded"></div>
-                <div><label class="block text-sm mb-1">Timing (Optional)</label><select x-model="form.timing" class="w-full p-2 rounded"><option value="">None</option><option value="Morning">Morning</option><option value="Afternoon">Afternoon</option><option value="Evening">Evening</option><option value="Night">Night</option></select></div>
-                <div><label class="block text-sm mb-1">Scheduled Time (Optional)</label><input type="time" x-model="form.scheduled_time" class="w-full p-2 rounded"></div>
-                <div class="md:col-span-2"><label class="block text-sm mb-1">Instructions (Optional)</label><input type="text" x-model="form.instructions" class="w-full p-2 rounded"></div>
-                <div class="md:col-span-2 flex justify-end"><button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-6 rounded-lg disabled:opacity-50" :disabled="actionLoading">Add</button></div>
+                <div><label class="block text-sm mb-1" x-text="t('form.route')"></label><select x-model="form.route" class="w-full p-2 rounded" required><option value="oral" x-text="t('route.oral')"></option><option value="topical" x-text="t('route.topical')"></option><option value="injection" x-text="t('route.injection')"></option><option value="inhaled" x-text="t('route.inhaled')"></option><option value="other" x-text="t('route.other')"></option></select></div>
+                <div><label class="block text-sm mb-1" x-text="t('form.frequency')"></label><select x-model="form.frequency_type" class="w-full p-2 rounded" required><option value="daily" x-text="t('recurrence.daily')"></option><option value="weekday" x-text="t('recurrence.weekday')"></option><option value="alternate" x-text="t('recurrence.alternate')"></option><option value="prn" x-text="t('recurrence.prn')"></option></select></div>
+                <div><label class="block text-sm mb-1" x-text="t('form.start_date')"></label><input type="date" x-model="form.start_date" class="w-full p-2 rounded" required></div>
+                <div><label class="block text-sm mb-1" x-text="t('form.end_date')"></label><input type="date" x-model="form.end_date" class="w-full p-2 rounded"></div>
+                <div><label class="block text-sm mb-1" x-text="t('form.timing')"></label><select x-model="form.timing" class="w-full p-2 rounded"><option value="" x-text="t('timing.none')"></option><option value="Morning" x-text="t('timing.morning')"></option><option value="Afternoon" x-text="t('timing.afternoon')"></option><option value="Evening" x-text="t('timing.evening')"></option><option value="Night" x-text="t('timing.night')"></option></select></div>
+                <div><label class="block text-sm mb-1" x-text="t('form.scheduled_time')"></label><input type="time" x-model="form.scheduled_time" class="w-full p-2 rounded"></div>
+                <div class="md:col-span-2"><label class="block text-sm mb-1" x-text="t('form.instructions')"></label><input type="text" x-model="form.instructions" class="w-full p-2 rounded"></div>
+                <div class="md:col-span-2 flex justify-end"><button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-6 rounded-lg disabled:opacity-50" :disabled="actionLoading" x-text="t('form.add_submit')"></button></div>
             </form>
         </div>
     </main>
