@@ -123,6 +123,7 @@
         if (_role !== 'provider') window.location.href = 'index.html';
 
         const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", "") };
+        // Chart instances must not be stored inside Alpine's reactive proxy to prevent 'Maximum call stack exceeded' errors.
         let globalCharts = { w: null, m: null };
         function patientData() {
             return {

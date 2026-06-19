@@ -88,8 +88,8 @@
                     <h3 class="text-lg font-bold mb-4 flex items-center justify-between">
                         Weekly Adherence
                         <span x-show="adherence.weekly_percentage < 70" class="bg-red-900/30 text-red-400 text-xs px-2 py-1 rounded-full border border-red-500/30 flex items-center gap-1" x-cloak>
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                            Below target
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                            Low Adherence (Below target)
                         </span>
                     </h3>
                     <div class="relative h-48 w-full"><canvas id="weeklyChart"></canvas></div>
@@ -158,6 +158,30 @@
                     </template>
                 </div>
             </div>
+
+            <!-- Export My Data -->
+            <div class="glass p-6 rounded-xl">
+                <h3 class="text-lg font-bold mb-1">Export My Data</h3>
+                <p class="text-xs text-slate-400 mb-4">Download all your adherence records, medicines, and feedback.</p>
+                <div class="flex gap-2">
+                    <button id="export-json-btn" @click="exportData('json')" :disabled="exportLoading" class="flex-1 flex items-center justify-center gap-2 bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/30 text-cyan-400 text-xs font-semibold py-2.5 px-3 rounded-lg transition-all disabled:opacity-50">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                        <span x-text="exportLoading === 'json' ? 'Generating...' : 'JSON'"></span>
+                    </button>
+                    <button id="export-csv-btn" @click="exportData('csv')" :disabled="exportLoading" class="flex-1 flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 text-emerald-400 text-xs font-semibold py-2.5 px-3 rounded-lg transition-all disabled:opacity-50">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <span x-text="exportLoading === 'csv' ? 'Generating...' : 'CSV'"></span>
+                    </button>
+                </div>
+                <div x-show="exportError" class="mt-2 text-xs text-red-400" x-text="exportError" x-cloak></div>
+                <div x-show="exportUrl" class="mt-3" x-cloak>
+                    <a :href="exportUrl" target="_blank" class="text-xs text-cyan-400 underline flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Download ready — click to save
+                    </a>
+                    <p class="text-xs text-slate-500 mt-1">Link expires in 15 minutes.</p>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -170,6 +194,7 @@
 
         const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", ""), SUPABASE_JS_URL: "https://olsgvrmxqsftymsbeqve.supabase.co", SUPABASE_ANON: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sc2d2cm14cXNmdHltc2JlcXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2OTA0MjksImV4cCI6MjA5NTI2NjQyOX0.aZLBUgVPtRaCKbjHu8ljvsKOYWU6TDXO1gAE79jq9cM" };
         
+        // Chart instances must not be stored inside Alpine's reactive proxy to prevent 'Maximum call stack exceeded' errors.
         let weeklyChartInstance = null;
         let monthlyChartInstance = null;
         let chartsInitialized = false;
@@ -181,6 +206,7 @@
                 stats: {}, adherence: {}, trend: [],
                 feedback: [], fbLoading: true, loading: true,
                 presenceChannel: null,
+                exportLoading: null, exportError: '', exportUrl: '',
                 
                 async init() {
                     Chart.defaults.color = '#849495';
@@ -235,6 +261,19 @@
                     finally { this.actionLoading = null; }
                 },
                 logout() { if(this.presenceChannel) this.presenceChannel.untrack(); sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; },
+                async exportData(fmt) {
+                    this.exportLoading = fmt; this.exportError = ''; this.exportUrl = '';
+                    try {
+                        const res = await fetch(`${CONFIG.API_BASE}/profile/export?format=${fmt}`, {
+                            headers: { 'Authorization': `Bearer ${this.token}` }
+                        });
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.error?.message || 'Export failed');
+                        this.exportUrl = data.data.signed_url;
+                        if (this.exportUrl) window.open(this.exportUrl, '_blank');
+                    } catch(e) { this.exportError = e.message; }
+                    finally { this.exportLoading = null; }
+                },
                 
                 processTrendData(days) {
                     const now = new Date();

@@ -51,7 +51,7 @@
     <!-- Critical Alert Banner -->
     <div x-show="criticalPatients.length > 0" class="max-w-5xl mx-auto w-full px-6 mb-6" x-cloak>
         <div class="bg-red-900/30 border border-red-500/30 p-4 rounded-xl flex items-start gap-3">
-            <svg class="w-6 h-6 text-red-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            <svg class="w-6 h-6 text-red-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
             <div>
                 <h3 class="text-red-400 font-bold" x-text="criticalPatients.length + ' patient(s) need immediate attention'"></h3>
                 <p class="text-sm text-red-300/80 mt-1" x-text="criticalPatients.map(p => p.profiles.full_name).join(', ')"></p>
@@ -101,8 +101,8 @@
                                             'bg-amber-500/20 text-amber-400 border-amber-500/30': p.adherence.weekly_percentage >= 50 && p.adherence.weekly_percentage < 80,
                                             'bg-rose-500/20 text-rose-400 border-rose-500/30': p.adherence.weekly_percentage < 50
                                          }">
-                                        <svg x-show="p.adherence.weekly_percentage < 50" class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                                        <span x-text="p.adherence.weekly_percentage >= 80 ? 'On Track' : (p.adherence.weekly_percentage >= 50 ? 'Needs Attention' : 'Critical')"></span>
+                                        <svg x-show="p.adherence.weekly_percentage < 80" class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                        <span x-text="p.adherence.weekly_percentage >= 80 ? 'On Track' : (p.adherence.weekly_percentage >= 50 ? 'Needs Attention (Low Adherence)' : 'Critical (Low Adherence)')"></span>
                                         <span class="ml-2 font-bold" x-text="p.adherence.weekly_percentage + '%'"></span>
                                     </div>
                                 </template>
@@ -186,6 +186,7 @@
         if (_role !== 'provider') window.location.href = 'index.html';
 
         const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", ""), SUPABASE_JS_URL: "https://olsgvrmxqsftymsbeqve.supabase.co", SUPABASE_ANON: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sc2d2cm14cXNmdHltc2JlcXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2OTA0MjksImV4cCI6MjA5NTI2NjQyOX0.aZLBUgVPtRaCKbjHu8ljvsKOYWU6TDXO1gAE79jq9cM" };
+        // Chart instances must not be stored inside Alpine's reactive proxy to prevent 'Maximum call stack exceeded' errors.
         let globalCharts = {};
         
         function providerData() {
