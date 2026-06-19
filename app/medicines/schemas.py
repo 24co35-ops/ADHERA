@@ -1,16 +1,18 @@
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, Any
-from datetime import date
+from decimal import Decimal
+from datetime import date, datetime, timezone
+
 
 class MedicineCreate(BaseModel):
-    name: str
-    dosage_amount: Optional[float] = None
+    name: str = Field(..., min_length=1, max_length=200)
+    dosage_amount: Optional[Decimal] = Field(None, gt=0, le=Decimal("9999.99"))
     dosage_unit: Optional[str] = None
     route: str
     frequency_type: str
     start_date: date
     end_date: Optional[date] = None
-    instructions: Optional[str] = None
+    instructions: Optional[str] = Field(None, max_length=1000)
     recurrence_params: Optional[dict[str, Any]] = None
 
     @model_validator(mode="before")
@@ -23,11 +25,13 @@ class MedicineCreate(BaseModel):
                 data["dosage_unit"] = data["unit"]
         return data
 
+
 class MedicineUpdate(BaseModel):
-    name: Optional[str] = None
-    dosage_amount: Optional[float] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    dosage_amount: Optional[Decimal] = Field(None, gt=0, le=Decimal("9999.99"))
     dosage_unit: Optional[str] = None
     is_active: Optional[bool] = None
+    instructions: Optional[str] = Field(None, max_length=1000)
 
     @model_validator(mode="before")
     @classmethod
@@ -38,6 +42,7 @@ class MedicineUpdate(BaseModel):
             if "unit" in data and data.get("dosage_unit") is None:
                 data["dosage_unit"] = data["unit"]
         return data
+
 
 class ReminderCreate(BaseModel):
     dose_label: str
@@ -57,6 +62,7 @@ class ReminderCreate(BaseModel):
                 data["recurrence_type"] = data["frequency_type"]
         return data
 
+
 class ReminderUpdate(BaseModel):
     dose_label: Optional[str] = None
     dose_time_utc: Optional[str] = None
@@ -75,5 +81,3 @@ class ReminderUpdate(BaseModel):
             if "frequency_type" in data and data.get("recurrence_type") is None:
                 data["recurrence_type"] = data["frequency_type"]
         return data
-
-
