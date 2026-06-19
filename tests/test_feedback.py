@@ -33,3 +33,30 @@ def test_feedback_severity_4(mock_supabase, mock_requests_post):
     mock_requests_post.assert_called_once()
     args, kwargs = mock_requests_post.call_args
     assert "/functions/v1/emergency-alert" in args[0]
+
+
+# --- Schema Validation Tests ---
+
+def test_feedback_invalid_description_empty():
+    res = client.post("/v1/feedback/", headers=headers(), json={
+        "medicine_id": "m1", "description": "", "severity": 1
+    })
+    assert res.status_code == 400
+    assert "description" in res.json()["error"]["field"]
+
+def test_feedback_invalid_description_too_long():
+    res = client.post("/v1/feedback/", headers=headers(), json={
+        "medicine_id": "m1", "description": "a" * 2001, "severity": 1
+    })
+    assert res.status_code == 400
+    assert "description" in res.json()["error"]["field"]
+
+def test_feedback_invalid_occurred_at_future():
+    from datetime import datetime, timezone, timedelta
+    future_time = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+    res = client.post("/v1/feedback/", headers=headers(), json={
+        "medicine_id": "m1", "description": "Mild headache", "severity": 1, "occurred_at": future_time
+    })
+    assert res.status_code == 400
+    assert "occurred_at" in res.json()["error"]["field"]
+

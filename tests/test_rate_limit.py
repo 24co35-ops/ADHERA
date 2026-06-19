@@ -1,12 +1,14 @@
 """Tests for slowapi rate limiting integration."""
 import json
 import asyncio
+import concurrent.futures
 import pytest
 from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
 from app.main import app, _rate_limit_handler
 
 client = TestClient(app)
+
 
 
 def _make_rate_limit_exc():
@@ -26,9 +28,9 @@ def test_rate_limit_429_shape():
     mock_request = MagicMock()
     exc = _make_rate_limit_exc()
 
-    response = asyncio.get_event_loop().run_until_complete(
-        _rate_limit_handler(mock_request, exc)
-    )
+    # Run in a thread to avoid event-loop conflicts with Playwright's asyncio loop
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        response = pool.submit(asyncio.run, _rate_limit_handler(mock_request, exc)).result()
     data = json.loads(response.body)
 
     assert response.status_code == 429
