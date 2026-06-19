@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from app.db.supabase import supabase
 from app.auth.dependencies import get_current_user
 from app.core.responses import SuccessResponse
 from datetime import datetime, timezone, time, timedelta
 import pytz
+from app.core.rate_limit import limiter
 
 router = APIRouter()
 
@@ -34,7 +35,8 @@ def get_scheduled_utc_for_today(reminder: dict) -> str:
     return occurrence_utc.isoformat().replace("+00:00", "Z")
 
 @router.post("/{reminder_id}/taken", response_model=SuccessResponse[dict])
-async def dose_taken(reminder_id: str, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def dose_taken(request: Request, reminder_id: str, user: dict = Depends(get_current_user)):
     rem_res = supabase.table("reminders").select("*").eq("id", reminder_id).execute()
     if not rem_res.data:
         raise HTTPException(status_code=404, detail="Reminder not found")
@@ -51,7 +53,8 @@ async def dose_taken(reminder_id: str, user: dict = Depends(get_current_user)):
     return SuccessResponse(data=res.data[0])
 
 @router.post("/{reminder_id}/missed", response_model=SuccessResponse[dict])
-async def dose_missed(reminder_id: str, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def dose_missed(request: Request, reminder_id: str, user: dict = Depends(get_current_user)):
     rem_res = supabase.table("reminders").select("*").eq("id", reminder_id).execute()
     if not rem_res.data:
         raise HTTPException(status_code=404, detail="Reminder not found")
@@ -68,11 +71,13 @@ async def dose_missed(reminder_id: str, user: dict = Depends(get_current_user)):
     return SuccessResponse(data=res.data[0])
 
 @router.post("/{reminder_id}/snooze", response_model=SuccessResponse[dict])
-async def dose_snooze(reminder_id: str, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def dose_snooze(request: Request, reminder_id: str, user: dict = Depends(get_current_user)):
     return SuccessResponse(data={"message": "Snoozed."})
 
 @router.get("/upcoming", response_model=SuccessResponse[list])
-async def doses_upcoming(user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def doses_upcoming(request: Request, user: dict = Depends(get_current_user)):
     profile_res = supabase.table("profiles").select("timezone").eq("id", user["user_id"]).execute()
     user_tz_str = "UTC"
     if profile_res.data:
@@ -164,6 +169,7 @@ async def doses_upcoming(user: dict = Depends(get_current_user)):
     return SuccessResponse(data=upcoming)
 
 @router.get("/history", response_model=SuccessResponse[list])
-async def doses_history(user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def doses_history(request: Request, user: dict = Depends(get_current_user)):
     res = supabase.table("adherence").select("*").eq("user_id", user["user_id"]).order("scheduled_utc", desc=True).limit(50).execute()
     return SuccessResponse(data=res.data)

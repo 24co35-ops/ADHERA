@@ -104,9 +104,14 @@
             <!-- Today's Schedule -->
             <div class="glass p-6 rounded-xl relative">
                 <h2 class="text-2xl font-bold mb-4">Today's Schedule</h2>
-                <div x-show="dosesLoading" class="absolute inset-0 bg-white/5 animate-pulse rounded-xl z-10"></div>
+                <div x-show="dosesLoading" class="space-y-3" x-cloak>
+                    <div class="animate-pulse bg-white/5 p-4 rounded-xl border border-white/10 h-20 flex flex-col justify-center gap-2">
+                        <div class="h-4 bg-slate-700 rounded w-1/3"></div>
+                        <div class="h-3 bg-slate-700 rounded w-1/4"></div>
+                    </div>
+                </div>
                 <div x-show="!dosesLoading && doses.length === 0" class="text-slate-400 py-8 text-center bg-white/5 rounded-lg border border-white/10">No doses pending today. You're all caught up!</div>
-                <div class="space-y-3">
+                <div x-show="!dosesLoading" class="space-y-3">
                     <template x-for="dose in doses" :key="dose.id">
                         <div class="bg-white/5 p-4 rounded-xl border border-white/10 flex justify-between items-center hover:bg-white/10 transition-colors">
                             <div>
@@ -137,9 +142,14 @@
                     Recent Feedback
                     <a href="feedback.html" class="text-xs text-cyan-400 hover:underline font-medium">View all</a>
                 </h3>
-                <div x-show="fbLoading" class="absolute inset-0 bg-white/5 animate-pulse rounded-xl z-10"></div>
+                <div x-show="fbLoading" class="space-y-3" x-cloak>
+                    <div class="animate-pulse bg-white/5 p-4 rounded-xl border border-white/10 h-20 flex flex-col justify-center gap-2">
+                        <div class="h-4 bg-slate-700 rounded w-1/3"></div>
+                        <div class="h-3 bg-slate-700 rounded w-1/4"></div>
+                    </div>
+                </div>
                 <div x-show="!fbLoading && feedback.length === 0" class="text-slate-400 text-sm italic">No recent feedback reported.</div>
-                <div class="space-y-3">
+                <div x-show="!fbLoading" class="space-y-3">
                     <template x-for="fb in feedback" :key="fb.id">
                         <div class="text-sm bg-white/5 p-4 rounded-xl border border-white/10">
                             <div class="flex justify-between items-start mb-2">

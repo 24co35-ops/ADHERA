@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from app.db.supabase import supabase
 from app.auth.dependencies import get_current_user
 from app.core.responses import SuccessResponse
 from app.medicines.schemas import ReminderUpdate
 from app.services.audit import log_audit_action
+from app.core.rate_limit import limiter
 
 router = APIRouter()
 
@@ -23,7 +24,8 @@ def _check_reminder_access(user: dict, reminder_id: str):
     return rem
 
 @router.patch("/{id}", response_model=SuccessResponse[dict])
-async def update_reminder(id: str, payload: ReminderUpdate, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def update_reminder(request: Request, id: str, payload: ReminderUpdate, user: dict = Depends(get_current_user)):
     _check_reminder_access(user, id)
     data = payload.model_dump(exclude_unset=True)
     if not data:
@@ -40,7 +42,8 @@ async def update_reminder(id: str, payload: ReminderUpdate, user: dict = Depends
     return SuccessResponse(data=res.data[0])
 
 @router.delete("/{id}", response_model=SuccessResponse[dict])
-async def delete_reminder(id: str, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def delete_reminder(request: Request, id: str, user: dict = Depends(get_current_user)):
     _check_reminder_access(user, id)
     supabase.table("reminders").update({"is_active": False}).eq("id", id).execute()
     log_audit_action("REMINDER_DELETED", user["user_id"], {"target": id})

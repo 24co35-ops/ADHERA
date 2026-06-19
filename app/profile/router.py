@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from app.db.supabase import supabase
 from app.auth.dependencies import get_current_user
 from app.core.responses import SuccessResponse
+from app.core.rate_limit import limiter
 from app.profile.schemas import ProfileUpdate, EmergencyContact, PushSubscriptionCreate
 import csv
 import io
@@ -12,7 +13,8 @@ import datetime
 router = APIRouter()
 
 @router.get("/", response_model=SuccessResponse[dict])
-async def get_profile(user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def get_profile(request: Request, user: dict = Depends(get_current_user)):
     res = supabase.table("profiles").select("*").eq("id", user["user_id"]).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Profile not found.")
@@ -26,7 +28,8 @@ async def get_profile(user: dict = Depends(get_current_user)):
     return SuccessResponse(data=profile)
 
 @router.patch("/", response_model=SuccessResponse[dict])
-async def update_profile(profile: ProfileUpdate, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def update_profile(request: Request, profile: ProfileUpdate, user: dict = Depends(get_current_user)):
     data = profile.model_dump(exclude_unset=True)
     if not data:
         raise HTTPException(status_code=400, detail="No fields provided.")
@@ -36,24 +39,28 @@ async def update_profile(profile: ProfileUpdate, user: dict = Depends(get_curren
     return SuccessResponse(data=profile_data)
 
 @router.get("/emergency-contact", response_model=SuccessResponse[dict])
-async def get_emergency_contact(user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def get_emergency_contact(request: Request, user: dict = Depends(get_current_user)):
     res = supabase.table("emergency_contacts").select("*").eq("user_id", user["user_id"]).execute()
     return SuccessResponse(data=res.data[0] if res.data else {})
 
 @router.put("/emergency-contact", response_model=SuccessResponse[dict])
-async def update_emergency_contact(contact: EmergencyContact, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def update_emergency_contact(request: Request, contact: EmergencyContact, user: dict = Depends(get_current_user)):
     data = contact.model_dump()
     data["user_id"] = user["user_id"]
     res = supabase.table("emergency_contacts").upsert(data, on_conflict="user_id").execute()
     return SuccessResponse(data=res.data[0])
 
 @router.delete("/emergency-contact", response_model=SuccessResponse[dict])
-async def delete_emergency_contact(user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def delete_emergency_contact(request: Request, user: dict = Depends(get_current_user)):
     supabase.table("emergency_contacts").delete().eq("user_id", user["user_id"]).execute()
     return SuccessResponse(data={"message": "Deleted emergency contact."})
 
 @router.post("/push-subscription", response_model=SuccessResponse[dict])
-async def save_push_subscription(subscription: PushSubscriptionCreate, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def save_push_subscription(request: Request, subscription: PushSubscriptionCreate, user: dict = Depends(get_current_user)):
     data = {
         "user_id": user["user_id"],
         "endpoint": subscription.endpoint,
@@ -67,7 +74,9 @@ async def save_push_subscription(subscription: PushSubscriptionCreate, user: dic
     return SuccessResponse(data=res.data[0])
 
 @router.get("/export")
+@limiter.limit("60/minute")
 async def export_data(
+    request: Request,
     format: str = Query("json", pattern="^(json|csv)$"),
     user: dict = Depends(get_current_user)
 ):

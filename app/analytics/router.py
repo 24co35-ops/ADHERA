@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from app.db.supabase import supabase
 from app.auth.dependencies import get_current_user
 from app.core.responses import SuccessResponse
 from datetime import datetime, timezone, timedelta
+from app.core.rate_limit import limiter
 
 router = APIRouter()
 
@@ -32,7 +33,8 @@ def _resolve_uid(user: dict, patient_id: str = None):
     return user["user_id"]
 
 @router.get("/dashboard", response_model=SuccessResponse[dict])
-async def get_dashboard(patient_id: str = Query(None), user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def get_dashboard(request: Request, patient_id: str = Query(None), user: dict = Depends(get_current_user)):
     try:
         uid = _resolve_uid(user, patient_id)
         now = datetime.now(timezone.utc)
@@ -94,7 +96,8 @@ async def get_dashboard(patient_id: str = Query(None), user: dict = Depends(get_
         raise HTTPException(status_code=500, detail="Analytics error")
 
 @router.get("/adherence", response_model=SuccessResponse[dict])
-async def get_adherence(patient_id: str = Query(None), user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def get_adherence(request: Request, patient_id: str = Query(None), user: dict = Depends(get_current_user)):
     try:
         uid = _resolve_uid(user, patient_id)
         if uid is None:
@@ -113,7 +116,8 @@ async def get_adherence(patient_id: str = Query(None), user: dict = Depends(get_
         raise HTTPException(status_code=500, detail="Analytics error")
 
 @router.get("/trend", response_model=SuccessResponse[list])
-async def get_trend(patient_id: str = Query(None), user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def get_trend(request: Request, patient_id: str = Query(None), user: dict = Depends(get_current_user)):
     try:
         uid = _resolve_uid(user, patient_id)
         d30 = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()

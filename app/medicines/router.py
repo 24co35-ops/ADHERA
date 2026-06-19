@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from app.db.supabase import supabase
 supabase = supabase
 from app.auth.dependencies import get_current_user
 from app.core.responses import SuccessResponse
 from app.medicines.schemas import MedicineCreate, MedicineUpdate, ReminderCreate, ReminderUpdate
 from app.services.audit import log_audit_action
+from app.core.rate_limit import limiter
 
 router = APIRouter()
 
@@ -29,7 +30,8 @@ def _resolve_user_id(user: dict, patient_id: str = None):
     return user["user_id"]
 
 @router.post("/", response_model=SuccessResponse[dict], status_code=status.HTTP_201_CREATED)
-async def create_medicine(medicine: MedicineCreate, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def create_medicine(request: Request, medicine: MedicineCreate, user: dict = Depends(get_current_user)):
     data = medicine.model_dump()
     data["user_id"] = user["user_id"]
     data["start_date"] = data["start_date"].isoformat()
@@ -38,13 +40,15 @@ async def create_medicine(medicine: MedicineCreate, user: dict = Depends(get_cur
     return SuccessResponse(data=res.data[0])
 
 @router.get("/", response_model=SuccessResponse[list])
-async def list_medicines(patient_id: str = Query(None), user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def list_medicines(request: Request, patient_id: str = Query(None), user: dict = Depends(get_current_user)):
     uid = _resolve_user_id(user, patient_id)
     res = supabase.table("medicines").select("*").eq("user_id", uid).eq("is_active", True).execute()
     return SuccessResponse(data=res.data)
 
 @router.get("/{id}", response_model=SuccessResponse[dict])
-async def get_medicine(id: str, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def get_medicine(request: Request, id: str, user: dict = Depends(get_current_user)):
     res = supabase.table("medicines").select("*").eq("id", id).execute()
     if not res.data: raise HTTPException(status_code=404, detail="Medicine not found")
     med = res.data[0]
@@ -56,21 +60,24 @@ async def get_medicine(id: str, user: dict = Depends(get_current_user)):
     return SuccessResponse(data=med)
 
 @router.patch("/{id}", response_model=SuccessResponse[dict])
-async def update_medicine(id: str, medicine: MedicineUpdate, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def update_medicine(request: Request, id: str, medicine: MedicineUpdate, user: dict = Depends(get_current_user)):
     data = medicine.model_dump(exclude_unset=True)
     res = supabase.table("medicines").update(data).eq("id", id).eq("user_id", user["user_id"]).execute()
     if not res.data: raise HTTPException(status_code=404, detail="Medicine not found")
     return SuccessResponse(data=res.data[0])
 
 @router.delete("/{id}", response_model=SuccessResponse[dict])
-async def delete_medicine(id: str, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def delete_medicine(request: Request, id: str, user: dict = Depends(get_current_user)):
     supabase.table("medicines").update({"is_active": False}).eq("id", id).eq("user_id", user["user_id"]).execute()
     return SuccessResponse(data={"message": "Deleted."})
 
 # --- Reminders ---
 
 @router.get("/{id}/reminders", response_model=SuccessResponse[list])
-async def get_reminders(id: str, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def get_reminders(request: Request, id: str, user: dict = Depends(get_current_user)):
     # First get the medicine to check ownership
     med = supabase.table("medicines").select("user_id").eq("id", id).execute()
     if not med.data: raise HTTPException(status_code=404, detail="Medicine not found")
@@ -84,7 +91,8 @@ async def get_reminders(id: str, user: dict = Depends(get_current_user)):
     return SuccessResponse(data=res.data)
 
 @router.post("/{id}/reminders", response_model=SuccessResponse[dict], status_code=status.HTTP_201_CREATED)
-async def create_reminder(id: str, reminder: dict, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def create_reminder(request: Request, id: str, reminder: dict, user: dict = Depends(get_current_user)):
     med = supabase.table("medicines").select("user_id").eq("id", id).execute()
     if not med.data: raise HTTPException(status_code=404, detail="Medicine not found")
     med_owner = med.data[0]["user_id"]

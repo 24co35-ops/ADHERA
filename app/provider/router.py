@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from app.db.supabase import supabase
 from app.auth.dependencies import require_role
 from app.core.responses import SuccessResponse
+from app.core.rate_limit import limiter
 
 router = APIRouter()
 
 @router.get("/patients", response_model=SuccessResponse[list])
-async def list_patients(user: dict = Depends(require_role("provider"))):
+@limiter.limit("60/minute")
+async def list_patients(request: Request, user: dict = Depends(require_role("provider"))):
     assignments = supabase.table("assignments").select("patient_id").eq("provider_id", user["user_id"]).eq("status", "active").execute()
     result = []
     try:
@@ -24,7 +26,8 @@ async def list_patients(user: dict = Depends(require_role("provider"))):
     return SuccessResponse(data=result)
 
 @router.get("/patients/{id}", response_model=SuccessResponse[dict])
-async def get_patient(id: str, user: dict = Depends(require_role("provider"))):
+@limiter.limit("60/minute")
+async def get_patient(request: Request, id: str, user: dict = Depends(require_role("provider"))):
     res = supabase.table("profiles").select("*").eq("id", id).execute()
     if not res.data: raise HTTPException(status_code=404, detail="Not found")
     profile = res.data[0]
@@ -36,6 +39,7 @@ async def get_patient(id: str, user: dict = Depends(require_role("provider"))):
     return SuccessResponse(data=profile)
 
 @router.get("/patients/{id}/report", response_model=SuccessResponse[dict])
-async def get_patient_report(id: str, user: dict = Depends(require_role("provider"))):
+@limiter.limit("60/minute")
+async def get_patient_report(request: Request, id: str, user: dict = Depends(require_role("provider"))):
     res = supabase.table("reports").select("*").eq("user_id", id).order("created_at", desc=True).limit(1).execute()
     return SuccessResponse(data=res.data[0] if res.data else {})

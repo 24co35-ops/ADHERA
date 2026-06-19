@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from app.db.supabase import supabase
 from app.auth.dependencies import get_current_user
 from app.core.responses import SuccessResponse
 from app.feedback.schemas import FeedbackCreate
 from app.services.audit import log_audit_action
+from app.core.rate_limit import limiter
 import requests
 from app.config import settings
 
@@ -15,7 +16,8 @@ def _check_assignment(provider_id: str, patient_id: str):
         raise HTTPException(status_code=403, detail="Not assigned to this patient")
 
 @router.post("/", response_model=SuccessResponse[dict], status_code=status.HTTP_201_CREATED)
-async def create_feedback(feedback: FeedbackCreate, user: dict = Depends(get_current_user)):
+@limiter.limit("60/minute")
+async def create_feedback(request: Request, feedback: FeedbackCreate, user: dict = Depends(get_current_user)):
     role = user.get("role", "patient")
     if role != "patient":
         raise HTTPException(status_code=403, detail="Only patients can submit feedback")
@@ -52,7 +54,9 @@ async def create_feedback(feedback: FeedbackCreate, user: dict = Depends(get_cur
     return SuccessResponse(data=res.data[0])
 
 @router.get("/", response_model=SuccessResponse[list])
+@limiter.limit("60/minute")
 async def list_feedback(
+    request: Request,
     patient_id: str = Query(None),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),

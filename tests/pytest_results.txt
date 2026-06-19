@@ -1,0 +1,162 @@
+﻿.......F..FF..............F.....F...F.FFFF................               [100%]
+================================== FAILURES ===================================
+________________________ test_register_duplicate_email ________________________
+tests\test_auth.py:63: in test_register_duplicate_email
+    mock_supabase_auth.auth.sign_up.side_effect = AuthApiError("User already registered", {"message": "user_already_registered"})
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: AuthApiError.__init__() missing 1 required positional argument: 'code'
+__________________________ test_login_wrong_password __________________________
+tests\test_auth.py:88: in test_login_wrong_password
+    mock_supabase_auth.auth.sign_in_with_password.side_effect = AuthApiError("Invalid login credentials", {"message": "invalid_credentials"})
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: AuthApiError.__init__() missing 1 required positional argument: 'code'
+______________________________ test_login_locked ______________________________
+tests\test_auth.py:95: in test_login_locked
+    mock_supabase_auth.auth.sign_in_with_password.side_effect = AuthApiError("Email rate limit exceeded", {"message": "rate_limited"})
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: AuthApiError.__init__() missing 1 required positional argument: 'code'
+________________________ test_step1_register[chromium] ________________________
+tests\test_e2e_real.py:35: in test_step1_register
+    assert 'already' in page_text.lower() or 'rate limit' in page_text.lower() or 'security purposes' in page_text.lower() or 'request this after' in page_text.lower(), f"Unexpected state: {page_text[:200]}"
+E   AssertionError: Unexpected state: Register
+E     Full Name
+E     Email
+E     Password
+E     Role
+E     Patient
+E     Provider
+E     Date of Birth
+E     Contact Number
+E     Timezone (IANA)
+E     I accept the terms, conditions, and medical disclaimer.
+E     Failed to fetch
+E     Register
+E     Back to Login
+E   assert ('already' in 'register\nfull name\nemail\npassword\nrole\npatient\nprovider\ndate of birth\ncontact number\ntimezone (iana)\ni accept the terms, conditions, and medical disclaimer.\nfailed to fetch\nregister\nback to login' or 'rate limit' in 'register\nfull name\nemail\npassword\nrole\npatient\nprovider\ndate of birth\ncontact number\ntimezone (iana)\ni accept the terms, conditions, and medical disclaimer.\nfailed to fetch\nregister\nback to login' or 'security purposes' in 'register\nfull name\nemail\npassword\nrole\npatient\nprovider\ndate of birth\ncontact number\ntimezone (iana)\ni accept the terms, conditions, and medical disclaimer.\nfailed to fetch\nregister\nback to login' or 'request this after' in 'register\nfull name\nemail\npassword\nrole\npatient\nprovider\ndate of birth\ncontact number\ntimezone (iana)\ni accept the terms, conditions, and medical disclaimer.\nfailed to fetch\nregister\nback to login')
+E    +  where 'register\nfull name\nemail\npassword\nrole\npatient\nprovider\ndate of birth\ncontact number\ntimezone (iana)\ni accept the terms, conditions, and medical disclaimer.\nfailed to fetch\nregister\nback to login' = <built-in method lower of str object at 0x00000241FCE6E670>()
+E    +    where <built-in method lower of str object at 0x00000241FCE6E670> = 'Register\nFull Name\nEmail\nPassword\nRole\nPatient\nProvider\nDate of Birth\nContact Number\nTimezone (IANA)\nI accept the terms, conditions, and medical disclaimer.\nFailed to fetch\nRegister\nBack to Login'.lower
+E    +  and   'register\nfull name\nemail\npassword\nrole\npatient\nprovider\ndate of birth\ncontact number\ntimezone (iana)\ni accept the terms, conditions, and medical disclaimer.\nfailed to fetch\nregister\nback to login' = <built-in method lower of str object at 0x00000241FCE6E670>()
+E    +    where <built-in method lower of str object at 0x00000241FCE6E670> = 'Register\nFull Name\nEmail\nPassword\nRole\nPatient\nProvider\nDate of Birth\nContact Number\nTimezone (IANA)\nI accept the terms, conditions, and medical disclaimer.\nFailed to fetch\nRegister\nBack to Login'.lower
+E    +  and   'register\nfull name\nemail\npassword\nrole\npatient\nprovider\ndate of birth\ncontact number\ntimezone (iana)\ni accept the terms, conditions, and medical disclaimer.\nfailed to fetch\nregister\nback to login' = <built-in method lower of str object at 0x00000241FCE6E670>()
+E    +    where <built-in method lower of str object at 0x00000241FCE6E670> = 'Register\nFull Name\nEmail\nPassword\nRole\nPatient\nProvider\nDate of Birth\nContact Number\nTimezone (IANA)\nI accept the terms, conditions, and medical disclaimer.\nFailed to fetch\nRegister\nBack to Login'.lower
+E    +  and   'register\nfull name\nemail\npassword\nrole\npatient\nprovider\ndate of birth\ncontact number\ntimezone (iana)\ni accept the terms, conditions, and medical disclaimer.\nfailed to fetch\nregister\nback to login' = <built-in method lower of str object at 0x00000241FCE6E670>()
+E    +    where <built-in method lower of str object at 0x00000241FCE6E670> = 'Register\nFull Name\nEmail\nPassword\nRole\nPatient\nProvider\nDate of Birth\nContact Number\nTimezone (IANA)\nI accept the terms, conditions, and medical disclaimer.\nFailed to fetch\nRegister\nBack to Login'.lower
+_______________________ test_step7_severity4[chromium] ________________________
+tests\test_e2e_real.py:85: in test_step7_severity4
+    _login(page, PATIENT_EMAIL, PATIENT_PASS, "dashboard.html")
+tests\test_e2e_real.py:17: in _login
+    expect(page).to_have_url(f"{BASE_URL}/{expected_url}", timeout=5000)
+E   AssertionError: Page URL expected to be 'http://localhost:8080/dashboard.html'
+E   Actual value: http://localhost:8080/index.html 
+E   Call log:
+E     - Expect "to_have_url" with timeout 5000ms
+E       14 ╫ unexpected value "http://localhost:8080/index.html"
+__________________________ test_dashboard[chromium] ___________________________
+tests\test_frontend.py:69: in test_dashboard
+    expect(page.locator("text=Aspirin")).to_be_visible()
+E   AssertionError: Locator expected to be visible
+E   Actual value: - img
+E   - text: Email
+E   - textbox
+E   - text: Password
+E   - textbox
+E   - button "Login"
+E   - link "Create an account":
+E     - /url: register.html
+E   Error: element(s) not found 
+E   Call log:
+E     - Expect "to_be_visible" with timeout 5000ms
+E     - waiting for locator("text=Aspirin")
+__________________________ test_medicines[chromium] ___________________________
+tests\test_frontend.py:90: in test_medicines
+    expect(page.locator("text=Aspirin")).to_be_visible()
+E   AssertionError: Locator expected to be visible
+E   Actual value: - img
+E   - text: Email
+E   - textbox
+E   - text: Password
+E   - textbox
+E   - button "Login"
+E   - link "Create an account":
+E     - /url: register.html
+E   Error: element(s) not found 
+E   Call log:
+E     - Expect "to_be_visible" with timeout 5000ms
+E     - waiting for locator("text=Aspirin")
+______________________ test_feedback_emergency[chromium] ______________________
+tests\test_frontend.py:103: in test_feedback_emergency
+    page.fill("textarea[x-model='form.description']", "Severe pain")
+..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\sync_api\_generated.py:10998: in fill
+    self._sync(
+..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_page.py:917: in fill
+    return await self._main_frame.fill(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_frame.py:610: in fill
+    await self._fill(**locals_to_params(locals()))
+..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_frame.py:622: in _fill
+    await self._channel.send("fill", self._timeout, locals_to_params(locals()))
+..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+..\..\..\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\_impl\_connection.py:559: in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E   playwright._impl._errors.TimeoutError: Page.fill: Timeout 30000ms exceeded.
+E   Call log:
+E     - waiting for locator("textarea[x-model='form.description']")
+______________________ test_provider_dashboard[chromium] ______________________
+tests\test_frontend.py:114: in test_provider_dashboard
+    expect(page.locator("text=patient1")).to_be_visible()
+E   AssertionError: Locator expected to be visible
+E   Actual value: - img
+E   - text: Email
+E   - textbox
+E   - text: Password
+E   - textbox
+E   - button "Login"
+E   - link "Create an account":
+E     - /url: register.html
+E   Error: element(s) not found 
+E   Call log:
+E     - Expect "to_be_visible" with timeout 5000ms
+E     - waiting for locator("text=patient1")
+_______________________ test_admin_dashboard[chromium] ________________________
+tests\test_frontend.py:121: in test_admin_dashboard
+    expect(page.locator("text=Dr. Smith")).to_be_visible()
+E   AssertionError: Locator expected to be visible
+E   Actual value: - img
+E   - text: Email
+E   - textbox
+E   - text: Password
+E   - textbox
+E   - button "Login"
+E   - link "Create an account":
+E     - /url: register.html
+E   Error: element(s) not found 
+E   Call log:
+E     - Expect "to_be_visible" with timeout 5000ms
+E     - waiting for locator("text=Dr. Smith")
+============================== warnings summary ===============================
+app\auth\router.py:17
+  C:\Users\ASHWITH\Desktop\Adhera\stitch_adhera_glassmorphism_design_system\app\auth\router.py:17: DeprecationWarning: The `gotrue` package is deprecated, is not going to receive updates in the future. Please, use `supabase_auth` instead.
+    from gotrue.types import AdminUserAttributes
+
+tests/test_admin.py::test_reject_provider_valid
+  C:\Users\ASHWITH\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py:309: DeprecationWarning: The 'timeout' parameter is deprecated. Please configure it in the http client instead.
+    return SyncPostgrestClient(
+
+tests/test_admin.py::test_reject_provider_valid
+  C:\Users\ASHWITH\AppData\Local\Programs\Python\Python313\Lib\site-packages\supabase\_sync\client.py:309: DeprecationWarning: The 'verify' parameter is deprecated. Please configure it in the http client instead.
+    return SyncPostgrestClient(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_auth.py::test_register_duplicate_email - TypeError: AuthApi...
+FAILED tests/test_auth.py::test_login_wrong_password - TypeError: AuthApiErro...
+FAILED tests/test_auth.py::test_login_locked - TypeError: AuthApiError.__init...
+FAILED tests/test_e2e_real.py::test_step1_register[chromium] - AssertionError...
+FAILED tests/test_e2e_real.py::test_step7_severity4[chromium] - AssertionErro...
+FAILED tests/test_frontend.py::test_dashboard[chromium] - AssertionError: Loc...
+FAILED tests/test_frontend.py::test_medicines[chromium] - AssertionError: Loc...
+FAILED tests/test_frontend.py::test_feedback_emergency[chromium] - playwright...
+FAILED tests/test_frontend.py::test_provider_dashboard[chromium] - AssertionE...
+FAILED tests/test_frontend.py::test_admin_dashboard[chromium] - AssertionErro...
+10 failed, 48 passed, 3 warnings in 102.77s (0:01:42)

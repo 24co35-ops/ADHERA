@@ -1,14 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from app.db.supabase import supabase
 from app.auth.dependencies import require_role
 from app.core.responses import SuccessResponse
 from app.admin.schemas import AssignmentCreate, AssignmentUpdate, UserUpdate, RejectBody
 from app.services.audit import log_audit_action
+from app.core.rate_limit import limiter
 
 router = APIRouter()
 
 @router.get("/users", response_model=SuccessResponse[list])
+@limiter.limit("60/minute")
 async def list_users(
+    request: Request,
     role: str = Query("all"),
     status: str = Query("all"),
     user: dict = Depends(require_role("admin"))
@@ -31,7 +34,8 @@ async def list_users(
     return SuccessResponse(data=res.data)
 
 @router.get("/users/{id}", response_model=SuccessResponse[dict])
-async def get_user(id: str, user: dict = Depends(require_role("admin"))):
+@limiter.limit("60/minute")
+async def get_user(request: Request, id: str, user: dict = Depends(require_role("admin"))):
     res = supabase.table("profiles").select("*").eq("id", id).execute()
     if not res.data: raise HTTPException(404, "Not found")
     profile = res.data[0]
@@ -43,7 +47,8 @@ async def get_user(id: str, user: dict = Depends(require_role("admin"))):
     return SuccessResponse(data=profile)
 
 @router.patch("/users/{id}", response_model=SuccessResponse[dict])
-async def update_user(id: str, payload: UserUpdate, user: dict = Depends(require_role("admin"))):
+@limiter.limit("60/minute")
+async def update_user(request: Request, id: str, payload: UserUpdate, user: dict = Depends(require_role("admin"))):
     data = payload.model_dump(exclude_unset=True)
     if not data: raise HTTPException(400, "No fields to update")
     res = supabase.table("profiles").update(data).eq("id", id).execute()
@@ -51,14 +56,16 @@ async def update_user(id: str, payload: UserUpdate, user: dict = Depends(require
     return SuccessResponse(data=res.data[0])
 
 @router.post("/users/{id}/approve", response_model=SuccessResponse[dict])
-async def approve_user(id: str, user: dict = Depends(require_role("admin"))):
+@limiter.limit("60/minute")
+async def approve_user(request: Request, id: str, user: dict = Depends(require_role("admin"))):
     res = supabase.table("profiles").update({"is_active": True}).eq("id", id).execute()
     if not res.data: raise HTTPException(404, "User not found")
     log_audit_action("USER_APPROVED", user["user_id"], {"target": id})
     return SuccessResponse(data=res.data[0])
 
 @router.post("/users/{id}/reject", response_model=SuccessResponse[dict])
-async def reject_user(id: str, body: RejectBody, user: dict = Depends(require_role("admin"))):
+@limiter.limit("60/minute")
+async def reject_user(request: Request, id: str, body: RejectBody, user: dict = Depends(require_role("admin"))):
     if not body.reason.strip():
         raise HTTPException(400, "Rejection reason is required")
     res = supabase.table("profiles").update({"is_active": False}).eq("id", id).execute()
@@ -68,7 +75,8 @@ async def reject_user(id: str, body: RejectBody, user: dict = Depends(require_ro
 
 # Keep legacy routes for backward compat
 @router.get("/providers/pending", response_model=SuccessResponse[list])
-async def pending_providers(user: dict = Depends(require_role("admin"))):
+@limiter.limit("60/minute")
+async def pending_providers(request: Request, user: dict = Depends(require_role("admin"))):
     res = supabase.table("profiles").select("*").eq("role", "provider").eq("is_active", False).execute()
     try:
         users = supabase.auth.admin.list_users()
@@ -80,26 +88,31 @@ async def pending_providers(user: dict = Depends(require_role("admin"))):
     return SuccessResponse(data=res.data)
 
 @router.post("/providers/{id}/approve", response_model=SuccessResponse[dict])
-async def approve_provider(id: str, user: dict = Depends(require_role("admin"))):
-    return await approve_user(id, user)
+@limiter.limit("60/minute")
+async def approve_provider(request: Request, id: str, user: dict = Depends(require_role("admin"))):
+    return await approve_user(request, id, user)
 
 @router.post("/providers/{id}/reject", response_model=SuccessResponse[dict])
-async def reject_provider(id: str, user: dict = Depends(require_role("admin"))):
-    return await reject_user(id, RejectBody(reason="Legacy reject"), user)
+@limiter.limit("60/minute")
+async def reject_provider(request: Request, id: str, user: dict = Depends(require_role("admin"))):
+    return await reject_user(request, id, RejectBody(reason="Legacy reject"), user)
 
 @router.get("/assignments", response_model=SuccessResponse[list])
-async def list_assignments(user: dict = Depends(require_role("admin"))):
+@limiter.limit("60/minute")
+async def list_assignments(request: Request, user: dict = Depends(require_role("admin"))):
     res = supabase.table("assignments").select("*").execute()
     return SuccessResponse(data=res.data)
 
 @router.post("/assignments", response_model=SuccessResponse[dict])
-async def create_assignment(payload: AssignmentCreate, user: dict = Depends(require_role("admin"))):
+@limiter.limit("60/minute")
+async def create_assignment(request: Request, payload: AssignmentCreate, user: dict = Depends(require_role("admin"))):
     res = supabase.table("assignments").insert(payload.model_dump()).execute()
     log_audit_action("ADMIN_ASSIGNMENT_CREATE", user["user_id"], {"target": payload.patient_id})
     return SuccessResponse(data=res.data[0])
 
 @router.patch("/assignments/{id}", response_model=SuccessResponse[dict])
-async def update_assignment(id: str, payload: AssignmentUpdate, user: dict = Depends(require_role("admin"))):
+@limiter.limit("60/minute")
+async def update_assignment(request: Request, id: str, payload: AssignmentUpdate, user: dict = Depends(require_role("admin"))):
     res = supabase.table("assignments").update(payload.model_dump()).eq("id", id).execute()
     log_audit_action("ADMIN_ASSIGNMENT_UPDATE", user["user_id"], {"target": id})
     return SuccessResponse(data=res.data[0])

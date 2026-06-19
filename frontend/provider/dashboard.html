@@ -456,7 +456,26 @@ async function apiGet(path) {
 <th class="pb-sm font-medium text-right pr-sm">Actions</th>
 </tr>
 </thead>
-<tbody class="text-body-md font-body-md divide-y divide-glass-border/50">
+<tbody x-show="loading" class="text-body-md font-body-md divide-y divide-glass-border/50" x-cloak>
+    <tr class="animate-pulse">
+        <td class="py-md pl-sm">
+            <div class="flex items-center gap-3">
+                <div class="h-8 w-8 rounded-full bg-slate-700"></div>
+                <div class="h-4 bg-slate-700 rounded w-24"></div>
+            </div>
+        </td>
+        <td class="py-md"><div class="h-4 bg-slate-700 rounded w-20"></div></td>
+        <td class="py-md">
+            <div class="flex items-center gap-2">
+                <div class="w-24 h-2 bg-slate-700 rounded-full"></div>
+                <div class="h-4 bg-slate-700 rounded w-8"></div>
+            </div>
+        </td>
+        <td class="py-md"><div class="h-4 bg-slate-700 rounded w-16"></div></td>
+        <td class="py-md text-right pr-sm"></td>
+    </tr>
+</tbody>
+<tbody x-show="!loading" class="text-body-md font-body-md divide-y divide-glass-border/50">
 <template x-for="patient in patients" :key="patient.patient_id">
 <tr class="hover:bg-glass-surface transition-colors group">
 <td class="py-md pl-sm">
