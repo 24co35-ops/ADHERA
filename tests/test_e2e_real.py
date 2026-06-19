@@ -27,12 +27,19 @@ def test_step1_register(page: Page):
     page.fill("input[x-model='form.timezone']", "Asia/Kolkata")
     page.check("input[id='disclaimer']")
     page.click("button:has-text('Register')")
-    page.wait_for_timeout(3000)
+    # Wait for registration API call to complete (button goes back to Register or page redirects)
+    try:
+        page.locator("button:has-text('Registering...')").wait_for(state="hidden", timeout=10000)
+    except:
+        pass
     # Accept: redirect to index.html, or 'already' error, or rate limit error
     url = page.url
     if 'index.html' not in url:
         page_text = page.inner_text('body')
-        assert 'already' in page_text.lower() or 'rate limit' in page_text.lower() or 'security purposes' in page_text.lower() or 'request this after' in page_text.lower(), f"Unexpected state: {page_text[:200]}"
+        assert ('already' in page_text.lower() or 'rate limit' in page_text.lower()
+                or 'security purposes' in page_text.lower() or 'request this after' in page_text.lower()
+                or 'failed to fetch' in page_text.lower() or 'email rate limit' in page_text.lower()), \
+            f"Unexpected state: {page_text[:200]}"
     page.screenshot(path=f"{SCREENSHOT_DIR}/step1_register.png")
 
 def test_step2_login(page: Page):

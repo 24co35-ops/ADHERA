@@ -37,8 +37,8 @@ def mock_api(page: Page):
     page.route("**/v1/provider/patients", lambda route: route.fulfill(
         json={"success": True, "data": [{"patient_id": "p1", "profiles": {"full_name": "patient1", "contact_number": "1234567890"}}], "meta": {}}
     ))
-    page.route("**/v1/admin/providers/pending", lambda route: route.fulfill(
-        json={"success": True, "data": [{"id": "prov1", "full_name": "Dr. Smith", "email": "dr@demo.com"}], "meta": {}}
+    page.route(re.compile(r".*/v1/admin/users.*"), lambda route: route.fulfill(
+        json={"success": True, "data": [{"id": "prov1", "full_name": "Dr. Smith", "email": "dr@demo.com", "role": "provider", "is_active": False}], "meta": {}}
     ))
     page.route("**/v1/admin/assignments", lambda route: route.fulfill(
         json={"success": True, "data": [], "meta": {}}
@@ -49,7 +49,7 @@ def set_mock_session(page: Page, role="patient"):
     # Mock JWT logic needs payload base64 string
     payload = base64.b64encode(json.dumps({"sub": "user123", "user_metadata": {"role": role}}).encode()).decode()
     token = f"header.{payload}.sig"
-    page.add_init_script(f"sessionStorage.setItem('jwt', '{token}')")
+    page.add_init_script(f"sessionStorage.setItem('jwt', '{token}'); sessionStorage.setItem('adhera_token', '{token}');")
 
 def test_login(page: Page):
     mock_api(page)
@@ -90,7 +90,7 @@ def test_medicines(page: Page):
     expect(page.locator("text=Aspirin")).to_be_visible()
     # Add medicine
     page.fill("input[x-model='form.name']", "TestMed")
-    page.click("button:has-text('Add')")
+    page.click("form button[type='submit']")
     # Delete medicine
     page.on("dialog", lambda dialog: dialog.accept()) # Auto-accept confirm
     page.click("button:has-text('Delete')")
@@ -111,12 +111,12 @@ def test_provider_dashboard(page: Page):
     mock_api(page)
     set_mock_session(page, "provider")
     page.goto(file_url("provider-dashboard.html"))
-    expect(page.locator("text=patient1")).to_be_visible()
+    expect(page.locator("text=patient1").first).to_be_visible()
     page.screenshot(path=f"{SCREENSHOT_DIR}/provider_dashboard.png")
 
 def test_admin_dashboard(page: Page):
     mock_api(page)
     set_mock_session(page, "admin")
     page.goto(file_url("admin-dashboard.html"))
-    expect(page.locator("text=Dr. Smith")).to_be_visible()
+    expect(page.locator("text=Dr. Smith").first).to_be_visible()
     page.screenshot(path=f"{SCREENSHOT_DIR}/admin_dashboard.png")
