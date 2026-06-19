@@ -15,6 +15,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             audience="authenticated",
             options={"verify_signature": False}
         )
+        if payload.get("mfa_pending"):
+            raise HTTPException(status_code=401, detail="MFA verification required")
         return {
             "user_id": payload.get("sub"),
             "role": (
@@ -24,6 +26,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
                 or "patient"
             )
         }
+    except HTTPException:
+        raise
     except Exception as e:
         print("JWT DECODE ERROR:", repr(e))
         raise HTTPException(status_code=401, detail="Invalid token")

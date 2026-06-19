@@ -46,24 +46,46 @@
         <div x-show="pendingApproval" x-cloak class="bg-amber-900/50 text-amber-400 border border-amber-500/30 p-3 rounded-xl mb-4 text-sm text-center">Your provider account is pending admin approval. You will be notified once approved.</div>
         <!-- Disabled account banner -->
         <div x-show="accountDisabled" x-cloak class="bg-red-900/50 text-red-400 border border-red-500/30 p-3 rounded-xl mb-4 text-sm text-center">Your account has been disabled. Contact support.</div>
-        <form @submit.prevent="login" class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium mb-1">Email</label>
-                <input id="email" type="email" x-model="email" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">Password</label>
-                <input id="password" type="password" x-model="password" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
-            </div>
-            <div x-show="error" x-cloak class="text-red-400 text-sm" x-text="error"></div>
-            <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center" :disabled="loading">
-                <svg x-show="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                <span x-text="loading ? 'Logging in...' : 'Login'"></span>
-            </button>
-            <div class="text-center text-sm mt-4">
-                <a href="register.html" class=" hover:underline">Create an account</a>
-            </div>
-        </form>
+        <div x-show="!mfaRequired">
+            <form @submit.prevent="login" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Email</label>
+                    <input id="email" type="email" x-model="email" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Password</label>
+                    <input id="password" type="password" x-model="password" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
+                </div>
+                <div x-show="error" x-cloak class="text-red-400 text-sm" x-text="error"></div>
+                <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center" :disabled="loading">
+                    <svg x-show="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span x-text="loading ? 'Logging in...' : 'Login'"></span>
+                </button>
+                <div class="text-center text-sm mt-4">
+                    <a href="register.html" class=" hover:underline">Create an account</a>
+                </div>
+            </form>
+        </div>
+
+        <div x-show="mfaRequired" x-cloak>
+            <form @submit.prevent="confirmMfa" class="space-y-4">
+                <div class="text-center mb-2">
+                    <p class="text-sm text-slate-300">Multi-Factor Authentication is enabled. Please enter your 6-digit verification code.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1 text-center">Verification Code</label>
+                    <input id="mfa-code" type="text" x-model="mfaCode" placeholder="000000" class="w-full p-2 rounded bg-transparent border border-transparent text-white text-center font-mono text-2xl tracking-widest" required maxlength="6" :disabled="loading">
+                </div>
+                <div x-show="error" x-cloak class="text-red-400 text-sm text-center" x-text="error"></div>
+                <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center" :disabled="loading">
+                    <svg x-show="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span x-text="loading ? 'Verifying...' : 'Verify'"></span>
+                </button>
+                <div class="text-center text-sm mt-4">
+                    <button type="button" @click="mfaRequired = false; error = null;" class="hover:underline text-slate-400 bg-transparent border-0 cursor-pointer">Back to Login</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <script>
@@ -76,6 +98,7 @@
             return {
                 email: '', password: '', error: null, loading: false,
                 registered: false, pendingApproval: false, accountDisabled: false,
+                mfaRequired: false, mfaCode: '', partialToken: '',
                 init() {
                     const params = new URLSearchParams(window.location.search);
                     if (params.get('registered') === 'true') {
@@ -109,6 +132,13 @@
 
                         if (!data.success) throw new Error('Invalid email or password.');
 
+                        if (data.data.mfa_required) {
+                            this.mfaRequired = true;
+                            this.partialToken = data.data.partial_token;
+                            this.mfaCode = '';
+                            return;
+                        }
+
                         data.access_token = data.data.access_token;
                         sessionStorage.setItem('adhera_token', data.access_token);
                         const showError = (msg) => { this.error = msg; };
@@ -122,9 +152,37 @@
 
                     } catch (e) { this.error = 'Invalid email or password.'; }
                     finally { this.loading = false; }
+                },
+                async confirmMfa() {
+                    this.error = null; this.loading = true;
+                    try {
+                        const res = await fetch(`${CONFIG.API_BASE}/auth/mfa/confirm`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ partial_token: this.partialToken, code: this.mfaCode })
+                        });
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.error?.message || 'Invalid verification code.');
+                        
+                        const token = data.data.access_token;
+                        sessionStorage.setItem('adhera_token', token);
+                        const showError = (msg) => { this.error = msg; };
+                        
+                        const _payload = JSON.parse(atob(token.split('.')[1]));
+                        if (_payload.role === 'authenticated') { _payload.role = _payload.app_metadata?.role || _payload.user_metadata?.role || 'authenticated'; }
+                        const _role = _payload.role || _payload.app_metadata?.role || _payload.user_metadata?.role;
+                        if (_role === 'patient') window.location.href = 'dashboard.html';
+                        else if (_role === 'provider') window.location.href = 'provider-dashboard.html';
+                        else if (_role === 'admin') window.location.href = 'admin-dashboard.html';
+                        else { showError('Unknown role: ' + _role + '. Contact support.'); }
+                    } catch (e) {
+                        this.error = e.message || 'Invalid verification code.';
+                    } finally {
+                        this.loading = false;
+                    }
                 }
             }
         }
+
     </script>
 </body>
 </html>

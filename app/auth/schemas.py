@@ -25,3 +25,13 @@ class Token(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str
+    mfa_required: Optional[bool] = None
+    partial_token: Optional[str] = None
+
+class MfaCode(BaseModel):
+    code: str
+
+class MfaConfirm(BaseModel):
+    partial_token: str
+    code: str
+

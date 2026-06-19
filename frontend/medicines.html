@@ -28,6 +28,7 @@
             <a href="dashboard.html" class="hover:text-cyan-400 transition-colors">Dashboard</a>
             <a href="medicines.html" class="text-cyan-400">Medicines</a>
             <a href="feedback.html" class="hover:text-cyan-400 transition-colors">Feedback</a>
+            <a href="profile.html" class="hover:text-cyan-400 transition-colors">Profile</a>
             <button @click="logout" class="text-red-400 hover:text-red-300 ml-4">Logout</button>
         </div>
     </nav>
@@ -75,8 +76,11 @@
                                         </template>
                                         <template x-if="editingReminder === rem.id">
                                             <div class="w-full space-y-2">
-                                                <div class="flex gap-2 items-center">
+                                                <div class="flex flex-wrap gap-3 items-center">
                                                     <input type="time" x-model="editForm.scheduled_time" class="text-sm p-1.5 rounded text-white bg-transparent border border-white/10" required>
+                                                    <label class="text-xs text-slate-300 flex items-center gap-1">
+                                                        <input type="checkbox" x-model="editForm.advance_notify" class="rounded border-white/10 text-cyan-600 focus:ring-0"> 10m Advance
+                                                    </label>
                                                     <button @click="saveEditReminder(rem.id)" class="text-xs bg-cyan-600 text-white px-3 py-1.5 rounded-lg">Save</button>
                                                     <button @click="editingReminder=null" class="text-xs text-slate-400 px-3 py-1.5">Cancel</button>
                                                 </div>
@@ -93,6 +97,11 @@
                                         <select x-model="addTimingForm.recurrence_type" class="text-sm p-1.5">
                                             <option value="daily">Daily</option><option value="weekday">Weekday</option><option value="alternate">Alternate</option>
                                         </select>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <label class="text-xs text-slate-300 flex items-center gap-1">
+                                            <input type="checkbox" x-model="addTimingForm.advance_notify" class="rounded border-white/10 text-cyan-600 focus:ring-0"> 10-Minute Advance Notification
+                                        </label>
                                     </div>
                                     <div class="flex gap-2 justify-end">
                                         <button @click="saveAddTiming(med.id)" class="text-xs bg-cyan-600 text-white px-3 py-1 rounded-lg">Add</button>
@@ -141,8 +150,8 @@
                 medicines: [], loading: true, actionLoading: false,
                 expandedMed: null, timings: {}, timingsLoading: {},
                 editingReminder: null, editForm: {}, editError: '',
-                addingTimingFor: null, addTimingForm: { dose_label: '', dose_time_utc: '', recurrence_type: 'daily', timezone: 'UTC' }, addTimingError: '',
-                form: { name: '', dosage_amount: '', dosage_unit: 'mg', route: 'oral', frequency_type: 'daily', start_date: new Date().toISOString().split('T')[0], end_date: '', instructions: '', timing: '', scheduled_time: '' },
+                addingTimingFor: null, addTimingForm: { dose_label: '', dose_time_utc: '', recurrence_type: 'daily', timezone: 'UTC', advance_notify: false }, addTimingError: '',
+                form: { name: '', dosage_amount: '', dosage_unit: 'mg', route: 'oral', frequency_type: 'daily', start_date: new Date().toISOString().split('T')[0], end_date: '', instructions: '', timing: '', scheduled_time: '', advance_notify: false },
                 async init() {
                     await this.fetchMedicines();
                 },
@@ -166,7 +175,7 @@
                     try { this.timings[medId] = await this.api(`/medicines/${medId}/reminders`); } catch(e) { this.timings[medId] = []; }
                     finally { this.timingsLoading[medId] = false; }
                 },
-                showAddTiming(medId) { this.addingTimingFor = medId; this.addTimingForm = { dose_label: '', dose_time_utc: '', recurrence_type: 'daily', timezone: 'UTC' }; this.addTimingError = ''; },
+                showAddTiming(medId) { this.addingTimingFor = medId; this.addTimingForm = { dose_label: '', dose_time_utc: '', recurrence_type: 'daily', timezone: 'UTC', advance_notify: false }; this.addTimingError = ''; },
                 async saveAddTiming(medId) {
                     if (!this.addTimingForm.dose_label || !this.addTimingForm.dose_time_utc) { this.addTimingError = 'Label and time required.'; return; }
                     try {
@@ -177,10 +186,10 @@
                         this.addTimingError = e.message.includes('slot') ? 'This time slot already exists for this medicine.' : e.message;
                     }
                 },
-                startEditReminder(rem) { this.editingReminder = rem.id; this.editForm = { scheduled_time: rem.dose_time_utc.slice(0, 5) }; this.editError = ''; },
+                startEditReminder(rem) { this.editingReminder = rem.id; this.editForm = { scheduled_time: rem.dose_time_utc.slice(0, 5), advance_notify: !!rem.advance_notify }; this.editError = ''; },
                 async saveEditReminder(remId) {
                     try {
-                        const body = { scheduled_time: this.editForm.scheduled_time };
+                        const body = { scheduled_time: this.editForm.scheduled_time, advance_notify: this.editForm.advance_notify };
                         await this.api(`/reminders/${remId}`, 'PATCH', body);
                         this.editingReminder = null;
                         await this.fetchTimings(this.expandedMed);
@@ -214,7 +223,8 @@
                             await this.api(`/medicines/${newMedicine.id}/reminders`, 'POST', {
                                 dose_label: this.form.timing,
                                 scheduled_time: this.form.scheduled_time,
-                                frequency_type: this.form.frequency_type || 'daily'
+                                frequency_type: this.form.frequency_type || 'daily',
+                                advance_notify: this.form.advance_notify
                             });
                         }
                         

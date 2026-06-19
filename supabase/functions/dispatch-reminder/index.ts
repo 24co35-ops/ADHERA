@@ -12,7 +12,7 @@ const supabase = createClient(
 
 serve(async (req) => {
   const payload = await req.json()
-  const { reminder_id, user_id, user_email, medicine_name, dosage, dose_label, scheduled_utc, attempt = 1 } = payload
+  const { reminder_id, user_id, user_email, medicine_name, dosage, dose_label, scheduled_utc, attempt = 1, is_advance = false } = payload
 
   const results = { email: "pending", push: "pending" }
 
@@ -29,7 +29,7 @@ serve(async (req) => {
     await resend.emails.send({
       from: "Adhera <reminders@adhera.app>",
       to: user_email,
-      subject: `Time to take ${medicine_name}`,
+      subject: is_advance ? `Reminder: ${medicine_name} in 10 minutes` : `Time to take ${medicine_name}`,
       html: emailBody
     })
     results.email = "sent"

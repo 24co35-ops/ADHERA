@@ -110,7 +110,8 @@ async def create_reminder(id: str, reminder: dict, user: dict = Depends(get_curr
         "dose_time_utc": dose_time,
         "timezone": reminder.get("timezone") or "UTC",
         "recurrence_type": reminder.get("recurrence_type") or reminder.get("frequency_type") or "daily",
-        "recurrence_params": reminder.get("recurrence_params")
+        "recurrence_params": reminder.get("recurrence_params"),
+        "advance_notify": bool(reminder.get("advance_notify", False))
     }
     try:
         res = supabase.table("reminders").insert(data).execute()

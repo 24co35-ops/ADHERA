@@ -45,6 +45,7 @@ class ReminderCreate(BaseModel):
     timezone: str = "UTC"
     recurrence_type: Optional[str] = None
     recurrence_params: Optional[dict[str, Any]] = None
+    advance_notify: bool = False
 
     @model_validator(mode="before")
     @classmethod
@@ -63,6 +64,7 @@ class ReminderUpdate(BaseModel):
     recurrence_type: Optional[str] = None
     recurrence_params: Optional[dict[str, Any]] = None
     is_active: Optional[bool] = None
+    advance_notify: Optional[bool] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -73,4 +75,5 @@ class ReminderUpdate(BaseModel):
             if "frequency_type" in data and data.get("recurrence_type") is None:
                 data["recurrence_type"] = data["frequency_type"]
         return data
+
 
