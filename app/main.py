@@ -1,3 +1,5 @@
+import logging
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,7 +23,45 @@ from app.admin.router import router as admin_router
 from app.reminders.router import router as reminders_router
 from app.db.supabase import supabase
 
-app = FastAPI(title="Adhera API", version="1.0")
+_DEV_LOCALHOST_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:8080",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8080",
+]
+
+logger = logging.getLogger("adhera.main")
+logging.basicConfig(level=logging.INFO, format="%(levelname)s     %(name)s - %(message)s")
+
+
+def _get_cors_origins() -> list[str]:
+    """Validate CORS_ORIGIN on startup; raise RuntimeError in production for unsafe values."""
+    origin = (settings.CORS_ORIGIN or "").strip()
+    env = settings.ENVIRONMENT.lower()
+
+    if env == "production":
+        if not origin or origin == "*":
+            raise RuntimeError(
+                "CORS_ORIGIN must be explicitly set to your frontend domain in production"
+            )
+        origins = [o.strip() for o in origin.split(",") if o.strip()]
+        logger.info("CORS [production] allow_origins=%s", origins)
+        return origins
+
+    # Development: merge configured origin with localhost defaults
+    configured = [o.strip() for o in origin.split(",") if o.strip()] if origin else []
+    origins = list(dict.fromkeys(configured + _DEV_LOCALHOST_ORIGINS))  # deduplicated
+    logger.info("CORS [%s] allow_origins=%s", env, origins)
+    return origins
+
+
+@asynccontextmanager
+async def lifespan(app):
+    _get_cors_origins()  # fail fast on bad config before accepting traffic
+    yield
+
+
+app = FastAPI(title="Adhera API", version="1.0", lifespan=lifespan)
 
 app.state.limiter = limiter
 
@@ -34,7 +74,7 @@ app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.CORS_ORIGIN],
+    allow_origins=_get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
