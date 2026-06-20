@@ -1,14 +1,33 @@
 import pytest
 from playwright.sync_api import Page, expect
 import os
+import threading
+from http.server import SimpleHTTPRequestHandler
+from socketserver import TCPServer
 
 # Get absolute path to the frontend directory
 FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend'))
 SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), 'screenshots')
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
+PORT = 8089
+
+class QuietHandler(SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=FRONTEND_DIR, **kwargs)
+    def log_message(self, format, *args):
+        pass
+
+@pytest.fixture(scope="session", autouse=True)
+def local_server():
+    with TCPServer(("", PORT), QuietHandler) as httpd:
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        yield
+        httpd.shutdown()
+
 def file_url(filename):
-    return f"file:///{FRONTEND_DIR.replace(chr(92), '/')}/{filename}"
+    return f"http://localhost:{PORT}/{filename}"
 
 def mock_api(page: Page):
     # Route for login
@@ -17,7 +36,7 @@ def mock_api(page: Page):
     ))
     # Route for dashboard data
     page.route("**/v1/doses/upcoming", lambda route: route.fulfill(
-        json={"success": True, "data": [{"id": "d1", "reminders": {"dose_label": "Morning", "medicines": {"name": "Aspirin", "dosage_amount": 100, "dosage_unit": "mg"}}, "snooze_count": 0}], "meta": {}}
+        json={"success": True, "data": [{"id": "d1", "scheduled_utc": "2026-06-20T10:00:00Z", "reminders": {"dose_label": "Morning", "medicines": {"name": "Aspirin", "dosage_amount": 100, "dosage_unit": "mg"}}, "snooze_count": 0}], "meta": {}}
     ))
     page.route("**/v1/analytics/dashboard", lambda route: route.fulfill(
         json={"success": True, "data": {"weekly_adherence": 65, "monthly_adherence": 80, "weekly_warning": True}, "meta": {}}

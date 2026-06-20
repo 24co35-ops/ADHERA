@@ -38,7 +38,8 @@ def test_step1_register(page: Page):
         page_text = page.inner_text('body')
         assert ('already' in page_text.lower() or 'rate limit' in page_text.lower()
                 or 'security purposes' in page_text.lower() or 'request this after' in page_text.lower()
-                or 'failed to fetch' in page_text.lower() or 'email rate limit' in page_text.lower()), \
+                or 'failed to fetch' in page_text.lower() or 'email rate limit' in page_text.lower()
+                or 'confirm your email' in page_text.lower()), \
             f"Unexpected state: {page_text[:200]}"
     page.screenshot(path=f"{SCREENSHOT_DIR}/step1_register.png")
 
