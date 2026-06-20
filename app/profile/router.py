@@ -9,6 +9,7 @@ import csv
 import io
 import json as json_mod
 import datetime
+import os
 
 router = APIRouter()
 
@@ -60,18 +61,36 @@ async def delete_emergency_contact(request: Request, user: dict = Depends(get_cu
 
 @router.post("/push-subscription", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
-async def save_push_subscription(request: Request, subscription: PushSubscriptionCreate, user: dict = Depends(get_current_user)):
-    data = {
-        "user_id": user["user_id"],
-        "endpoint": subscription.endpoint,
-        "auth": subscription.keys.auth,
-        "p256dh": subscription.keys.p256dh,
-        "subscription": subscription.model_dump()
-    }
-    res = supabase.table("push_subscriptions").upsert(data, on_conflict="user_id,endpoint").execute()
-    if not res.data:
-        raise HTTPException(status_code=500, detail="Failed to save push subscription.")
-    return SuccessResponse(data=res.data[0])
+async def save_push_subscription(request: Request, subscription: dict, user: dict = Depends(get_current_user)):
+    try:
+        user_id = user["user_id"]
+        endpoint = subscription.get("endpoint")
+        keys = subscription.get("keys", {})
+        auth = keys.get("auth") if isinstance(keys, dict) else None
+        p256dh = keys.get("p256dh") if isinstance(keys, dict) else None
+        if not endpoint or not auth or not p256dh:
+            raise HTTPException(status_code=400, detail="Invalid subscription object — missing endpoint or keys")
+        data = {
+            "user_id": user_id,
+            "endpoint": endpoint,
+            "auth": auth,
+            "p256dh": p256dh,
+            "subscription": subscription
+        }
+        res = supabase.table("push_subscriptions").upsert(data, on_conflict="user_id").execute()
+        if not res.data:
+            raise HTTPException(status_code=500, detail="Failed to save push subscription.")
+        return SuccessResponse(data=res.data[0])
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save subscription: {str(e)}")
+
+@router.get("/vapid-public-key", response_model=SuccessResponse[dict])
+@limiter.limit("60/minute")
+async def get_vapid_public_key(request: Request, user: dict = Depends(get_current_user)):
+    return SuccessResponse(data={"public_key": os.environ.get("VAPID_PUBLIC_KEY", "")})
+
 
 @router.get("/export")
 @limiter.limit("60/minute")

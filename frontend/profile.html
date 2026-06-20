@@ -393,11 +393,11 @@
                         await navigator.serviceWorker.ready;
                         
                         // Subscribe with VAPID Public Key
-                        const publicVapidKey = CONFIG.VAPID_PUBLIC_KEY;
-                        if (!publicVapidKey) {
-                            throw new Error('VAPID public key not configured.');
+                        const { public_key } = await this.api('/profile/vapid-public-key');
+                        if (!public_key) {
+                            throw new Error('VAPID public key not configured on server.');
                         }
-                        const convertedVapidKey = urlBase64ToUint8Array(publicVapidKey);
+                        const convertedVapidKey = urlBase64ToUint8Array(public_key);
 
                         const subscription = await registration.pushManager.subscribe({
                             userVisibleOnly: true,
