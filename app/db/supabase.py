@@ -9,12 +9,7 @@ if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
         "Missing required environment variables: SUPABASE_URL and SUPABASE_ANON_KEY must be set."
     )
 
-if not settings.SUPABASE_JWT_SECRET:
-    raise ValueError(
-        "Missing required environment variable: SUPABASE_JWT_SECRET must be set."
-    )
-
-SUPABASE_JWT_SECRET = settings.SUPABASE_JWT_SECRET
+SUPABASE_JWT_SECRET = settings.SUPABASE_JWT_SECRET or ""
 
 # Public client — uses service role key if available, otherwise anon key to bypass RLS in backend
 supabase: Client = (
