@@ -173,10 +173,16 @@
             </div>
 
             <div class="space-y-4">
-                <button @click="enableNotifications" class="w-full md:w-auto bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 px-6 rounded-lg transition-colors flex items-center justify-center gap-2" :disabled="actionLoading || pushEnabled">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-                    <span x-text="pushEnabled ? 'Notifications Subscribed' : 'Enable Notifications'"></span>
-                </button>
+                <div class="flex flex-wrap gap-3">
+                    <button x-show="!pushEnabled" @click="enableNotifications" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 px-6 rounded-lg transition-colors flex items-center justify-center gap-2" :disabled="actionLoading">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                        <span x-text="actionLoading ? 'Enabling...' : 'Enable Notifications'"></span>
+                    </button>
+                    <button x-show="pushEnabled" @click="disableNotifications" class="bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 border border-rose-500/30 font-bold py-2.5 px-6 rounded-lg transition-colors flex items-center justify-center gap-2" :disabled="actionLoading">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                        <span x-text="actionLoading ? 'Disabling...' : 'Disable Notifications'"></span>
+                    </button>
+                </div>
                 <div x-show="pushError" class="text-red-400 text-xs" x-text="pushError"></div>
                 <div x-show="pushSuccess" class="text-emerald-400 text-xs" x-text="pushSuccess"></div>
             </div>
@@ -422,6 +428,34 @@
                         this.pushSuccess = 'Successfully subscribed to push notifications!';
                     } catch(e) {
                         this.pushError = e.message || 'Subscription failed.';
+                    } finally {
+                        this.actionLoading = false;
+                    }
+                },
+
+                async disableNotifications() {
+                    if (!confirm('Disable push notifications? You can re-enable at any time.')) return;
+                    this.pushError = '';
+                    this.pushSuccess = '';
+                    this.actionLoading = true;
+                    try {
+                        // Unsubscribe from browser PushManager
+                        const registration = await navigator.serviceWorker.getRegistration('/sw.js');
+                        if (registration) {
+                            const sub = await registration.pushManager.getSubscription();
+                            if (sub) await sub.unsubscribe();
+                        }
+                        // Remove from backend DB
+                        const res = await fetch(`${CONFIG.API_BASE}/v1/profile/push-subscription`, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': `Bearer ${this.token}` }
+                        });
+                        if (!res.ok) throw new Error('Server failed to remove subscription.');
+                        this.pushEnabled = false;
+                        this.pushPermissionText = Notification.permission;
+                        this.pushSuccess = 'Push notifications disabled. You can re-enable anytime.';
+                    } catch(e) {
+                        this.pushError = e.message || 'Failed to disable notifications.';
                     } finally {
                         this.actionLoading = false;
                     }

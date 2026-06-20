@@ -86,6 +86,16 @@ async def save_push_subscription(request: Request, subscription: dict, user: dic
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save subscription: {str(e)}")
 
+@router.delete("/push-subscription", response_model=SuccessResponse[dict])
+@limiter.limit("30/minute")
+async def delete_push_subscription(request: Request, user: dict = Depends(get_current_user)):
+    try:
+        user_id = user["user_id"]
+        supabase.table("push_subscriptions").delete().eq("user_id", user_id).execute()
+        return SuccessResponse(data={"message": "Push subscription removed."})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to remove subscription: {str(e)}")
+
 @router.get("/vapid-public-key", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
 async def get_vapid_public_key(request: Request, user: dict = Depends(get_current_user)):
