@@ -46,7 +46,24 @@
         <!-- Patient Header -->
         <div class="glass p-6 rounded-xl">
             <h2 class="text-2xl font-bold" x-text="patient.full_name || 'Loading...'"></h2>
-            <div class="text-slate-400 text-sm mt-1" x-text="patient.contact_number || patient.timezone || ''"></div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm text-slate-300">
+                <div>
+                    <span class="block text-slate-400 font-medium text-xs">Contact Number</span>
+                    <span x-text="patient.contact_number || 'Not provided'"></span>
+                </div>
+                <div>
+                    <span class="block text-slate-400 font-medium text-xs">Timezone</span>
+                    <span x-text="patient.timezone || 'Not provided'"></span>
+                </div>
+                <div>
+                    <span class="block text-slate-400 font-medium text-xs">Age</span>
+                    <span x-text="patient.age !== undefined && patient.age !== null ? patient.age : 'Not provided'"></span>
+                </div>
+                <div>
+                    <span class="block text-slate-400 font-medium text-xs">Blood Group</span>
+                    <span x-text="patient.blood_group || 'Not provided'"></span>
+                </div>
+            </div>
         </div>
 
         <!-- Tabs -->

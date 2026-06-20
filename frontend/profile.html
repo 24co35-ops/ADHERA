@@ -70,6 +70,14 @@
                     <span class="block text-slate-400 font-medium mb-1">Timezone</span>
                     <span class="text-white text-base" x-text="profile.timezone || 'Not provided'"></span>
                 </div>
+                <div>
+                    <span class="block text-slate-400 font-medium mb-1">Age</span>
+                    <span class="text-white text-base" x-text="profile.age !== undefined && profile.age !== null ? profile.age : 'Not provided'"></span>
+                </div>
+                <div>
+                    <span class="block text-slate-400 font-medium mb-1">Blood Group</span>
+                    <span class="text-white text-base" x-text="profile.blood_group || 'Not provided'"></span>
+                </div>
             </div>
 
             <!-- Edit Mode -->
@@ -82,6 +90,24 @@
                     <div>
                         <label class="block text-sm text-slate-400 mb-1">Contact Number</label>
                         <input type="text" x-model="editForm.contact_number" class="w-full p-2.5 rounded text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Date of Birth <span class="text-xs text-slate-500">(optional)</span></label>
+                        <input type="date" x-model="editForm.date_of_birth" class="w-full p-2.5 rounded text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Blood Group <span class="text-xs text-slate-500">(optional)</span></label>
+                        <select x-model="editForm.blood_group" class="w-full p-2.5 rounded text-white">
+                            <option value="">Not provided</option>
+                            <option value="A+">A+</option>
+                            <option value="A-">A-</option>
+                            <option value="B+">B+</option>
+                            <option value="B-">B-</option>
+                            <option value="AB+">AB+</option>
+                            <option value="AB-">AB-</option>
+                            <option value="O+">O+</option>
+                            <option value="O-">O-</option>
+                        </select>
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm text-slate-400 mb-1">Timezone</label>
@@ -231,7 +257,7 @@
             return {
                 token: sessionStorage.getItem('adhera_token'),
                 profile: {},
-                editForm: { full_name: '', contact_number: '', timezone: 'UTC' },
+                editForm: { full_name: '', contact_number: '', timezone: 'UTC', date_of_birth: '', blood_group: '' },
                 isEditing: false,
                 loading: true,
                 actionLoading: false,
@@ -274,7 +300,9 @@
                         this.editForm = {
                             full_name: data.full_name || '',
                             contact_number: data.contact_number || '',
-                            timezone: data.timezone || 'UTC'
+                            timezone: data.timezone || 'UTC',
+                            date_of_birth: data.date_of_birth || '',
+                            blood_group: data.blood_group || ''
                         };
                         // Fetch real-time MFA status from DB
                         const mfaStatus = await this.api('/auth/mfa/status');
@@ -292,7 +320,10 @@
                     this.error = '';
                     this.successMessage = '';
                     try {
-                        const updated = await this.api('/profile/', 'PATCH', this.editForm);
+                        const payload = { ...this.editForm };
+                        if (!payload.date_of_birth) payload.date_of_birth = null;
+                        if (!payload.blood_group) payload.blood_group = null;
+                        const updated = await this.api('/profile/', 'PATCH', payload);
                         this.profile = updated;
                         this.isEditing = false;
                         this.successMessage = 'Profile updated successfully.';

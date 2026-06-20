@@ -86,6 +86,24 @@
                 <div><h2 class="text-xl font-bold" x-text="selectedUser?.full_name"></h2><span class="text-sm text-slate-400" x-text="selectedUser?.email"></span></div>
                 <button @click="selectedUser=null;detailTab='analytics'" class="text-slate-400 hover:text-white"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
             </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 mb-6 text-sm text-slate-300">
+                <div>
+                    <span class="block text-slate-400 font-medium text-xs">Role</span>
+                    <span class="capitalize" x-text="selectedUser?.role || 'Not provided'"></span>
+                </div>
+                <div>
+                    <span class="block text-slate-400 font-medium text-xs">Contact Number</span>
+                    <span x-text="selectedUser?.contact_number || 'Not provided'"></span>
+                </div>
+                <div>
+                    <span class="block text-slate-400 font-medium text-xs">Age</span>
+                    <span x-text="selectedUser?.age !== undefined && selectedUser?.age !== null ? selectedUser?.age : 'Not provided'"></span>
+                </div>
+                <div>
+                    <span class="block text-slate-400 font-medium text-xs">Blood Group</span>
+                    <span x-text="selectedUser?.blood_group || 'Not provided'"></span>
+                </div>
+            </div>
             <div class="flex gap-4 border-b border-white/10 mb-4">
                 <button @click="detailTab='analytics';fetchDetailAnalytics()" class="pb-2 text-sm font-semibold" :class="detailTab==='analytics'?'tab-active':'text-slate-400'">Analytics</button>
                 <button @click="detailTab='feedback';fetchDetailFeedback()" class="pb-2 text-sm font-semibold" :class="detailTab==='feedback'?'tab-active':'text-slate-400'">Feedback</button>

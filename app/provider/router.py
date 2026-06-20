@@ -17,11 +17,13 @@ async def list_patients(request: Request, user: dict = Depends(require_role("pro
     except Exception:
         email_map = {}
         
+    from app.core.utils import calculate_age
     for a in assignments.data:
-        prof = supabase.table("profiles").select("full_name, contact_number").eq("id", a["patient_id"]).execute()
+        prof = supabase.table("profiles").select("full_name, contact_number, date_of_birth, blood_group").eq("id", a["patient_id"]).execute()
         if prof.data:
             p = prof.data[0]
             p["email"] = email_map.get(a["patient_id"])
+            p["age"] = calculate_age(p.get("date_of_birth"))
             result.append({"patient_id": a["patient_id"], "profiles": p})
     return SuccessResponse(data=result)
 
@@ -31,6 +33,8 @@ async def get_patient(request: Request, id: str, user: dict = Depends(require_ro
     res = supabase.table("profiles").select("*").eq("id", id).execute()
     if not res.data: raise HTTPException(status_code=404, detail="Not found")
     profile = res.data[0]
+    from app.core.utils import calculate_age
+    profile["age"] = calculate_age(profile.get("date_of_birth"))
     try:
         u = supabase.auth.admin.get_user_by_id(id)
         profile["email"] = u.user.email

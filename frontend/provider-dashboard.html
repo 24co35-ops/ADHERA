@@ -95,6 +95,8 @@
                                         </span>
                                     </div>
                                     <div class="text-sm text-slate-400 mt-1 flex items-center gap-3">
+                                        <span x-text="'Age: ' + (p.profiles.age !== undefined && p.profiles.age !== null ? p.profiles.age : 'N/A')"></span>
+                                        <span>•</span>
                                         <span x-text="'Streak: ' + (p.stats?.streak || 0) + ' days'"></span>
                                         <span>•</span>
                                         <span x-text="'Missed this month: ' + (p.stats?.missed_this_month || 0)"></span>

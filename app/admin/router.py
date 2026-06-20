@@ -24,6 +24,9 @@ async def list_users(
     elif status == "active":
         q = q.eq("is_active", True)
     res = q.execute()
+    from app.core.utils import calculate_age
+    for p in res.data:
+        p["age"] = calculate_age(p.get("date_of_birth"))
     try:
         users = supabase.auth.admin.list_users()
         email_map = {u.id: u.email for u in users}
@@ -39,6 +42,8 @@ async def get_user(request: Request, id: str, user: dict = Depends(require_role(
     res = supabase.table("profiles").select("*").eq("id", id).execute()
     if not res.data: raise HTTPException(404, "Not found")
     profile = res.data[0]
+    from app.core.utils import calculate_age
+    profile["age"] = calculate_age(profile.get("date_of_birth"))
     try:
         u = supabase.auth.admin.get_user_by_id(id)
         profile["email"] = u.user.email

@@ -21,6 +21,8 @@ async def get_profile(request: Request, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Profile not found.")
     profile = res.data[0]
     profile.pop("mfa_secret", None)
+    from app.core.utils import calculate_age
+    profile["age"] = calculate_age(profile.get("date_of_birth"))
     try:
         u = supabase.auth.admin.get_user_by_id(user["user_id"])
         profile["email"] = u.user.email
