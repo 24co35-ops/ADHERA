@@ -220,43 +220,50 @@ async def mfa_status(current_user: dict = Depends(get_current_user)):
     return SuccessResponse(data={"mfa_enabled": enabled})
 
 @router.post("/mfa/enable", response_model=SuccessResponse[dict])
-
 async def mfa_enable(request: Request, current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user_id"]
     try:
-        u = supabase.auth.admin.get_user_by_id(user_id)
-        email = u.user.email
-    except Exception:
-        email = "user@adhera.app"
-
-    # Generate TOTP secret and provisioning URI
-    secret = pyotp.random_base32()
-    totp = pyotp.TOTP(secret)
-    qr_code_uri = totp.provisioning_uri(name=email, issuer_name="Adhera")
-
-    # Encrypt secret and store it in profiles
-    cipher = get_mfa_cipher()
-    encrypted_secret = cipher.encrypt(secret.encode()).decode()
-
-    supabase.table("profiles").update({"mfa_secret": encrypted_secret}).eq("id", user_id).execute()
-
-    # Generate inline base64 QR image
-    qr_base64 = None
-    if _QR_AVAILABLE:
+        user_id = current_user.get("user_id")
+        if not user_id:
+            raise HTTPException(status_code=400, detail="User ID not found in token")
         try:
-            qr = qrcode.make(qr_code_uri)
-            buf = io.BytesIO()
-            qr.save(buf, format="PNG")
-            qr_base64 = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+            u = supabase.auth.admin.get_user_by_id(user_id)
+            email = u.user.email
         except Exception:
-            pass
+            email = current_user.get("email") or current_user.get("user_metadata", {}).get("email", "user@adhera.app")
 
-    log_audit_action("MFA_ENABLE_INITIATED", user_id, {})
-    return SuccessResponse(data={
-        "secret": secret,
-        "qr_code_uri": qr_code_uri,
-        "qr_code": qr_base64
-    })
+        # Generate TOTP secret and provisioning URI
+        secret = pyotp.random_base32()
+        totp = pyotp.TOTP(secret)
+        qr_code_uri = totp.provisioning_uri(name=email, issuer_name="Adhera")
+
+        # Encrypt secret and store it in profiles
+        cipher = get_mfa_cipher()
+        encrypted_secret = cipher.encrypt(secret.encode()).decode()
+
+        supabase.table("profiles").update({"mfa_secret": encrypted_secret}).eq("id", user_id).execute()
+
+        # Generate inline base64 QR image
+        qr_base64 = None
+        if _QR_AVAILABLE:
+            try:
+                qr = qrcode.make(qr_code_uri)
+                buf = io.BytesIO()
+                qr.save(buf, format="PNG")
+                qr_base64 = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+            except Exception as qr_err:
+                print(f"QR code generation error: {str(qr_err)}")
+
+        log_audit_action("MFA_ENABLE_INITIATED", user_id, {})
+        return SuccessResponse(data={
+            "secret": secret,
+            "qr_code_uri": qr_code_uri,
+            "qr_code": qr_base64
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"MFA enable error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"MFA setup failed: {str(e)}")
 
 @router.post("/mfa/verify", response_model=SuccessResponse[dict])
 async def mfa_verify(request: Request, body: MfaCode, current_user: dict = Depends(get_current_user)):
