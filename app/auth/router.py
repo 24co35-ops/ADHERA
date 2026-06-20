@@ -36,21 +36,25 @@ async def register(request: Request, user_data: UserRegister):
         raise HTTPException(status_code=403, detail="Admin accounts cannot be self-registered.")
 
     try:
-        res = supabase_auth.auth.sign_up({
-            "email": user_data.email,
-            "password": user_data.password,
-            "options": {
-                "data": {
-                    "full_name": user_data.full_name,
-                    "role": user_data.role,
-                    "date_of_birth": user_data.date_of_birth.isoformat() if user_data.date_of_birth else None,
-                    "contact_number": user_data.contact_number,
-                    "timezone": user_data.timezone,
-                }
-            },
-        })
-        if not res.user:
-            raise HTTPException(status_code=400, detail="Registration failed.")
+        try:
+            res = supabase_auth.auth.sign_up({
+                "email": user_data.email,
+                "password": user_data.password,
+                "options": {
+                    "data": {
+                        "full_name": user_data.full_name,
+                        "role": user_data.role,
+                        "date_of_birth": user_data.date_of_birth.isoformat() if user_data.date_of_birth else None,
+                        "contact_number": user_data.contact_number,
+                        "timezone": user_data.timezone,
+                    }
+                },
+            })
+            if not res.user:
+                raise Exception("Registration failed: user profile not created.")
+        except Exception as e:
+            logger.error(f"Supabase sign_up failed: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
 
         # Patient: auto-approved. Provider: pending approval.
         is_active = user_data.role == "patient"
@@ -71,8 +75,14 @@ async def register(request: Request, user_data: UserRegister):
 
         log_audit_action("USER_REGISTERED", res.user.id, {"role": user_data.role, "is_active": is_active})
 
+        email_confirm_required = False
+        if user_data.role == "patient" and (not hasattr(res, "session") or res.session is None):
+            email_confirm_required = True
+
         if user_data.role == "provider":
             return SuccessResponse(data={"message": "Registration submitted. An admin will review your account within 24 hours.", "pending": True})
+        if email_confirm_required:
+            return SuccessResponse(data={"message": "Check your inbox to confirm your email.", "pending": False, "email_confirm_required": True})
         return SuccessResponse(data={"message": "Registration successful.", "pending": False})
     except AuthApiError as e:
         raise HTTPException(status_code=400, detail=str(e))
