@@ -17,6 +17,7 @@
         input:focus, select:focus, textarea:focus { outline: none !important; border-color: #00dbe7 !important; }
         button[type="submit"], button.bg-cyan-600 { background: #00dbe7 !important; color: #002022 !important; border-radius: 12px !important; }
         button.bg-slate-700 { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 12px !important; }
+        select option { background-color: #1a1d24 !important; color: #e2e2e8 !important; }
         [x-cloak] { display: none !important; }
     </style>
 </head>
@@ -38,7 +39,7 @@
             <form @submit.prevent="attemptSubmit" class="space-y-4">
                 <div>
                     <label class="block text-sm mb-1">Medicine</label>
-                    <select x-model="form.medicine_id" class="w-full p-2 rounded bg-transparent border-transparent text-white" required :disabled="loading">
+                    <select x-model="form.medicine_id" class="w-full p-2 rounded" required :disabled="loading">
                         <template x-for="med in medicines" :key="med.id">
                             <option :value="med.id" x-text="med.name"></option>
                         </template>
@@ -57,11 +58,11 @@
                 </div>
                 <div>
                     <label class="block text-sm mb-1">Severity</label>
-                    <select x-model="form.severity" class="w-full p-2 rounded bg-transparent border-transparent text-white" required :disabled="loading">
-                        <option value="1">1 - Mild</option>
-                        <option value="2">2 - Moderate</option>
-                        <option value="3">3 - Severe</option>
-                        <option value="4">4 - Emergency</option>
+                    <select x-model="form.severity" class="w-full p-2 rounded" required :disabled="loading">
+                        <option value="1">1 — Mild (minor discomfort)</option>
+                        <option value="2">2 — Moderate (affects daily activity)</option>
+                        <option value="3">3 — Severe (requires medical attention)</option>
+                        <option value="4">4 — Emergency (call emergency services)</option>
                     </select>
                 </div>
                 <div class="flex justify-end">

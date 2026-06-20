@@ -15,6 +15,7 @@
         input:focus, select:focus, textarea:focus { outline: none !important; border-color: #00dbe7 !important; }
         button[type="submit"], button.bg-cyan-600 { background: #00dbe7 !important; color: #002022 !important; border-radius: 12px !important; }
         button.bg-slate-700 { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 12px !important; }
+        select option { background-color: #1a1d24 !important; color: #e2e2e8 !important; }
         [x-cloak] { display: none !important; }
     </style>
 </head>
@@ -38,9 +39,9 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium mb-1">Role</label>
-                    <select x-model="form.role" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
+                    <select x-model="form.role" class="w-full p-2 rounded" required :disabled="loading">
                         <option value="patient">Patient</option>
-                        <option value="provider">Provider</option>
+                        <option value="provider">Healthcare Provider</option>
                     </select>
                 </div>
                 <div>
@@ -54,8 +55,22 @@
                     <input type="text" x-model="form.contact_number" class="w-full p-2 rounded bg-transparent border border-transparent text-white" :disabled="loading">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Timezone (IANA)</label>
-                    <input type="text" x-model="form.timezone" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading" placeholder="e.g. UTC">
+                    <label class="block text-sm font-medium mb-1">Timezone</label>
+                    <select x-model="form.timezone" class="w-full p-2 rounded" required :disabled="loading">
+                        <option value="UTC">UTC (UTC+0)</option>
+                        <option value="Asia/Kolkata">Asia/Kolkata (IST, UTC+5:30)</option>
+                        <option value="America/New_York">America/New_York (EST, UTC-5)</option>
+                        <option value="America/Los_Angeles">America/Los_Angeles (PST, UTC-8)</option>
+                        <option value="America/Chicago">America/Chicago (CST, UTC-6)</option>
+                        <option value="Europe/London">Europe/London (GMT, UTC+0)</option>
+                        <option value="Europe/Paris">Europe/Paris (CET, UTC+1)</option>
+                        <option value="Europe/Berlin">Europe/Berlin (CET, UTC+1)</option>
+                        <option value="Asia/Dubai">Asia/Dubai (GST, UTC+4)</option>
+                        <option value="Asia/Singapore">Asia/Singapore (SGT, UTC+8)</option>
+                        <option value="Asia/Tokyo">Asia/Tokyo (JST, UTC+9)</option>
+                        <option value="Australia/Sydney">Australia/Sydney (AEST, UTC+10)</option>
+                        <option value="Pacific/Auckland">Pacific/Auckland (NZST, UTC+12)</option>
+                    </select>
                 </div>
             </div>
             <div class="flex items-start mt-4">

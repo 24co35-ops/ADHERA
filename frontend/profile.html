@@ -18,7 +18,9 @@
         input:focus, select:focus, textarea:focus { outline: none !important; border-color: #00dbe7 !important; }
         button.bg-cyan-600 { background: #00dbe7 !important; color: #002022 !important; border-radius: 12px !important; }
         button.bg-slate-700 { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 12px !important; }
+        select option { background-color: #1a1d24 !important; color: #e2e2e8 !important; }
         [x-cloak] { display: none !important; }
+
     </style>
 </head>
 <body x-data="profileData()" class="min-h-screen flex flex-col">
@@ -439,23 +441,33 @@
                     this.pushSuccess = '';
                     this.actionLoading = true;
                     try {
-                        // Unsubscribe from browser PushManager
-                        const registration = await navigator.serviceWorker.getRegistration('/sw.js');
-                        if (registration) {
-                            const sub = await registration.pushManager.getSubscription();
-                            if (sub) await sub.unsubscribe();
+                        if ("serviceWorker" in navigator) {
+                            const registration = await navigator.serviceWorker.getRegistration("/sw.js");
+                            if (registration) {
+                                const subscription = await registration.pushManager.getSubscription();
+                                if (subscription) {
+                                    await subscription.unsubscribe();
+                                }
+                            }
                         }
-                        // Remove from backend DB
                         const res = await fetch(`${CONFIG.API_BASE}/v1/profile/push-subscription`, {
-                            method: 'DELETE',
-                            headers: { 'Authorization': `Bearer ${this.token}` }
+                            method: "DELETE",
+                            headers: {
+                                "Authorization": "Bearer " + this.token,
+                                "Content-Type": "application/json"
+                            }
                         });
-                        if (!res.ok) throw new Error('Server failed to remove subscription.');
+                        const data = await res.json();
+                        if (!res.ok) {
+                            this.pushError = "Error: " + (data.detail || "Server failed to remove subscription");
+                            return;
+                        }
                         this.pushEnabled = false;
                         this.pushPermissionText = Notification.permission;
-                        this.pushSuccess = 'Push notifications disabled. You can re-enable anytime.';
-                    } catch(e) {
-                        this.pushError = e.message || 'Failed to disable notifications.';
+                        this.pushSuccess = "Notifications disabled. You can re-enable anytime.";
+                    } catch (e) {
+                        this.pushError = "Failed to disable: " + e.message;
+                        console.error("Disable push error:", e);
                     } finally {
                         this.actionLoading = false;
                     }
