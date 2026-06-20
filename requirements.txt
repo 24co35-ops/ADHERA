@@ -30,6 +30,9 @@ python-multipart==0.0.20
 python-dotenv==1.2.1
 slowapi==0.1.9
 pyotp==2.10.0
+qrcode==7.4.2
+pillow==11.2.1
+
 freezegun==1.5.5
 pytz==2025.2
 requests==2.32.5

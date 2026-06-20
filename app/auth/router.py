@@ -3,6 +3,12 @@ import base64
 import hashlib
 import json
 import time
+import io
+try:
+    import qrcode
+    _QR_AVAILABLE = True
+except ImportError:
+    _QR_AVAILABLE = False
 from fastapi import APIRouter, HTTPException, status, Depends, Request
 from app.auth.schemas import UserRegister, UserLogin, ForgotPassword, ResetPassword, Token, MfaCode, MfaConfirm
 from app.db.supabase import supabase, supabase_auth
@@ -206,7 +212,15 @@ def get_mfa_cipher():
     fernet_key = base64.urlsafe_b64encode(key_bytes)
     return Fernet(fernet_key)
 
+@router.get("/mfa/status", response_model=SuccessResponse[dict])
+async def mfa_status(current_user: dict = Depends(get_current_user)):
+    user_id = current_user["user_id"]
+    res = supabase.table("profiles").select("mfa_secret").eq("id", user_id).execute()
+    enabled = bool(res.data and res.data[0].get("mfa_secret"))
+    return SuccessResponse(data={"mfa_enabled": enabled})
+
 @router.post("/mfa/enable", response_model=SuccessResponse[dict])
+
 async def mfa_enable(request: Request, current_user: dict = Depends(get_current_user)):
     user_id = current_user["user_id"]
     try:
@@ -226,10 +240,22 @@ async def mfa_enable(request: Request, current_user: dict = Depends(get_current_
 
     supabase.table("profiles").update({"mfa_secret": encrypted_secret}).eq("id", user_id).execute()
 
+    # Generate inline base64 QR image
+    qr_base64 = None
+    if _QR_AVAILABLE:
+        try:
+            qr = qrcode.make(qr_code_uri)
+            buf = io.BytesIO()
+            qr.save(buf, format="PNG")
+            qr_base64 = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+        except Exception:
+            pass
+
     log_audit_action("MFA_ENABLE_INITIATED", user_id, {})
     return SuccessResponse(data={
         "secret": secret,
-        "qr_code_uri": qr_code_uri
+        "qr_code_uri": qr_code_uri,
+        "qr_code": qr_base64
     })
 
 @router.post("/mfa/verify", response_model=SuccessResponse[dict])

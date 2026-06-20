@@ -124,7 +124,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                     <div class="flex flex-col items-center justify-center p-3 bg-white rounded-lg w-[170px] mx-auto">
                         <!-- QR Code -->
-                        <img :src="'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(mfaSetupData.qr_code_uri)" alt="QR Code" class="w-[150px] h-[150px]">
+                        <img :src="mfaSetupData.qr_code || 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(mfaSetupData.qr_code_uri)" alt="QR Code" class="w-[150px] h-[150px]">
                     </div>
                     <div class="md:col-span-2 space-y-3">
                         <p class="text-sm text-slate-300">1. Scan the QR code with your authenticator app (e.g. Google Authenticator, Authy).</p>
@@ -224,7 +224,7 @@
                 // MFA variables
                 mfaEnabled: false,
                 showMfaSetup: false,
-                mfaSetupData: { secret: '', qr_code_uri: '' },
+                mfaSetupData: { secret: '', qr_code_uri: '', qr_code: null },
                 mfaCode: '',
                 mfaError: '',
 
@@ -259,15 +259,16 @@
                             contact_number: data.contact_number || '',
                             timezone: data.timezone || 'UTC'
                         };
-                        // Read mfa status from local storage token check if metadata has mfa_enabled
-                        const tokenPayload = JSON.parse(atob(this.token.split('.')[1]));
-                        this.mfaEnabled = tokenPayload.user_metadata?.mfa_enabled === true;
+                        // Fetch real-time MFA status from DB
+                        const mfaStatus = await this.api('/auth/mfa/status');
+                        this.mfaEnabled = mfaStatus.mfa_enabled === true;
                     } catch(e) {
                         this.error = 'Failed to load profile.';
                     } finally {
                         this.loading = false;
                     }
                 },
+
 
                 async updateProfile() {
                     this.actionLoading = true;
