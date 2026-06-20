@@ -60,7 +60,7 @@ def test_register_valid_provider(mock_supabase, mock_supabase_auth):
 @patch("app.auth.router.supabase_auth")
 @patch("app.auth.router.supabase")
 def test_register_duplicate_email(mock_supabase, mock_supabase_auth):
-    mock_supabase_auth.auth.sign_up.side_effect = AuthApiError("User already registered", 400, "user_already_registered")
+    mock_supabase_auth.auth.sign_up.side_effect = AuthApiError("User already registered", 400)
     response = client.post("/v1/auth/register", json={
         "email": "test@demo.com", "password": "Pass123!", "full_name": "Test", "role": "patient", "timezone": "UTC"
     })
@@ -85,14 +85,14 @@ def test_login_valid(mock_supabase, mock_supabase_auth):
 @patch("app.auth.router.supabase_auth")
 @patch("app.auth.router.supabase")
 def test_login_wrong_password(mock_supabase, mock_supabase_auth):
-    mock_supabase_auth.auth.sign_in_with_password.side_effect = AuthApiError("Invalid login credentials", 400, "invalid_credentials")
+    mock_supabase_auth.auth.sign_in_with_password.side_effect = AuthApiError("Invalid login credentials", 400)
     response = client.post("/v1/auth/login", json={"email": "test@demo.com", "password": "wrong"})
     assert response.status_code == 401
 
 @patch("app.auth.router.supabase_auth")
 @patch("app.auth.router.supabase")
 def test_login_locked(mock_supabase, mock_supabase_auth):
-    mock_supabase_auth.auth.sign_in_with_password.side_effect = AuthApiError("Email rate limit exceeded", 429, "rate_limited")
+    mock_supabase_auth.auth.sign_in_with_password.side_effect = AuthApiError("Email rate limit exceeded", 429)
     response = client.post("/v1/auth/login", json={"email": "test@demo.com", "password": "wrong"})
     assert response.status_code in (401, 429)
 
