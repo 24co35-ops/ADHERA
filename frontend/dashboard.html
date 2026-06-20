@@ -160,13 +160,7 @@
                     </button>
                 </div>
                 <div x-show="exportError" class="mt-2 text-xs text-red-400" x-text="exportError" x-cloak></div>
-                <div x-show="exportUrl" class="mt-3" x-cloak>
-                    <a :href="exportUrl" target="_blank" class="text-xs text-cyan-400 underline flex items-center gap-1">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                        <span x-text="t('export.download')"></span>
-                    </a>
-                    <p class="text-xs text-slate-500 mt-1" x-text="t('export.link_expires')"></p>
-                </div>
+                <div x-show="exportSuccess" class="mt-2 text-xs text-emerald-400" x-cloak x-text="t('export.success')"></div>
             </div>
         </div>
     </main>
@@ -192,7 +186,7 @@
                 stats: {}, adherence: {}, trend: [],
                 feedback: [], fbLoading: true, loading: true,
                 presenceChannel: null,
-                exportLoading: null, exportError: '', exportUrl: '',
+                exportLoading: null, exportError: '', exportSuccess: false,
                 
                 async init() {
                     Chart.defaults.color = '#849495';
@@ -253,10 +247,22 @@
                         const res = await fetch(`${CONFIG.API_BASE}/profile/export?format=${fmt}`, {
                             headers: { 'Authorization': `Bearer ${this.token}` }
                         });
-                        const data = await res.json();
-                        if (!data.success) throw new Error(data.error?.message || 'Export failed');
-                        this.exportUrl = data.data.signed_url;
-                        if (this.exportUrl) window.open(this.exportUrl, '_blank');
+                        if (!res.ok) {
+                            let msg = 'Export failed';
+                            try { const d = await res.json(); msg = d.error?.message || d.detail || msg; } catch(_) {}
+                            throw new Error(msg);
+                        }
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = fmt === 'csv' ? 'adhera_export.csv' : 'adhera_export.json';
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        setTimeout(() => URL.revokeObjectURL(url), 10000);
+                        this.exportSuccess = true;
+                        setTimeout(() => { this.exportSuccess = false; }, 4000);
                     } catch(e) { this.exportError = e.message; }
                     finally { this.exportLoading = null; }
                 },

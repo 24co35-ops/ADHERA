@@ -84,7 +84,7 @@ async def export_data(
 
     # Fetch all patient data
     adherence_res = supabase.table("adherence").select(
-        "scheduled_utc, status, notes, reminders(dose_label, medicines(name))"
+        "scheduled_utc, status, correction_note, reminders(dose_label, medicines(name))"
     ).eq("user_id", uid).order("scheduled_utc", desc=True).execute()
     medicines_res = supabase.table("medicines").select("*").eq("user_id", uid).execute()
     feedback_res = supabase.table("feedback").select("*").eq("user_id", uid).execute()
@@ -93,15 +93,20 @@ async def export_data(
     medicines = medicines_res.data or []
     feedback = feedback_res.data or []
 
-    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d%H%M%S")
-    storage_path = f"{uid}/{timestamp}.{format}"
+    # Map correction_note to notes for the output format
+    for row in adherence:
+        row["notes"] = row.get("correction_note") or ""
 
     if format == "json":
         content = json_mod.dumps(
             {"adherence": adherence, "medicines": medicines, "feedback": feedback},
             default=str
-        ).encode("utf-8")
-        content_type = "application/json"
+        )
+        return StreamingResponse(
+            io.BytesIO(content.encode("utf-8")),
+            media_type="application/json",
+            headers={"Content-Disposition": "attachment; filename=adhera_export.json"}
+        )
     else:
         buf = io.StringIO()
         writer = csv.DictWriter(buf, fieldnames=["date", "medicine_name", "dose_label", "status", "notes"])
@@ -116,21 +121,9 @@ async def export_data(
                 "status": row.get("status", ""),
                 "notes": row.get("notes", "") or "",
             })
-        content = buf.getvalue().encode("utf-8")
-        content_type = "text/csv"
-
-    # Upload to Supabase Storage (private exports bucket)
-    bucket = supabase.storage.from_("exports")
-    try:
-        bucket.upload(storage_path, content, {"content-type": content_type, "upsert": "true"})
-    except Exception:
-        try:
-            bucket.update(storage_path, content, {"content-type": content_type})
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Storage upload failed: {str(e)}")
-
-    # Signed URL valid 15 minutes (900 seconds)
-    signed = bucket.create_signed_url(storage_path, 900)
-    signed_url = signed.get("signedURL") or signed.get("signedUrl") or ""
-
-    return SuccessResponse(data={"signed_url": signed_url, "format": format, "expires_in": 900})
+        content = buf.getvalue()
+        return StreamingResponse(
+            io.BytesIO(content.encode("utf-8")),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=adhera_export.csv"}
+        )

@@ -39,7 +39,6 @@ function renderNav(activePage) {
         </a>
         <div class="space-x-4 font-medium text-sm">
             ${linksHtml}
-            <button @click="logout" class="text-red-400 hover:text-red-300 ml-4" x-text="t('nav.logout')">Logout</button>
         </div>
     </nav>
     `;

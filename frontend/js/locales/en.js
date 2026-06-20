@@ -56,8 +56,7 @@ export const en = {
     'export.json':         'JSON',
     'export.csv':          'CSV',
     'export.generating':   'Generating…',
-    'export.download':     'Download ready — click to save',
-    'export.link_expires': 'Link expires in 15 minutes.',
+    'export.success':      'Download started!  Check your Downloads folder.',
 
     // ── Medicines page ────────────────────────────────────────────────────────
     'medicines.active_title':  'Active Medicines',
