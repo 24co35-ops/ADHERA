@@ -353,10 +353,17 @@
                     }
                     this.pushPermissionText = Notification.permission;
                     if (Notification.permission === 'granted') {
-                        navigator.serviceWorker.ready.then(async (registration) => {
-                            const sub = await registration.pushManager.getSubscription();
-                            this.pushEnabled = !!sub;
-                        });
+                        try {
+                            const registration = await navigator.serviceWorker.getRegistration('/sw.js');
+                            if (registration) {
+                                const sub = await registration.pushManager.getSubscription();
+                                this.pushEnabled = !!sub;
+                            } else {
+                                this.pushEnabled = false;
+                            }
+                        } catch (e) {
+                            console.error('Error checking push status:', e);
+                        }
                     }
                 },
 
@@ -379,7 +386,11 @@
                         }
 
                         // Register Service Worker
-                        const registration = await navigator.serviceWorker.register('/sw.js');
+                        let registration = await navigator.serviceWorker.getRegistration('/sw.js');
+                        if (!registration) {
+                            registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+                        }
+                        await navigator.serviceWorker.ready;
                         
                         // Subscribe with VAPID Public Key
                         const publicVapidKey = CONFIG.VAPID_PUBLIC_KEY;

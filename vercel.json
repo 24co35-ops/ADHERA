@@ -14,6 +14,15 @@
       "use": "@vercel/static"
     }
   ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Content-Type", "value": "application/javascript" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    }
+  ],
   "routes": [
     {
       "src": "/v1/(.*)",
@@ -33,3 +42,4 @@
     }
   ]
 }
+
