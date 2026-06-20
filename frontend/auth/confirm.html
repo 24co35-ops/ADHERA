@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="../config.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adhera - Confirming Email</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="glass p-8 rounded-xl shadow-2xl w-full max-w-md text-center">
+        <div class="flex justify-center w-full mb-6" style="height: 60px;">
+            <div style="transform: scale(0.3); transform-origin: center;">
+                <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#00F2FF" />
+                            <stop offset="100%" stop-color="#3B82F6" />
+                        </linearGradient>
+                    </defs>
+                    <circle cx="100" cy="100" r="80" fill="url(#glow)" fill-opacity="0.1" stroke="url(#glow)" stroke-width="2" />
+                    <circle cx="100" cy="100" r="60" fill="white" fill-opacity="0.05" style="backdrop-filter: blur(10px)" stroke="white" stroke-opacity="0.2" />
+                    <path d="M100 60L135 140H115L100 105L85 140H65L100 60Z" fill="url(#glow)" />
+                    <rect x="92" y="110" width="16" height="4" rx="2" fill="white" fill-opacity="0.8" />
+                </svg>
+            </div>
+        </div>
+
+        <h2 id="status-title" class="text-2xl font-bold text-white mb-4">Verifying your email...</h2>
+        <p id="status-desc" class="text-slate-400 mb-6 text-sm">Please wait while we confirm your account registration.</p>
+        
+        <div id="loader" class="flex justify-center items-center py-4">
+            <svg class="animate-spin h-10 w-10 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        </div>
+
+        <div id="action-btn-container" class="hidden mt-6">
+            <a id="action-btn" href="../index.html" class="inline-block bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold py-2.5 px-6 rounded-xl transition-all duration-200">
+                Go to Login
+            </a>
+        </div>
+    </div>
+
+    <script>
+        async function confirmEmail() {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get("token") || params.get("token_hash");
+            const type = params.get("type") || "email";
+
+            const statusTitle = document.getElementById("status-title");
+            const statusDesc = document.getElementById("status-desc");
+            const loader = document.getElementById("loader");
+            const btnContainer = document.getElementById("action-btn-container");
+            const btn = document.getElementById("action-btn");
+
+            if (!token) {
+                statusTitle.innerText = "Invalid Link";
+                statusTitle.classList.add("text-red-400");
+                statusDesc.innerText = "No confirmation token was found in the URL. Please verify the link in your email.";
+                loader.classList.add("hidden");
+                btnContainer.classList.remove("hidden");
+                return;
+            }
+
+            try {
+                // Initialize Supabase Client
+                const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+                
+                const { error } = await supabaseClient.auth.verifyOtp({
+                    token_hash: token,
+                    type: type
+                });
+
+                if (error) {
+                    throw error;
+                }
+
+                statusTitle.innerText = "Email Confirmed!";
+                statusTitle.classList.add("text-emerald-400");
+                statusDesc.innerText = "Your account has been successfully verified. You can now log in.";
+                loader.classList.add("hidden");
+                btn.innerText = "Go to Login";
+                btn.href = "../index.html?registered=true";
+                btnContainer.classList.remove("hidden");
+            } catch (err) {
+                statusTitle.innerText = "Verification Failed";
+                statusTitle.classList.add("text-red-400");
+                statusDesc.innerText = err.message || "Confirmation failed. Please try registering again.";
+                loader.classList.add("hidden");
+                btn.innerText = "Back to Home";
+                btn.href = "../index.html";
+                btnContainer.classList.remove("hidden");
+            }
+        }
+
+        window.addEventListener("DOMContentLoaded", confirmEmail);
+    </script>
+</body>
+</html>
