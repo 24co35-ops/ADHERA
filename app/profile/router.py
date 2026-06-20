@@ -36,9 +36,14 @@ async def update_profile(request: Request, profile: ProfileUpdate, user: dict = 
     data = profile.model_dump(exclude_unset=True)
     if not data:
         raise HTTPException(status_code=400, detail="No fields provided.")
+    # PostgREST requires ISO strings, not Python date objects
+    from datetime import date as date_type
+    data = {k: (v.isoformat() if isinstance(v, date_type) else v) for k, v in data.items()}
     res = supabase.table("profiles").update(data).eq("id", user["user_id"]).execute()
     profile_data = res.data[0]
     profile_data.pop("mfa_secret", None)
+    from app.core.utils import calculate_age
+    profile_data["age"] = calculate_age(profile_data.get("date_of_birth"))
     return SuccessResponse(data=profile_data)
 
 @router.get("/emergency-contact", response_model=SuccessResponse[dict])

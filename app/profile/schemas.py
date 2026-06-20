@@ -1,10 +1,12 @@
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional
+from datetime import date
 
 class ProfileUpdate(BaseModel):
     full_name: Optional[str] = None
     contact_number: Optional[str] = None
     timezone: Optional[str] = None
+    date_of_birth: Optional[date] = None
     blood_group: Optional[str] = None
 
     @field_validator("blood_group")
