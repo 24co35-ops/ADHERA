@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#0d1117">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adhera - Register</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -45,7 +45,7 @@
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium mb-1">Role</label>
-                    <select x-model="form.role" class="w-full p-2 rounded" required :disabled="loading">
+                    <select x-model="form.role" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
                         <option value="patient">Patient</option>
                         <option value="provider">Healthcare Provider</option>
                     </select>
@@ -62,7 +62,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Timezone</label>
-                    <select x-model="form.timezone" class="w-full p-2 rounded" required :disabled="loading">
+                    <select x-model="form.timezone" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
                         <option value="UTC">UTC (UTC+0)</option>
                         <option value="Asia/Kolkata">Asia/Kolkata (IST, UTC+5:30)</option>
                         <option value="America/New_York">America/New_York (EST, UTC-5)</option>

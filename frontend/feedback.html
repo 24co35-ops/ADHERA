@@ -11,7 +11,7 @@
     <meta name="theme-color" content="#0d1117">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adhera - Feedback</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
     <script type="module" src="js/i18n.js"></script>
     <script src="js/nav.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -45,7 +45,7 @@
             <form @submit.prevent="attemptSubmit" class="space-y-4">
                 <div>
                     <label class="block text-sm mb-1">Medicine</label>
-                    <select x-model="form.medicine_id" class="w-full p-2 rounded" required :disabled="loading">
+                    <select x-model="form.medicine_id" class="w-full p-2 rounded bg-transparent border-transparent text-white" required :disabled="loading">
                         <template x-for="med in medicines" :key="med.id">
                             <option :value="med.id" x-text="med.name"></option>
                         </template>
@@ -64,7 +64,7 @@
                 </div>
                 <div>
                     <label class="block text-sm mb-1">Severity</label>
-                    <select x-model="form.severity" class="w-full p-2 rounded" required :disabled="loading">
+                    <select x-model="form.severity" class="w-full p-2 rounded bg-transparent border-transparent text-white" required :disabled="loading">
                         <option value="1">1 — Mild (minor discomfort)</option>
                         <option value="2">2 — Moderate (affects daily activity)</option>
                         <option value="3">3 — Severe (requires medical attention)</option>
