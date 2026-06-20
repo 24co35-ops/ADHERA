@@ -8,10 +8,6 @@
     {
       "src": "frontend/**",
       "use": "@vercel/static"
-    },
-    {
-      "src": "adhera_logo/**",
-      "use": "@vercel/static"
     }
   ],
   "headers": [
@@ -31,10 +27,6 @@
     {
       "src": "/sw.js",
       "dest": "frontend/sw.js"
-    },
-    {
-      "src": "/adhera_logo/(.*)",
-      "dest": "adhera_logo/$1"
     },
     {
       "src": "/(.*)",

@@ -1,32 +1,40 @@
-# Environment variables
-*.env
-!.env.example
-
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
+*.pyo
 .Python
-env/
+.venv/
 venv/
-ENV/
-.venv
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
 
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
+# Environment
+.env
+.env.local
+.env.production
+!.env.example
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
-
-# Dependencies
-node_modules/
-
+# Vercel
 .vercel
+
+# Node
+node_modules/
+npm-debug.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Supabase
+supabase/.branches
+supabase/.temp
