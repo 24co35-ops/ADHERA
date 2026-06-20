@@ -8,7 +8,7 @@ from app.profile.schemas import ProfileUpdate, EmergencyContact, PushSubscriptio
 import csv
 import io
 import json as json_mod
-import datetime
+from datetime import datetime
 import os
 
 router = APIRouter()
@@ -75,7 +75,7 @@ async def save_push_subscription(request: Request, subscription: dict, user: dic
             "endpoint": endpoint,
             "auth": auth,
             "p256dh": p256dh,
-            "subscription": subscription
+            "updated_at": datetime.utcnow().isoformat()
         }
         res = supabase.table("push_subscriptions").upsert(data, on_conflict="user_id").execute()
         if not res.data:
