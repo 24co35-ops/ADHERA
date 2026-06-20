@@ -31,6 +31,7 @@ python-dotenv==1.2.1
 slowapi==0.1.9
 pyotp==2.10.0
 freezegun==1.5.5
+pytz==2025.2
 
 # ── Async / HTTP internals ───────────────────────────────────────────────────
 anyio==4.11.0
