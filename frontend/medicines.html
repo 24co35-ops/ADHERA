@@ -147,6 +147,7 @@
                 <div><label class="block text-sm mb-1" x-text="t('form.scheduled_time')"></label><input type="time" x-model="form.scheduled_time" class="w-full p-2 rounded"></div>
                 <div class="md:col-span-2"><label class="block text-sm mb-1" x-text="t('form.instructions')"></label><input type="text" x-model="form.instructions" class="w-full p-2 rounded"></div>
                 <div class="md:col-span-2 flex justify-end"><button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-6 rounded-lg disabled:opacity-50" :disabled="actionLoading" x-text="t('form.add_submit')"></button></div>
+                <div x-show="addError" class="md:col-span-2 text-sm text-red-400 bg-red-400/10 border border-red-400/30 rounded-lg px-4 py-2" x-text="addError" x-cloak></div>
             </form>
         </div>
     </main>
@@ -166,6 +167,7 @@
                 expandedMed: null, timings: {}, timingsLoading: {},
                 editingReminder: null, editForm: {}, editError: '',
                 addingTimingFor: null, addTimingForm: { dose_label: '', dose_time_utc: '', recurrence_type: 'daily', timezone: 'UTC', advance_notify: false }, addTimingError: '',
+                addError: '',
                 form: { name: '', dosage_amount: '', dosage_unit: 'mg', route: 'oral', frequency_type: 'daily', start_date: new Date().toISOString().split('T')[0], end_date: '', instructions: '', timing: '', scheduled_time: '', advance_notify: false },
                 async init() {
                     await this.fetchMedicines();
@@ -218,11 +220,17 @@
                     } catch(e) { console.error(e); }
                 },
                 async addMed() {
+                    this.addError = '';
+                    // Client-side guards
+                    const dosage = parseFloat(this.form.dosage_amount);
+                    if (!this.form.name || !this.form.name.trim()) { this.addError = 'Medicine name is required.'; return; }
+                    if (isNaN(dosage) || dosage <= 0) { this.addError = 'Dosage must be a positive number.'; return; }
+                    if (!this.form.start_date) { this.addError = 'Start date is required.'; return; }
                     this.actionLoading = true;
                     try {
                         const body = {
                             name: this.form.name,
-                            dosage: parseFloat(this.form.dosage_amount),
+                            dosage: dosage,
                             unit: this.form.dosage_unit,
                             route: this.form.route,
                             frequency_type: this.form.frequency_type,
@@ -235,19 +243,43 @@
                         const newMedicine = await this.api('/medicines/', 'POST', body);
                         
                         if (this.form.timing && this.form.scheduled_time) {
-                            await this.api(`/medicines/${newMedicine.id}/reminders`, 'POST', {
-                                dose_label: this.form.timing,
-                                scheduled_time: this.form.scheduled_time,
-                                frequency_type: this.form.frequency_type || 'daily',
-                                advance_notify: this.form.advance_notify
-                            });
+                            try {
+                                await this.api(`/medicines/${newMedicine.id}/reminders`, 'POST', {
+                                    dose_label: this.form.timing,
+                                    scheduled_time: this.form.scheduled_time,
+                                    frequency_type: this.form.frequency_type || 'daily',
+                                    advance_notify: this.form.advance_notify
+                                });
+                            } catch(re) {
+                                // Medicine was saved but reminder failed — show specific message
+                                const msg = re.message || '';
+                                this.addError = msg.toLowerCase().includes('slot') || msg.toLowerCase().includes('duplicate')
+                                    ? 'Medicine added, but that time slot already exists for this medicine.'
+                                    : 'Medicine added, but failed to add reminder: ' + msg;
+                                console.error('Error adding reminder:', re);
+                            }
                         }
                         
                         await this.fetchMedicines();
-                        this.form.name = ''; this.form.dosage_amount = '';
-                        this.form.timing = ''; this.form.scheduled_time = '';
-                    } catch(e){
+                        if (!this.addError) {
+                            this.form.name = ''; this.form.dosage_amount = '';
+                            this.form.timing = ''; this.form.scheduled_time = '';
+                        }
+                    } catch(e) {
                         console.error('Error adding medicine/reminder:', e);
+                        const msg = e.message || '';
+                        if (msg.toLowerCase().includes('session') || msg.toLowerCase().includes('token') || msg.toLowerCase().includes('unauthorized')) {
+                            sessionStorage.removeItem('adhera_token');
+                            window.location.href = 'index.html';
+                            return;
+                        }
+                        if (msg.toLowerCase().includes('slot') || msg.toLowerCase().includes('duplicate') || msg.toLowerCase().includes('conflict')) {
+                            this.addError = 'This time slot already exists for this medicine.';
+                        } else if (msg.toLowerCase().includes('validation') || msg.toLowerCase().includes('invalid')) {
+                            this.addError = msg;
+                        } else {
+                            this.addError = msg || 'Failed to add medicine. Please try again.';
+                        }
                     } finally { this.actionLoading = false; }
                 },
                 async deleteMed(id) {
