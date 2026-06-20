@@ -36,6 +36,8 @@ async def create_medicine(request: Request, medicine: MedicineCreate, user: dict
     data["user_id"] = user["user_id"]
     data["start_date"] = data["start_date"].isoformat()
     if data["end_date"]: data["end_date"] = data["end_date"].isoformat()
+    if data.get("dosage_amount") is not None:
+        data["dosage_amount"] = float(data["dosage_amount"])
     res = supabase.table("medicines").insert(data).execute()
     return SuccessResponse(data=res.data[0])
 
@@ -63,6 +65,8 @@ async def get_medicine(request: Request, id: str, user: dict = Depends(get_curre
 @limiter.limit("60/minute")
 async def update_medicine(request: Request, id: str, medicine: MedicineUpdate, user: dict = Depends(get_current_user)):
     data = medicine.model_dump(exclude_unset=True)
+    if data.get("dosage_amount") is not None:
+        data["dosage_amount"] = float(data["dosage_amount"])
     res = supabase.table("medicines").update(data).eq("id", id).eq("user_id", user["user_id"]).execute()
     if not res.data: raise HTTPException(status_code=404, detail="Medicine not found")
     return SuccessResponse(data=res.data[0])
