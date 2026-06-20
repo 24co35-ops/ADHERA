@@ -16,6 +16,15 @@ try:
 except ImportError:
     AuthApiError = Exception
 
+def create_auth_api_error(message: str, status: int):
+    try:
+        return AuthApiError(message, status)
+    except TypeError:
+        try:
+            return AuthApiError(message, status, "error_code")
+        except TypeError:
+            return AuthApiError(message)
+
 client = TestClient(app)
 
 # Use a valid UUID format for testing to prevent DB schema/audit log mismatch
@@ -60,7 +69,7 @@ def test_register_valid_provider(mock_supabase, mock_supabase_auth):
 @patch("app.auth.router.supabase_auth")
 @patch("app.auth.router.supabase")
 def test_register_duplicate_email(mock_supabase, mock_supabase_auth):
-    mock_supabase_auth.auth.sign_up.side_effect = AuthApiError("User already registered", 400)
+    mock_supabase_auth.auth.sign_up.side_effect = create_auth_api_error("User already registered", 400)
     response = client.post("/v1/auth/register", json={
         "email": "test@demo.com", "password": "Pass123!", "full_name": "Test", "role": "patient", "timezone": "UTC"
     })
@@ -85,14 +94,14 @@ def test_login_valid(mock_supabase, mock_supabase_auth):
 @patch("app.auth.router.supabase_auth")
 @patch("app.auth.router.supabase")
 def test_login_wrong_password(mock_supabase, mock_supabase_auth):
-    mock_supabase_auth.auth.sign_in_with_password.side_effect = AuthApiError("Invalid login credentials", 400)
+    mock_supabase_auth.auth.sign_in_with_password.side_effect = create_auth_api_error("Invalid login credentials", 400)
     response = client.post("/v1/auth/login", json={"email": "test@demo.com", "password": "wrong"})
     assert response.status_code == 401
 
 @patch("app.auth.router.supabase_auth")
 @patch("app.auth.router.supabase")
 def test_login_locked(mock_supabase, mock_supabase_auth):
-    mock_supabase_auth.auth.sign_in_with_password.side_effect = AuthApiError("Email rate limit exceeded", 429)
+    mock_supabase_auth.auth.sign_in_with_password.side_effect = create_auth_api_error("Email rate limit exceeded", 429)
     response = client.post("/v1/auth/login", json={"email": "test@demo.com", "password": "wrong"})
     assert response.status_code in (401, 429)
 

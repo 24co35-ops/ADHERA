@@ -32,6 +32,9 @@ slowapi==0.1.9
 pyotp==2.10.0
 freezegun==1.5.5
 pytz==2025.2
+requests==2.32.5
+urllib3==2.5.0
+charset-normalizer==3.4.4
 
 # ── Async / HTTP internals ───────────────────────────────────────────────────
 anyio==4.11.0
