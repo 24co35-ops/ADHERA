@@ -29,6 +29,18 @@
       "dest": "frontend/sw.js"
     },
     {
+      "src": "/favicon.ico",
+      "dest": "frontend/assets/favicons/favicon.ico"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "dest": "frontend/assets/favicons/favicon-180x180.png"
+    },
+    {
+      "src": "/site.webmanifest",
+      "dest": "frontend/site.webmanifest"
+    },
+    {
       "src": "/(.*)",
       "dest": "frontend/$1"
     }
