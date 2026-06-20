@@ -62,7 +62,14 @@ serve(async (req) => {
       )
       await webpush.sendNotification(
         subData.subscription,
-        JSON.stringify({ medicine_name, dosage, reminder_id })
+        JSON.stringify({
+          title: is_advance ? `Reminder: ${medicine_name} in 10 minutes` : 'Time for your medication',
+          body: `${medicine_name}${dosage ? ' — ' + dosage : ''}${dose_label ? ' (' + dose_label + ')' : ''}`,
+          medicine_name,
+          dosage,
+          reminder_id,
+          url: '/dashboard.html'
+        })
       )
       results.push = "sent"
     } catch {

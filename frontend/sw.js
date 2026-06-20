@@ -10,12 +10,13 @@ self.addEventListener('push', function(event) {
 
   const title = data.title || 'Adhera Reminder';
   const options = {
-    body: data.body || (data.medicine_name ? `Time to take ${data.medicine_name} (${data.dosage || ''})` : 'Time to take your scheduled medicine.'),
-    icon: '/logo.html', // placeholder for icon
-    badge: '/logo.html',
+    body: data.body || (data.medicine_name ? `Time to take ${data.medicine_name}${data.dosage ? ' (' + data.dosage + ')' : ''}` : 'Time to take your scheduled medicine.'),
+    icon: '/adhera_logo/screen.png',
+    badge: '/adhera_logo/screen.png',
     tag: 'adhera-reminder',
     data: {
-      reminder_id: data.reminder_id
+      reminder_id: data.reminder_id,
+      url: data.url || '/dashboard.html'
     }
   };
 
@@ -38,7 +39,7 @@ self.addEventListener('notificationclick', function(event) {
         }
         return client.focus();
       }
-      return clients.openWindow('/dashboard.html');
+      return clients.openWindow(event.notification.data?.url || '/dashboard.html');
     })
   );
 });

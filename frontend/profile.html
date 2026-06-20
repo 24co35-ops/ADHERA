@@ -416,11 +416,11 @@
                 },
 
                 async logout() {
-                    const supabase = window.supabase.createClient(config.SUPABASE_JS_URL, config.SUPABASE_ANON);
-                    const { error } = await supabase.auth.signOut();
+                    const supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+                    const { error } = await supabaseClient.auth.signOut();
                     if (!error) {
                         sessionStorage.removeItem('adhera_token');
-                        window.location.href = '/index.html';
+                        window.location.href = 'index.html';
                     }
                 }
             }

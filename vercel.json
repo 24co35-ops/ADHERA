@@ -8,12 +8,24 @@
     {
       "src": "frontend/**",
       "use": "@vercel/static"
+    },
+    {
+      "src": "adhera_logo/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
       "src": "/v1/(.*)",
       "dest": "api/index.py"
+    },
+    {
+      "src": "/sw.js",
+      "dest": "frontend/sw.js"
+    },
+    {
+      "src": "/adhera_logo/(.*)",
+      "dest": "adhera_logo/$1"
     },
     {
       "src": "/(.*)",
