@@ -47,9 +47,18 @@
             <div x-show="loading" class="absolute inset-0 bg-white/5 animate-pulse rounded-xl z-10"></div>
             <h3 class="text-xl font-bold mb-4 text-cyan-400 flex items-center justify-between">
                 <span>Personal Information</span>
-                <button @click="isEditing = !isEditing" class="text-xs bg-slate-700 border border-white/10 text-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-600 transition-colors">
-                    <span x-text="isEditing ? 'Cancel' : 'Edit Profile'"></span>
-                </button>
+                <div class="flex items-center space-x-2">
+                    <button onclick="document.getElementById('change-password-modal').classList.remove('hidden')"
+                        class="flex items-center gap-2 px-3 py-1.5 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 rounded-lg text-xs font-medium transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                        </svg>
+                        Change Password
+                    </button>
+                    <button @click="isEditing = !isEditing" class="text-xs bg-slate-700 border border-white/10 text-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-600 transition-colors">
+                        <span x-text="isEditing ? 'Cancel' : 'Edit Profile'"></span>
+                    </button>
+                </div>
             </h3>
 
             <!-- View Mode -->
@@ -127,37 +136,6 @@
             </form>
         </div>
 
-        <!-- Change Password Section -->
-        <div x-data="changePassword()" class="glass p-6 rounded-xl mt-6">
-            <h3 class="text-xl font-bold mb-4 text-cyan-400">Change Password</h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm text-slate-300 mb-1">Current Password</label>
-                    <input x-model="currentPassword" type="password"
-                        class="w-full p-2.5 rounded text-white focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-sm text-slate-300 mb-1">New Password</label>
-                    <input x-model="newPassword" type="password"
-                        class="w-full p-2.5 rounded text-white focus:outline-none" placeholder="Minimum 8 characters">
-                </div>
-                <div>
-                    <label class="block text-sm text-slate-300 mb-1">Confirm New Password</label>
-                    <input x-model="confirmPassword" type="password"
-                        class="w-full p-2.5 rounded text-white focus:outline-none" placeholder="Repeat your new password">
-                </div>
-                <p x-show="error" x-cloak x-text="error" class="text-red-400 text-sm"></p>
-                <p x-show="success" x-cloak class="text-emerald-400 text-sm font-medium">✓ Password changed successfully</p>
-                <button @click="doChangePassword()" :disabled="loading || !isValid()"
-                    class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 px-6 rounded-lg transition-colors disabled:opacity-50 flex justify-center items-center">
-                    <svg x-show="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span x-text="loading ? 'Updating...' : 'Update Password'"></span>
-                </button>
-            </div>
-        </div>
 
 
         <!-- Multi-Factor Authentication Section -->
@@ -565,6 +543,14 @@
                 loading: false,
                 success: false,
                 error: "",
+                closeModal() {
+                    document.getElementById('change-password-modal').classList.add('hidden');
+                    this.currentPassword = "";
+                    this.newPassword = "";
+                    this.confirmPassword = "";
+                    this.error = "";
+                    this.success = false;
+                },
                 isValid() {
                     return this.currentPassword.length > 0 &&
                         this.newPassword.length >= 8 &&
@@ -588,7 +574,7 @@
                         this.currentPassword = "";
                         this.newPassword = "";
                         this.confirmPassword = "";
-                        setTimeout(() => { this.success = false; }, 4000);
+                        setTimeout(() => { this.closeModal(); }, 2000);
                     } catch (e) {
                         this.error = "Failed to update password. Try again.";
                     } finally {
@@ -598,5 +584,102 @@
             }
         }
     </script>
+
+    <!-- Change Password Modal -->
+    <div id="change-password-modal"
+         class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+         x-data="changePassword()"
+         @keydown.escape.window="closeModal()">
+
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"
+             @click="closeModal()"></div>
+
+        <!-- Modal Card -->
+        <div class="relative w-full max-w-md glass p-8 rounded-2xl shadow-2xl"
+             style="border: 1px solid rgba(0,219,231,0.25); box-shadow: 0 0 40px rgba(0,219,231,0.08);">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center"
+                         style="background: rgba(0,219,231,0.12); border: 1px solid rgba(0,219,231,0.25);">
+                        <svg class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-white">Change Password</h3>
+                </div>
+                <button onclick="document.getElementById('change-password-modal').classList.add('hidden')"
+                        class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Fields -->
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1.5 font-medium">Current Password</label>
+                    <input id="cp-current" x-model="currentPassword" type="password"
+                           class="w-full p-2.5 rounded-xl text-white"
+                           placeholder="Your current password" autocomplete="current-password">
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1.5 font-medium">New Password</label>
+                    <input id="cp-new" x-model="newPassword" type="password"
+                           class="w-full p-2.5 rounded-xl text-white"
+                           placeholder="Minimum 8 characters" autocomplete="new-password">
+                    <!-- Strength bar -->
+                    <div x-show="newPassword.length > 0" class="mt-2 space-y-1">
+                        <div class="h-1 rounded-full bg-white/10 overflow-hidden">
+                            <div class="h-full rounded-full transition-all duration-300"
+                                 :style="'width:' + Math.min(newPassword.length / 16 * 100, 100) + '%;background:' + (newPassword.length < 8 ? '#f43f5e' : newPassword.length < 12 ? '#f59e0b' : '#10b981')"></div>
+                        </div>
+                        <span class="text-xs"
+                              :class="newPassword.length < 8 ? 'text-rose-400' : newPassword.length < 12 ? 'text-amber-400' : 'text-emerald-400'"
+                              x-text="newPassword.length < 8 ? 'Too short' : newPassword.length < 12 ? 'Fair' : 'Strong'"></span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1.5 font-medium">Confirm New Password</label>
+                    <input id="cp-confirm" x-model="confirmPassword" type="password"
+                           class="w-full p-2.5 rounded-xl text-white"
+                           placeholder="Repeat your new password" autocomplete="new-password">
+                    <p x-show="confirmPassword.length > 0 && newPassword !== confirmPassword"
+                       class="text-rose-400 text-xs mt-1">Passwords do not match.</p>
+                </div>
+
+                <!-- Messages -->
+                <p x-show="error" x-cloak x-text="error" class="text-rose-400 text-sm bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2"></p>
+                <div x-show="success" x-cloak
+                     class="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Password changed successfully!
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-3 pt-1">
+                    <button type="button" onclick="document.getElementById('change-password-modal').classList.add('hidden')"
+                            class="flex-1 py-2.5 px-4 rounded-xl text-slate-300 hover:text-white transition-colors text-sm font-medium"
+                            style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10);">
+                        Cancel
+                    </button>
+                    <button type="button" @click="doChangePassword()" :disabled="loading || !isValid()"
+                            class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 px-4 rounded-xl transition-colors disabled:opacity-50 flex justify-center items-center gap-2 text-sm">
+                        <svg x-show="loading" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span x-text="loading ? 'Updating...' : 'Update Password'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
