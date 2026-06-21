@@ -25,6 +25,8 @@
         input:focus, select:focus, textarea:focus { outline: none !important; border-color: #00dbe7 !important; }
         button[type="submit"], button.bg-cyan-600 { background: #00dbe7 !important; color: #002022 !important; border-radius: 12px !important; }
         button.bg-slate-700 { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 12px !important; }
+        a.text-indigo-600 { color: #00dbe7 !important; }
+        a.text-indigo-600:hover { color: #00c4cf !important; }
         [x-cloak] { display: none !important; }
     </style>
 </head>
@@ -64,8 +66,11 @@
                 <div>
                     <label class="block text-sm font-medium mb-1">Password</label>
                     <input id="password" type="password" x-model="password" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
-                    <div class="text-right mt-1.5">
-                        <a href="forgot-password.html" class="text-xs text-slate-400 hover:text-cyan-400 transition-colors">Forgot your password?</a>
+                    <div class="text-right mt-1 mb-4">
+                        <a href="/forgot-password.html"
+                            class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline transition-colors">
+                            Forgot your password?
+                        </a>
                     </div>
                 </div>
                 <div x-show="error" x-cloak class="text-red-400 text-sm" x-text="error"></div>

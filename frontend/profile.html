@@ -127,6 +127,39 @@
             </form>
         </div>
 
+        <!-- Change Password Section -->
+        <div x-data="changePassword()" class="glass p-6 rounded-xl mt-6">
+            <h3 class="text-xl font-bold mb-4 text-cyan-400">Change Password</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-slate-300 mb-1">Current Password</label>
+                    <input x-model="currentPassword" type="password"
+                        class="w-full p-2.5 rounded text-white focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-300 mb-1">New Password</label>
+                    <input x-model="newPassword" type="password"
+                        class="w-full p-2.5 rounded text-white focus:outline-none" placeholder="Minimum 8 characters">
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-300 mb-1">Confirm New Password</label>
+                    <input x-model="confirmPassword" type="password"
+                        class="w-full p-2.5 rounded text-white focus:outline-none" placeholder="Repeat your new password">
+                </div>
+                <p x-show="error" x-cloak x-text="error" class="text-red-400 text-sm"></p>
+                <p x-show="success" x-cloak class="text-emerald-400 text-sm font-medium">✓ Password changed successfully</p>
+                <button @click="doChangePassword()" :disabled="loading || !isValid()"
+                    class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 px-6 rounded-lg transition-colors disabled:opacity-50 flex justify-center items-center">
+                    <svg x-show="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span x-text="loading ? 'Updating...' : 'Update Password'"></span>
+                </button>
+            </div>
+        </div>
+
+
         <!-- Multi-Factor Authentication Section -->
         <div class="glass p-6 rounded-xl relative">
             <h3 class="text-xl font-bold mb-4 text-cyan-400">Two-Factor Authentication (2FA)</h3>
@@ -519,6 +552,47 @@
                     if (!error) {
                         sessionStorage.removeItem('adhera_token');
                         window.location.href = 'index.html';
+                    }
+                }
+            }
+        }
+
+        function changePassword() {
+            return {
+                currentPassword: "",
+                newPassword: "",
+                confirmPassword: "",
+                loading: false,
+                success: false,
+                error: "",
+                isValid() {
+                    return this.currentPassword.length > 0 &&
+                        this.newPassword.length >= 8 &&
+                        this.newPassword === this.confirmPassword &&
+                        this.newPassword !== this.currentPassword;
+                },
+                async doChangePassword() {
+                    this.loading = true;
+                    this.error = "";
+                    this.success = false;
+                    try {
+                        const supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+                        const { error } = await supabaseClient.auth.updateUser({
+                            password: this.newPassword
+                        });
+                        if (error) {
+                            this.error = error.message;
+                            return;
+                        }
+                        this.success = true;
+                        this.currentPassword = "";
+                        this.newPassword = "";
+                        this.confirmPassword = "";
+                        setTimeout(() => { this.success = false; }, 4000);
+                    } catch (e) {
+                        this.error = "Failed to update password. Try again.";
+                    } finally {
+                        this.loading = false;
                     }
                 }
             }
