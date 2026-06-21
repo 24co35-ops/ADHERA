@@ -95,6 +95,7 @@
                     <button class="tab-btn" onclick="switchTab('alerts')" id="tab-alerts">Critical Alerts <span class="badge" id="badge-alerts" style="display:none;"></span></button>
                     <button class="tab-btn" onclick="switchTab('analytics')" id="tab-analytics">Analytics</button>
                     <button class="tab-btn" onclick="switchTab('health')" id="tab-health">System Health</button>
+                    <button class="tab-btn" onclick="switchTab('assignments')" id="tab-assignments">Assignments</button>
                     <button class="tab-btn" onclick="switchTab('export')" id="tab-export">Export &amp; Broadcast</button>
                 </div>
             </div>
@@ -228,6 +229,35 @@
                         <div class="text-slate-500 text-sm">Loading…</div>
                     </div>
                     <p id="health-time" class="text-xs text-slate-600 mt-4"></p>
+                </div>
+
+                <!-- ASSIGNMENTS TAB -->
+                <div class="tab-section" id="section-assignments">
+                    <div class="flex items-center justify-between mb-5">
+                        <h2 class="text-lg font-bold text-white">Patient-Provider Assignments</h2>
+                        <button onclick="loadAssignmentsTab()" class="btn-ghost px-3 py-1.5 text-xs">↻ Refresh</button>
+                    </div>
+                    <div style="display:flex;gap:0;border:1px solid rgba(255,255,255,.07);border-radius:12px;overflow:hidden;min-height:500px;">
+                        <!-- Provider list -->
+                        <div style="width:300px;flex-shrink:0;border-right:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;">
+                            <div style="padding:14px;border-bottom:1px solid rgba(255,255,255,.07);">
+                                <p class="text-xs font-semibold text-slate-400 uppercase mb-2">Providers</p>
+                                <input id="asgn-provider-search" type="text" placeholder="Search providers…" class="w-full px-3 py-1.5 text-sm" oninput="asgnFilterProviders(this.value)">
+                            </div>
+                            <div id="asgn-provider-list" style="overflow-y:auto;flex:1;">
+                                <div class="text-slate-500 text-xs p-4">Loading…</div>
+                            </div>
+                        </div>
+                        <!-- Right panel -->
+                        <div style="flex:1;overflow-y:auto;padding:20px;">
+                            <div id="asgn-panel">
+                                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;gap:8px;">
+                                    <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="rgba(100,116,139,.5)" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                    <p class="text-slate-500 text-sm">Select a provider to manage assignments</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- EXPORT & BROADCAST TAB -->
@@ -379,6 +409,7 @@
         alerts: loadAlerts,
         analytics: loadAnalytics,
         health: loadHealth,
+        assignments: loadAssignmentsTab,
         export: () => {},
     };
     let _activeTab = 'overview';
@@ -882,6 +913,135 @@
     function adminLogout() {
         sessionStorage.removeItem('adhera_token');
         window.location.href = '/index.html';
+    }
+
+    // ── ASSIGNMENTS ────────────────────────────────────────────────────────────
+    let _asgnProviders = [];
+    let _asgnUnassigned = [];
+    let _asgnSelectedId = null;
+
+    async function loadAssignmentsTab() {
+        document.getElementById('asgn-provider-list').innerHTML = '<div class="text-slate-500 text-xs p-4">Loading…</div>';
+        try {
+            const [provData, unasData] = await Promise.all([
+                api('/admin/providers-with-patients'),
+                api('/admin/unassigned-patients'),
+            ]);
+            _asgnProviders = provData;
+            _asgnUnassigned = unasData;
+            asgnRenderProviders(_asgnProviders);
+            if (_asgnSelectedId) asgnSelectProvider(_asgnSelectedId);
+        } catch(e) {
+            document.getElementById('asgn-provider-list').innerHTML = `<p class="text-red-400 text-xs p-4">${e.message}</p>`;
+        }
+    }
+
+    function asgnRenderProviders(list) {
+        const el = document.getElementById('asgn-provider-list');
+        if (!list.length) { el.innerHTML = '<p class="text-slate-500 text-xs p-4">No providers found</p>'; return; }
+        el.innerHTML = list.map(p => {
+            const active = _asgnSelectedId === p.id;
+            return `
+                <div onclick="asgnSelectProvider('${p.id}')" style="padding:12px 14px;cursor:pointer;border-left:3px solid ${active ? '#00dbe7' : 'transparent'};background:${active ? 'rgba(0,219,231,.06)' : 'transparent'};transition:.15s;">
+                    <p style="font-size:13px;font-weight:600;color:${active ? '#00dbe7' : '#e2e2e8'};">${p.full_name || 'Unknown'}</p>
+                    <p style="font-size:11px;color:#64748b;margin-top:2px;">${p.email || ''}</p>
+                    <span style="font-size:10px;margin-top:4px;display:inline-block;padding:2px 8px;border-radius:99px;background:rgba(0,219,231,.1);color:#00dbe7;font-weight:700;">${p.patient_count} patient${p.patient_count !== 1 ? 's' : ''}</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function asgnFilterProviders(q) {
+        const filtered = _asgnProviders.filter(p =>
+            (p.full_name || '').toLowerCase().includes(q.toLowerCase()) ||
+            (p.email || '').toLowerCase().includes(q.toLowerCase())
+        );
+        asgnRenderProviders(filtered);
+    }
+
+    function asgnSelectProvider(id) {
+        _asgnSelectedId = id;
+        asgnRenderProviders(_asgnProviders.filter(p => {
+            const q = document.getElementById('asgn-provider-search')?.value || '';
+            return !q || (p.full_name || '').toLowerCase().includes(q.toLowerCase()) || (p.email || '').toLowerCase().includes(q.toLowerCase());
+        }));
+        const provider = _asgnProviders.find(p => p.id === id);
+        if (!provider) return;
+        const panel = document.getElementById('asgn-panel');
+        const assigned = provider.assigned_patients || [];
+        panel.innerHTML = `
+            <div style="margin-bottom:20px;">
+                <p style="font-size:16px;font-weight:700;color:#e2e2e8;">${provider.full_name}</p>
+                <p style="font-size:12px;color:#64748b;">${provider.email || ''}</p>
+            </div>
+            <div style="margin-bottom:24px;">
+                <p style="font-size:12px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Assigned Patients (${assigned.length})</p>
+                <div id="asgn-assigned-list" class="space-y-2">
+                    ${assigned.length === 0
+                        ? '<p style="font-size:13px;color:#475569;">No patients assigned yet</p>'
+                        : assigned.map(a => {
+                            const name = (a.profiles || {}).full_name || 'Unknown';
+                            const email = (a.profiles || {}).email || '';
+                            const pid = (a.profiles || {}).id || a.patient_id;
+                            return `
+                                <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.2);border-radius:10px;padding:10px 14px;">
+                                    <div><p style="font-size:13px;font-weight:600;color:#e2e2e8;">${name}</p><p style="font-size:11px;color:#64748b;">${email}</p></div>
+                                    <button onclick="asgnRemove('${pid}','${id}','${name.replace(/'/g,'')}')"
+                                        style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:8px;background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3);color:#f87171;cursor:pointer;">Remove</button>
+                                </div>
+                            `;
+                        }).join('')
+                    }
+                </div>
+            </div>
+            <div>
+                <p style="font-size:12px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Assign Patient</p>
+                <input type="text" id="asgn-patient-search" placeholder="Search unassigned patients…"
+                    class="w-full px-3 py-2 text-sm" style="margin-bottom:10px;"
+                    oninput="asgnFilterUnassigned(this.value,'${id}')">
+                <div id="asgn-unassigned-list" class="space-y-2" style="max-height:260px;overflow-y:auto;">
+                    ${asgnRenderUnassigned(_asgnUnassigned, id)}
+                </div>
+            </div>
+        `;
+    }
+
+    function asgnRenderUnassigned(list, providerId) {
+        if (!list.length) return '<p style="font-size:13px;color:#475569;">All patients are assigned</p>';
+        return list.map(p => `
+            <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px 14px;">
+                <div><p style="font-size:13px;font-weight:600;color:#e2e2e8;">${p.full_name || 'Unknown'}</p><p style="font-size:11px;color:#64748b;">${p.email || ''}</p></div>
+                <button onclick="asgnAssign('${p.id}','${providerId}','${(p.full_name || '').replace(/'/g,'')}')"
+                    style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:8px;background:rgba(0,219,231,.12);border:1px solid rgba(0,219,231,.3);color:#00dbe7;cursor:pointer;">Assign</button>
+            </div>
+        `).join('');
+    }
+
+    function asgnFilterUnassigned(q, providerId) {
+        const filtered = _asgnUnassigned.filter(p =>
+            (p.full_name || '').toLowerCase().includes(q.toLowerCase()) ||
+            (p.email || '').toLowerCase().includes(q.toLowerCase())
+        );
+        const el = document.getElementById('asgn-unassigned-list');
+        if (el) el.innerHTML = asgnRenderUnassigned(filtered, providerId);
+    }
+
+    async function asgnAssign(patientId, providerId, patientName) {
+        if (!confirm(`Assign ${patientName} to this provider?`)) return;
+        try {
+            await api('/admin/assignments', 'POST', { patient_id: patientId, provider_id: providerId });
+            showToast(`${patientName} assigned`);
+            await loadAssignmentsTab();
+        } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    async function asgnRemove(patientId, providerId, patientName) {
+        if (!confirm(`Remove ${patientName} from this provider?`)) return;
+        try {
+            await api('/admin/assignments', 'DELETE', { patient_id: patientId, provider_id: providerId });
+            showToast(`${patientName} removed`);
+            await loadAssignmentsTab();
+        } catch(e) { showToast(e.message, 'error'); }
     }
 
     // ── Init ───────────────────────────────────────────────────────────────────
