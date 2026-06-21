@@ -408,28 +408,8 @@ async def reject_provider_legacy(request: Request, id: str, user: dict = Depends
 @router.get("/assignments", response_model=SuccessResponse[list])
 @limiter.limit("60/minute")
 async def list_assignments(request: Request, user: dict = Depends(require_role("admin"))):
-    try:
-        res = supabase.table("assignments").select(
-            "*, patient:profiles!assignments_patient_id_fkey(id, full_name), provider:profiles!assignments_provider_id_fkey(id, full_name)"
-        ).order("created_at", desc=True).execute()
-        data = res.data or []
-        try:
-            auth_users = supabase.auth.admin.list_users()
-            email_map = {u.id: u.email for u in auth_users}
-            for row in data:
-                if row.get("patient"):
-                    row["patient"]["email"] = email_map.get(row["patient"]["id"], "")
-                if row.get("provider"):
-                    row["provider"]["email"] = email_map.get(row["provider"]["id"], "")
-        except Exception:
-            for row in data:
-                if row.get("patient"):
-                    row["patient"]["email"] = ""
-                if row.get("provider"):
-                    row["provider"]["email"] = ""
-        return SuccessResponse(data=data)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    res = supabase.table("assignments").select("*").execute()
+    return SuccessResponse(data=res.data)
 
 
 @router.post("/assignments", response_model=SuccessResponse[dict])
