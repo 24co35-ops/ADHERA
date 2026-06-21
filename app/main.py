@@ -21,6 +21,7 @@ from app.analytics.router import router as analytics_router
 from app.provider.router import router as provider_router
 from app.admin.router import router as admin_router
 from app.reminders.router import router as reminders_router
+from app.routers.assignments import router as assignments_router
 from app.db.supabase import supabase
 
 _DEV_LOCALHOST_ORIGINS = [
@@ -122,3 +123,4 @@ app.include_router(analytics_router, prefix="/v1/analytics", tags=["analytics"])
 app.include_router(provider_router, prefix="/v1/provider", tags=["provider"])
 app.include_router(admin_router, prefix="/v1/admin", tags=["admin"])
 app.include_router(reminders_router, prefix="/v1/reminders", tags=["reminders"])
+app.include_router(assignments_router, prefix="/v1")
