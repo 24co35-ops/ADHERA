@@ -48,7 +48,7 @@
             <h3 class="text-xl font-bold mb-4 text-cyan-400 flex items-center justify-between">
                 <span>Personal Information</span>
                 <div class="flex items-center space-x-2">
-                    <button onclick="document.getElementById('change-password-modal').classList.remove('hidden')"
+                    <button onclick="openPasswordModal()"
                         class="flex items-center gap-2 px-3 py-1.5 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 rounded-lg text-xs font-medium transition-colors">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
@@ -535,83 +535,235 @@
             }
         }
 
-        function changePassword() {
-            return {
-                currentPassword: "",
-                newPassword: "",
-                confirmPassword: "",
-                loading: false,
-                success: false,
-                error: "",
-                closeModal() {
-                    document.getElementById('change-password-modal').classList.add('hidden');
-                    this.currentPassword = "";
-                    this.newPassword = "";
-                    this.confirmPassword = "";
-                    this.error = "";
-                    this.success = false;
-                },
-                isValid() {
-                    return this.currentPassword.length > 0 &&
-                        this.newPassword.length >= 8 &&
-                        this.newPassword === this.confirmPassword &&
-                        this.newPassword !== this.currentPassword;
-                },
-                async doChangePassword() {
-                    this.loading = true;
-                    this.error = "";
-                    this.success = false;
-                    try {
-                        const supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
-                        const { error } = await supabaseClient.auth.updateUser({
-                            password: this.newPassword
-                        });
-                        if (error) {
-                            this.error = error.message;
-                            return;
-                        }
-                        this.success = true;
-                        this.currentPassword = "";
-                        this.newPassword = "";
-                        this.confirmPassword = "";
-                        setTimeout(() => { this.closeModal(); }, 2000);
-                    } catch (e) {
-                        this.error = "Failed to update password. Try again.";
-                    } finally {
-                        this.loading = false;
-                    }
+        /* ── Change Password Modal (vanilla JS) ── */
+        const _supabaseCp = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+
+        function openPasswordModal() {
+            document.getElementById('change-password-modal').classList.remove('hidden');
+            document.getElementById('cp-current').focus();
+        }
+
+        function closePasswordModal() {
+            document.getElementById('change-password-modal').classList.add('hidden');
+            // reset inputs
+            ['cp-current','cp-new','cp-confirm'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+            // reset forgot toggle
+            const tog = document.getElementById('cp-forgot-toggle');
+            if (tog) { tog.checked = false; toggleForgotPassword(false); }
+            // reset messages
+            ['cp-error','cp-success','cp-reset-sent','cp-reset-error'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            // reset strength
+            const bar = document.getElementById('cp-strength-bar');
+            const lbl = document.getElementById('cp-strength-label');
+            if (bar) bar.style.width = '0%';
+            if (lbl) lbl.textContent = '';
+            // reset requirement checks
+            ['cp-check-length','cp-check-upper','cp-check-number','cp-check-match'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.classList.remove('text-emerald-400'); el.classList.add('text-slate-500'); }
+            });
+            // reset button
+            const btn = document.getElementById('cp-submit-btn');
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Update Password';
+                btn.style.background = '';
+            }
+        }
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && !document.getElementById('change-password-modal').classList.contains('hidden')) {
+                closePasswordModal();
+            }
+        });
+
+        function toggleForgotPassword(checked) {
+            const tick         = document.getElementById('cp-forgot-tick');
+            const currentInput = document.getElementById('cp-current');
+            const newSec       = document.getElementById('cp-new-section');
+            const confirmSec   = document.getElementById('cp-confirm-section');
+            const strengthSec  = document.getElementById('cp-strength-section');
+            const forgotSec    = document.getElementById('cp-forgot-section');
+            const btn          = document.getElementById('cp-submit-btn');
+            const reqSec       = document.getElementById('cp-req-section');
+
+            if (checked) {
+                tick.classList.remove('hidden');
+                currentInput.disabled = true;
+                currentInput.value = '';
+                currentInput.style.opacity = '0.4';
+                currentInput.style.cursor = 'not-allowed';
+                newSec.classList.add('hidden');
+                if (strengthSec) strengthSec.classList.add('hidden');
+                confirmSec.classList.add('hidden');
+                if (reqSec) reqSec.classList.add('hidden');
+                forgotSec.classList.remove('hidden');
+                btn.textContent = 'Send Reset Email';
+                btn.style.background = 'linear-gradient(135deg,#f59e0b,#d97706)';
+            } else {
+                tick.classList.add('hidden');
+                currentInput.disabled = false;
+                currentInput.style.opacity = '';
+                currentInput.style.cursor = '';
+                newSec.classList.remove('hidden');
+                if (strengthSec) strengthSec.classList.remove('hidden');
+                confirmSec.classList.remove('hidden');
+                if (reqSec) reqSec.classList.remove('hidden');
+                forgotSec.classList.add('hidden');
+                btn.textContent = 'Update Password';
+                btn.style.background = '';
+                ['cp-reset-sent','cp-reset-error'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.add('hidden');
+                });
+            }
+        }
+
+        function cpUpdateStrength() {
+            const val = document.getElementById('cp-new').value;
+            const bar = document.getElementById('cp-strength-bar');
+            const lbl = document.getElementById('cp-strength-label');
+            const confirm = document.getElementById('cp-confirm').value;
+
+            const hasUpper = /[A-Z]/.test(val);
+            const hasNum   = /[0-9]/.test(val);
+            const hasLen   = val.length >= 8;
+            const matches  = val === confirm && val.length > 0;
+
+            // checklist
+            const setCheck = (id, pass) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.classList.toggle('text-emerald-400', pass);
+                el.classList.toggle('text-slate-500', !pass);
+                el.querySelector('.cp-check-icon').textContent = pass ? '✓' : '○';
+            };
+            setCheck('cp-check-length', hasLen);
+            setCheck('cp-check-upper',  hasUpper);
+            setCheck('cp-check-number', hasNum);
+            setCheck('cp-check-match',  matches);
+
+            // bar
+            const score = [hasLen, hasUpper, hasNum, val.length >= 12].filter(Boolean).length;
+            const pct   = Math.min(val.length / 16 * 100, 100);
+            const colors = ['#f43f5e','#f43f5e','#f59e0b','#10b981','#10b981'];
+            bar.style.width  = pct + '%';
+            bar.style.background = colors[score] || '#f43f5e';
+            const labels = ['','Too short','Fair','Good','Strong'];
+            lbl.textContent = val.length ? (labels[score] || 'Strong') : '';
+            lbl.style.color = colors[score] || '';
+        }
+
+        async function submitPasswordChange() {
+            const isForgot = document.getElementById('cp-forgot-toggle').checked;
+            const errorEl  = document.getElementById('cp-error');
+            const successEl= document.getElementById('cp-success');
+            const btn      = document.getElementById('cp-submit-btn');
+
+            errorEl.classList.add('hidden');
+            successEl.classList.add('hidden');
+
+            if (isForgot) {
+                const resetSent  = document.getElementById('cp-reset-sent');
+                const resetError = document.getElementById('cp-reset-error');
+                resetSent.classList.add('hidden');
+                resetError.classList.add('hidden');
+                btn.disabled = true;
+                btn.textContent = 'Sending…';
+                try {
+                    const { data: { user } } = await _supabaseCp.auth.getUser();
+                    if (!user?.email) throw new Error('Could not get your email address.');
+                    const { error } = await _supabaseCp.auth.resetPasswordForEmail(user.email, {
+                        redirectTo: 'https://adhera-seven.vercel.app/reset-password.html'
+                    });
+                    if (error) throw error;
+                    resetSent.classList.remove('hidden');
+                    btn.textContent = '✓ Email Sent';
+                    setTimeout(closePasswordModal, 3000);
+                } catch (e) {
+                    resetError.textContent = e.message || 'Failed to send reset email.';
+                    resetError.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.textContent = 'Send Reset Email';
                 }
+                return;
+            }
+
+            // Normal change
+            const current = document.getElementById('cp-current').value;
+            const newPwd  = document.getElementById('cp-new').value;
+            const confirm = document.getElementById('cp-confirm').value;
+
+            if (!current) {
+                errorEl.textContent = 'Enter your current password.';
+                errorEl.classList.remove('hidden'); return;
+            }
+            if (newPwd.length < 8) {
+                errorEl.textContent = 'New password must be at least 8 characters.';
+                errorEl.classList.remove('hidden'); return;
+            }
+            if (!/[A-Z]/.test(newPwd)) {
+                errorEl.textContent = 'Must contain at least one uppercase letter.';
+                errorEl.classList.remove('hidden'); return;
+            }
+            if (!/[0-9]/.test(newPwd)) {
+                errorEl.textContent = 'Must contain at least one number.';
+                errorEl.classList.remove('hidden'); return;
+            }
+            if (newPwd !== confirm) {
+                errorEl.textContent = 'Passwords do not match.';
+                errorEl.classList.remove('hidden'); return;
+            }
+            if (current === newPwd) {
+                errorEl.textContent = 'New password must differ from current password.';
+                errorEl.classList.remove('hidden'); return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Updating…';
+            try {
+                const { error } = await _supabaseCp.auth.updateUser({ password: newPwd });
+                if (error) throw error;
+                successEl.classList.remove('hidden');
+                btn.textContent = '✓ Updated';
+                setTimeout(closePasswordModal, 2500);
+            } catch (e) {
+                errorEl.textContent = e.message || 'Something went wrong.';
+                errorEl.classList.remove('hidden');
+                btn.disabled = false;
+                btn.textContent = 'Update Password';
             }
         }
     </script>
 
-    <!-- Change Password Modal -->
+    <!-- Change Password Modal (vanilla JS) -->
     <div id="change-password-modal"
-         class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
-         x-data="changePassword()"
-         @keydown.escape.window="closeModal()">
+         class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
 
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"
-             @click="closeModal()"></div>
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closePasswordModal()"></div>
 
         <!-- Modal Card -->
-        <div class="relative w-full max-w-md glass p-8 rounded-2xl shadow-2xl"
-             style="border: 1px solid rgba(0,219,231,0.25); box-shadow: 0 0 40px rgba(0,219,231,0.08);">
+        <div class="relative w-full max-w-md rounded-2xl p-8 shadow-2xl"
+             style="background:rgba(17,19,24,0.92);backdrop-filter:blur(32px);border:1px solid rgba(0,219,231,0.25);box-shadow:0 0 60px rgba(0,219,231,0.10);">
 
             <!-- Header -->
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl flex items-center justify-center"
-                         style="background: rgba(0,219,231,0.12); border: 1px solid rgba(0,219,231,0.25);">
-                        <svg class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                         style="background:rgba(0,219,231,0.12);border:1px solid rgba(0,219,231,0.25);">
+                        <svg class="w-4 h-4" style="color:#00dbe7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
                         </svg>
                     </div>
                     <h3 class="text-lg font-bold text-white">Change Password</h3>
                 </div>
-                <button onclick="document.getElementById('change-password-modal').classList.add('hidden')"
-                        class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
+                <button onclick="closePasswordModal()"
+                        class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white transition-colors"
+                        style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -620,63 +772,117 @@
 
             <!-- Fields -->
             <div class="space-y-4">
-                <div>
+
+                <!-- Current Password -->
+                <div id="cp-current-section">
                     <label class="block text-sm text-slate-400 mb-1.5 font-medium">Current Password</label>
-                    <input id="cp-current" x-model="currentPassword" type="password"
-                           class="w-full p-2.5 rounded-xl text-white"
+                    <input id="cp-current" type="password"
+                           class="w-full p-2.5 rounded-xl text-white transition-opacity"
                            placeholder="Your current password" autocomplete="current-password">
-                </div>
-                <div>
-                    <label class="block text-sm text-slate-400 mb-1.5 font-medium">New Password</label>
-                    <input id="cp-new" x-model="newPassword" type="password"
-                           class="w-full p-2.5 rounded-xl text-white"
-                           placeholder="Minimum 8 characters" autocomplete="new-password">
-                    <!-- Strength bar -->
-                    <div x-show="newPassword.length > 0" class="mt-2 space-y-1">
-                        <div class="h-1 rounded-full bg-white/10 overflow-hidden">
-                            <div class="h-full rounded-full transition-all duration-300"
-                                 :style="'width:' + Math.min(newPassword.length / 16 * 100, 100) + '%;background:' + (newPassword.length < 8 ? '#f43f5e' : newPassword.length < 12 ? '#f59e0b' : '#10b981')"></div>
+                    <!-- Forgot toggle -->
+                    <label class="flex items-center gap-2 mt-2.5 cursor-pointer select-none group" for="cp-forgot-toggle">
+                        <div class="relative flex-shrink-0">
+                            <input type="checkbox" id="cp-forgot-toggle"
+                                   onchange="toggleForgotPassword(this.checked)" class="sr-only peer">
+                            <!-- custom checkbox -->
+                            <div class="w-4 h-4 rounded flex items-center justify-center transition-all"
+                                 style="border:2px solid rgba(0,219,231,0.4);background:rgba(0,219,231,0.05);"
+                                 id="cp-forgot-box">
+                                <svg id="cp-forgot-tick" class="w-2.5 h-2.5 hidden" viewBox="0 0 24 24" fill="none" stroke="#00dbe7" stroke-width="3">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </div>
                         </div>
-                        <span class="text-xs"
-                              :class="newPassword.length < 8 ? 'text-rose-400' : newPassword.length < 12 ? 'text-amber-400' : 'text-emerald-400'"
-                              x-text="newPassword.length < 8 ? 'Too short' : newPassword.length < 12 ? 'Fair' : 'Strong'"></span>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm text-slate-400 mb-1.5 font-medium">Confirm New Password</label>
-                    <input id="cp-confirm" x-model="confirmPassword" type="password"
-                           class="w-full p-2.5 rounded-xl text-white"
-                           placeholder="Repeat your new password" autocomplete="new-password">
-                    <p x-show="confirmPassword.length > 0 && newPassword !== confirmPassword"
-                       class="text-rose-400 text-xs mt-1">Passwords do not match.</p>
+                        <span class="text-xs text-slate-400 group-hover:text-cyan-400 transition-colors">
+                            I forgot my current password
+                        </span>
+                    </label>
                 </div>
 
-                <!-- Messages -->
-                <p x-show="error" x-cloak x-text="error" class="text-rose-400 text-sm bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2"></p>
-                <div x-show="success" x-cloak
-                     class="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+                <!-- Forgot password info box (hidden by default) -->
+                <div id="cp-forgot-section" class="hidden">
+                    <div class="rounded-xl p-4 flex items-start gap-3"
+                         style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);">
+                        <svg class="w-5 h-5 flex-shrink-0 mt-0.5" style="color:#f59e0b" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <div>
+                            <p class="text-sm font-semibold" style="color:#fbbf24;">Reset via email</p>
+                            <p class="text-xs mt-1" style="color:#fcd34d;opacity:0.85;">A password reset link will be sent to your registered email. Click it to set a new password.</p>
+                        </div>
+                    </div>
+                    <p id="cp-reset-sent" class="hidden text-sm font-medium mt-2" style="color:#34d399;">✓ Reset email sent! Check your inbox and spam folder.</p>
+                    <p id="cp-reset-error" class="hidden text-sm mt-2" style="color:#f87171;"></p>
+                </div>
+
+                <!-- New Password -->
+                <div id="cp-new-section">
+                    <label class="block text-sm text-slate-400 mb-1.5 font-medium">New Password</label>
+                    <input id="cp-new" type="password"
+                           class="w-full p-2.5 rounded-xl text-white"
+                           placeholder="Minimum 8 characters" autocomplete="new-password"
+                           oninput="cpUpdateStrength()">
+                </div>
+
+                <!-- Strength bar -->
+                <div id="cp-strength-section" class="-mt-2 space-y-1">
+                    <div class="h-1 rounded-full overflow-hidden" style="background:rgba(255,255,255,0.08);">
+                        <div id="cp-strength-bar" class="h-full rounded-full transition-all duration-300" style="width:0%;background:#f43f5e;"></div>
+                    </div>
+                    <span id="cp-strength-label" class="text-xs" style="color:#f43f5e;"></span>
+                </div>
+
+                <!-- Password requirements checklist -->
+                <div id="cp-req-section" class="rounded-xl p-3 space-y-1" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);">
+                    <p class="text-xs font-medium text-slate-400 mb-1.5">Requirements</p>
+                    <div id="cp-check-length" class="flex items-center gap-2 text-xs text-slate-500 transition-colors">
+                        <span class="cp-check-icon w-3 text-center">○</span> At least 8 characters
+                    </div>
+                    <div id="cp-check-upper" class="flex items-center gap-2 text-xs text-slate-500 transition-colors">
+                        <span class="cp-check-icon w-3 text-center">○</span> One uppercase letter
+                    </div>
+                    <div id="cp-check-number" class="flex items-center gap-2 text-xs text-slate-500 transition-colors">
+                        <span class="cp-check-icon w-3 text-center">○</span> One number
+                    </div>
+                    <div id="cp-check-match" class="flex items-center gap-2 text-xs text-slate-500 transition-colors">
+                        <span class="cp-check-icon w-3 text-center">○</span> Passwords match
+                    </div>
+                </div>
+
+                <!-- Confirm Password -->
+                <div id="cp-confirm-section">
+                    <label class="block text-sm text-slate-400 mb-1.5 font-medium">Confirm New Password</label>
+                    <input id="cp-confirm" type="password"
+                           class="w-full p-2.5 rounded-xl text-white"
+                           placeholder="Repeat your new password" autocomplete="new-password"
+                           oninput="cpUpdateStrength()">
+                </div>
+
+                <!-- Error / Success banners -->
+                <p id="cp-error" class="hidden text-sm rounded-xl px-3 py-2"
+                   style="color:#f87171;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);"></p>
+                <div id="cp-success" class="hidden flex items-center gap-2 text-sm rounded-xl px-3 py-2"
+                     style="color:#34d399;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);">
                     <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
                     Password changed successfully!
                 </div>
 
-                <!-- Actions -->
+                <!-- Action buttons -->
                 <div class="flex gap-3 pt-1">
-                    <button type="button" onclick="document.getElementById('change-password-modal').classList.add('hidden')"
-                            class="flex-1 py-2.5 px-4 rounded-xl text-slate-300 hover:text-white transition-colors text-sm font-medium"
-                            style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10);">
+                    <button type="button" onclick="closePasswordModal()"
+                            class="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium text-slate-300 hover:text-white transition-colors"
+                            style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.10);">
                         Cancel
                     </button>
-                    <button type="button" @click="doChangePassword()" :disabled="loading || !isValid()"
-                            class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 px-4 rounded-xl transition-colors disabled:opacity-50 flex justify-center items-center gap-2 text-sm">
-                        <svg x-show="loading" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span x-text="loading ? 'Updating...' : 'Update Password'"></span>
+                    <button id="cp-submit-btn" type="button" onclick="submitPasswordChange()"
+                            class="flex-1 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+                            style="background:linear-gradient(135deg,#00dbe7,#0099a8);">
+                        Update Password
                     </button>
                 </div>
+
             </div>
         </div>
     </div>
