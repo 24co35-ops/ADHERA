@@ -64,6 +64,9 @@
                 <div>
                     <label class="block text-sm font-medium mb-1">Password</label>
                     <input id="password" type="password" x-model="password" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
+                    <div class="text-right mt-1.5">
+                        <a href="forgot-password.html" class="text-xs text-slate-400 hover:text-cyan-400 transition-colors">Forgot your password?</a>
+                    </div>
                 </div>
                 <div x-show="error" x-cloak class="text-red-400 text-sm" x-text="error"></div>
                 <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center" :disabled="loading">

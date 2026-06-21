@@ -26,6 +26,7 @@ def create_auth_api_error(message: str, status: int):
             return AuthApiError(message)
 
 client = TestClient(app)
+app.state.limiter.enabled = False
 
 # Use a valid UUID format for testing to prevent DB schema/audit log mismatch
 TEST_USER_ID = "00000000-0000-0000-0000-000000000123"
@@ -234,3 +235,32 @@ def test_mfa_confirm_success(mock_supabase):
     res_data = response.json().get("data", {})
     assert res_data["access_token"] == "real_access_token"
     assert res_data["refresh_token"] == "real_refresh_token"
+
+
+@patch("app.auth.router.supabase_auth")
+def test_forgot_password_success(mock_supabase_auth):
+    mock_supabase_auth.auth.reset_password_for_email.return_value = None
+    response = client.post("/v1/auth/forgot-password", json={"email": "forgot@test.com"})
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    assert "Reset link sent" in response.json()["data"]["message"]
+
+
+@patch("app.auth.router.supabase_auth")
+def test_auth_forgot_password_success(mock_supabase_auth):
+    mock_supabase_auth.auth.reset_password_for_email.return_value = None
+    response = client.post("/v1/auth/auth/forgot-password", json={"email": "forgot@test.com"})
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    assert "Reset link sent" in response.json()["data"]["message"]
+
+
+@patch("app.auth.router.supabase_auth")
+def test_forgot_password_exception_handled(mock_supabase_auth):
+    mock_supabase_auth.auth.reset_password_for_email.side_effect = Exception("Supabase error")
+    response = client.post("/v1/auth/forgot-password", json={"email": "forgot@test.com"})
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    assert "Reset link sent" in response.json()["data"]["message"]
+
+

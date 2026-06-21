@@ -184,10 +184,14 @@ async def logout(request: Request):
     return SuccessResponse(data={"message": "Logged out."})
 
 @router.post("/forgot-password", response_model=SuccessResponse[dict])
+@router.post("/auth/forgot-password", response_model=SuccessResponse[dict])
 @limiter.limit("3/hour")
 async def forgot_password(request: Request, body: ForgotPassword):
     try:
-        supabase_auth.auth.reset_password_email(body.email)
+        supabase_auth.auth.reset_password_for_email(
+            body.email,
+            options={"redirect_to": "https://adhera-seven.vercel.app/reset-password.html"}
+        )
     except Exception:
         pass
     return SuccessResponse(data={"message": "Reset link sent if email exists."})
@@ -350,4 +354,3 @@ async def mfa_confirm(request: Request, body: MfaConfirm):
         refresh_token=session_data["refresh_token"],
         token_type="bearer"
     ))
-

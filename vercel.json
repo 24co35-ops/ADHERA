@@ -41,6 +41,14 @@
       "dest": "frontend/site.webmanifest"
     },
     {
+      "src": "/forgot-password.html",
+      "dest": "frontend/forgot-password.html"
+    },
+    {
+      "src": "/reset-password.html",
+      "dest": "frontend/reset-password.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "frontend/$1"
     }
