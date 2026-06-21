@@ -426,8 +426,7 @@ async def create_assignment(request: Request, payload: dict, user: dict = Depend
         "patient_id": patient_id,
         "provider_id": provider_id,
         "status": "active",
-        "assigned_by": user["user_id"],
-        "assigned_at": datetime.now(timezone.utc).isoformat(),
+        "assigned_on": datetime.now(timezone.utc).isoformat(),
     }).execute()
     log_audit_action("ADMIN_ASSIGNMENT_CREATE", user["user_id"], {"patient": patient_id, "provider": provider_id})
     return SuccessResponse(data=res.data[0] if res.data else {})

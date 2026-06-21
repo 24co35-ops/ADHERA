@@ -55,7 +55,7 @@ async def get_patient_report(request: Request, id: str, user: dict = Depends(req
 async def get_pending_requests(request: Request, user: dict = Depends(require_role("provider"))):
     result = supabase.table("assignments").select(
         "*, profiles!assignments_patient_id_fkey(id, full_name, contact_number, date_of_birth)"
-    ).eq("provider_id", user["user_id"]).eq("status", "pending").order("assigned_at", desc=True).execute()
+    ).eq("provider_id", user["user_id"]).eq("status", "pending").order("assigned_on", desc=True).execute()
     data = result.data or []
     try:
         auth_users = supabase.auth.admin.list_users()
@@ -73,7 +73,7 @@ async def get_pending_requests(request: Request, user: dict = Depends(require_ro
 async def accept_patient_request(request: Request, patient_id: str, user: dict = Depends(require_role("provider"))):
     supabase.table("assignments").update({
         "status": "active",
-        "assigned_at": datetime.now(timezone.utc).isoformat()
+        "assigned_on": datetime.now(timezone.utc).isoformat()
     }).eq("patient_id", patient_id).eq("provider_id", user["user_id"]).eq("status", "pending").execute()
     return SuccessResponse(data={"accepted": True})
 
@@ -92,7 +92,7 @@ async def decline_patient_request(request: Request, patient_id: str, user: dict 
 async def get_my_provider(request: Request, user: dict = Depends(get_current_user)):
     result = supabase.table("assignments").select(
         "*, profiles!assignments_provider_id_fkey(id, full_name, contact_number)"
-    ).eq("patient_id", user["user_id"]).in_("status", ["active", "pending"]).order("assigned_at", desc=True).limit(1).execute()
+    ).eq("patient_id", user["user_id"]).in_("status", ["active", "pending"]).order("assigned_on", desc=True).limit(1).execute()
     if result.data:
         row = result.data[0]
         try:
@@ -137,7 +137,7 @@ async def request_provider(request: Request, payload: dict, user: dict = Depends
         "patient_id": user["user_id"],
         "provider_id": provider_id,
         "status": "pending",
-        "assigned_at": datetime.now(timezone.utc).isoformat(),
+        "assigned_on": datetime.now(timezone.utc).isoformat(),
     }).execute()
     return SuccessResponse(data={"requested": True})
 
