@@ -2,25 +2,27 @@
 __pycache__/
 *.py[cod]
 *.pyo
-.Python
 .venv/
 venv/
+env/
+.Python
 *.egg-info/
 dist/
 build/
 .pytest_cache/
 .coverage
 htmlcov/
+*.pyc
 
 # Environment
 .env
 .env.local
 .env.production
-!.env.example
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Vercel
 .vercel
@@ -38,3 +40,18 @@ npm-debug.log
 # Supabase
 supabase/.branches
 supabase/.temp
+
+# Debug screenshots and one-off scripts (never commit these)
+*.png
+debug_*.py
+verify_*.py
+update_*.py
+patch_*.py
+capture.py
+scratch_*.py
+test_frontend.py
+test_jwt.py
+test_srv_auth.py
+installed.txt
+start.ps1
+README_LOCAL.md
