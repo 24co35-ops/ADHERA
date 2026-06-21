@@ -49,6 +49,10 @@
       "dest": "frontend/reset-password.html"
     },
     {
+      "src": "/admin/dashboard.html",
+      "dest": "frontend/admin/dashboard.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "frontend/$1"
     }

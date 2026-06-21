@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="/config.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adhera Admin Dashboard</title>
+    <meta name="description" content="Adhera platform admin dashboard — users, analytics, health, alerts">
+    <link rel="icon" type="image/svg+xml" href="/assets/favicons/logo.svg?v=3">
+    <link rel="shortcut icon" href="/assets/favicons/favicon.ico?v=3" type="image/x-icon">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/favicon-180x180.png?v=3">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta name="theme-color" content="#00dbe7">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        * { box-sizing: border-box; }
+        body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; margin: 0; }
+        .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; }
+        .glass-dark { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; }
+        input, select, textarea { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.12) !important; color: #e2e2e8 !important; border-radius: 10px !important; outline: none; }
+        input:focus, select:focus, textarea:focus { border-color: #00dbe7 !important; }
+        select option { background: #1a1d24 !important; color: #e2e2e8 !important; }
+        .tab-btn { padding: 10px 20px; font-size: 13px; font-weight: 600; color: #94a3b8; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: color .2s, border-color .2s; background: none; border-top: none; border-left: none; border-right: none; }
+        .tab-btn:hover { color: #e2e2e8; }
+        .tab-btn.active { color: #00dbe7; border-bottom-color: #00dbe7; }
+        .tab-section { display: none; }
+        .tab-section.active { display: block; }
+        .stat-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 8px; }
+        .badge { display: inline-flex; align-items: center; justify-content: center; background: #ef4444; color: white; border-radius: 9999px; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; }
+        .skel { background: rgba(255,255,255,0.06); border-radius: 8px; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        .severity-4 { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.3); color: #f87171; }
+        .severity-3 { background: rgba(249,115,22,.15); border: 1px solid rgba(249,115,22,.3); color: #fb923c; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 4px; }
+        .btn-cyan { background: linear-gradient(135deg,#00dbe7,#0099a8); color: #002022; font-weight: 700; border-radius: 10px; border: none; cursor: pointer; }
+        .btn-cyan:hover { opacity: .9; }
+        .btn-ghost { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.10); color: #94a3b8; border-radius: 10px; cursor: pointer; }
+        .btn-ghost:hover { color: #e2e2e8; background: rgba(255,255,255,.10); }
+        .btn-red { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.3); color: #f87171; border-radius: 10px; cursor: pointer; }
+        .btn-red:hover { background: rgba(239,68,68,.25); }
+        .btn-green { background: rgba(52,211,153,.15); border: 1px solid rgba(52,211,153,.3); color: #34d399; border-radius: 10px; cursor: pointer; }
+        .btn-green:hover { background: rgba(52,211,153,.25); }
+        .btn-amber { background: rgba(245,158,11,.15); border: 1px solid rgba(245,158,11,.3); color: #fbbf24; border-radius: 10px; cursor: pointer; }
+        .btn-amber:hover { background: rgba(245,158,11,.25); }
+        .toast-msg { position: fixed; bottom: 24px; right: 24px; z-index: 9999; padding: 12px 20px; border-radius: 12px; font-size: 13px; font-weight: 600; display: none; }
+        .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; }
+        .modal-bg.open { display: flex; }
+        .modal-card { background: rgba(17,19,24,.95); border: 1px solid rgba(0,219,231,.25); border-radius: 16px; padding: 28px; width: 100%; max-width: 440px; box-shadow: 0 0 60px rgba(0,219,231,.08); }
+        table { border-collapse: collapse; width: 100%; }
+        th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #64748b; font-weight: 600; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.06); text-align: left; }
+        td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,.04); }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(255,255,255,.02); }
+    </style>
+</head>
+<body>
+    <!-- Nav -->
+    <nav style="background:rgba(17,19,24,.9);backdrop-filter:blur(24px);border-bottom:1px solid rgba(255,255,255,.08);position:sticky;top:0;z-index:50;" class="px-6 py-3 flex justify-between items-center">
+        <a href="/admin-dashboard.html" class="flex items-center gap-2">
+            <svg width="28" height="28" viewBox="0 0 200 200" fill="none"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00F2FF"/><stop offset="100%" stop-color="#3B82F6"/></linearGradient></defs><circle cx="100" cy="100" r="80" fill="url(#g)" fill-opacity=".1" stroke="url(#g)" stroke-width="2"/><path d="M100 60L135 140H115L100 105L85 140H65L100 60Z" fill="url(#g)"/></svg>
+            <span style="color:#00dbe7;font-weight:700;font-size:1.2rem;letter-spacing:-.02em;">Adhera</span>
+            <span style="background:rgba(0,219,231,.12);border:1px solid rgba(0,219,231,.3);color:#00dbe7;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;">ADMIN</span>
+        </a>
+        <div class="flex items-center gap-4">
+            <span id="admin-name" style="font-size:13px;color:#64748b;"></span>
+            <button onclick="adminLogout()" style="font-size:13px;color:#f87171;cursor:pointer;background:none;border:none;">Sign Out</button>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        <h1 class="text-2xl font-bold text-white">Admin Dashboard</h1>
+
+        <!-- Stats Row -->
+        <div id="stats-row" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div class="stat-card skel h-24"></div>
+            <div class="stat-card skel h-24"></div>
+            <div class="stat-card skel h-24"></div>
+            <div class="stat-card skel h-24"></div>
+            <div class="stat-card skel h-24"></div>
+            <div class="stat-card skel h-24"></div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="glass p-0 overflow-hidden">
+            <div style="overflow-x:auto;border-bottom:1px solid rgba(255,255,255,.08);">
+                <div class="flex" id="tab-bar" style="min-width:max-content;">
+                    <button class="tab-btn active" onclick="switchTab('overview')" id="tab-overview">Overview</button>
+                    <button class="tab-btn" onclick="switchTab('approvals')" id="tab-approvals">Pending Approvals <span class="badge" id="badge-approvals" style="display:none;"></span></button>
+                    <button class="tab-btn" onclick="switchTab('users')" id="tab-users">Users</button>
+                    <button class="tab-btn" onclick="switchTab('alerts')" id="tab-alerts">Critical Alerts <span class="badge" id="badge-alerts" style="display:none;"></span></button>
+                    <button class="tab-btn" onclick="switchTab('analytics')" id="tab-analytics">Analytics</button>
+                    <button class="tab-btn" onclick="switchTab('health')" id="tab-health">System Health</button>
+                    <button class="tab-btn" onclick="switchTab('export')" id="tab-export">Export &amp; Broadcast</button>
+                </div>
+            </div>
+            <div class="p-6">
+
+                <!-- OVERVIEW TAB -->
+                <div class="tab-section active" id="section-overview">
+                    <h2 class="text-lg font-bold text-white mb-4">Platform Overview</h2>
+                    <p class="text-sm text-slate-400 mb-6">Live platform data. <button onclick="loadStats()" class="text-cyan-400 hover:underline">↻ Refresh</button></p>
+
+                    <!-- Search -->
+                    <div class="glass-dark p-4 mb-6">
+                        <h3 class="text-sm font-semibold text-slate-300 mb-3">Quick User Search</h3>
+                        <div class="relative">
+                            <input id="ov-search" type="text" placeholder="Search by name…" class="w-full px-4 py-2.5 text-sm" oninput="ovSearch(this.value)">
+                        </div>
+                        <div id="ov-results" class="mt-3 space-y-2" style="display:none;"></div>
+                    </div>
+
+                    <!-- Recent Pending Providers -->
+                    <div>
+                        <h3 class="text-sm font-semibold text-slate-300 mb-3">Pending Provider Approvals</h3>
+                        <div id="ov-pending-list" class="space-y-2">
+                            <div class="text-slate-500 text-sm">Loading…</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- APPROVALS TAB -->
+                <div class="tab-section" id="section-approvals">
+                    <div class="flex items-center justify-between mb-5">
+                        <h2 class="text-lg font-bold text-white">Pending Provider Approvals</h2>
+                        <button onclick="loadPending()" class="btn-ghost px-3 py-1.5 text-xs">↻ Refresh</button>
+                    </div>
+                    <div id="approvals-list" class="space-y-4">
+                        <div class="text-slate-500 text-sm">Loading…</div>
+                    </div>
+                </div>
+
+                <!-- USERS TAB -->
+                <div class="tab-section" id="section-users">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+                        <h2 class="text-lg font-bold text-white">User Management</h2>
+                        <button onclick="loadUsers()" class="btn-ghost px-3 py-1.5 text-xs">↻ Refresh</button>
+                    </div>
+                    <div class="flex flex-wrap gap-3 mb-4">
+                        <input id="user-search" type="text" placeholder="Search by name…" class="flex-1 min-w-40 px-3 py-2 text-sm" oninput="debounce(loadUsers, 300)()">
+                        <select id="user-role-filter" class="px-3 py-2 text-sm" onchange="loadUsers()">
+                            <option value="all">All Roles</option>
+                            <option value="patient">Patient</option>
+                            <option value="provider">Provider</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                        <select id="user-status-filter" class="px-3 py-2 text-sm" onchange="loadUsers()">
+                            <option value="all">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="overflow-x-auto rounded-xl" style="border:1px solid rgba(255,255,255,.07);">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Joined</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-tbody">
+                                <tr><td colspan="6" class="text-slate-500 text-sm py-6 text-center">Loading…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="flex items-center justify-between mt-4">
+                        <span id="users-count" class="text-xs text-slate-500"></span>
+                        <div class="flex gap-2">
+                            <button id="users-prev" onclick="userPage(-1)" class="btn-ghost px-3 py-1.5 text-xs" disabled>← Prev</button>
+                            <span id="users-page-label" class="text-xs text-slate-400 px-2 py-1.5"></span>
+                            <button id="users-next" onclick="userPage(1)" class="btn-ghost px-3 py-1.5 text-xs">Next →</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ALERTS TAB -->
+                <div class="tab-section" id="section-alerts">
+                    <div class="flex items-center justify-between mb-5">
+                        <h2 class="text-lg font-bold text-white">Critical Alerts — Severity 3 &amp; 4</h2>
+                        <button onclick="loadAlerts()" class="btn-ghost px-3 py-1.5 text-xs">↻ Refresh</button>
+                    </div>
+                    <div id="alerts-list" class="space-y-4">
+                        <div class="text-slate-500 text-sm">Loading…</div>
+                    </div>
+                </div>
+
+                <!-- ANALYTICS TAB -->
+                <div class="tab-section" id="section-analytics">
+                    <h2 class="text-lg font-bold text-white mb-5">Platform Analytics</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="glass-dark p-4">
+                            <h3 class="text-sm font-semibold text-slate-300 mb-3">Daily Active Users (30d)</h3>
+                            <div style="height:200px;position:relative;"><canvas id="chart-dau"></canvas></div>
+                        </div>
+                        <div class="glass-dark p-4">
+                            <h3 class="text-sm font-semibold text-slate-300 mb-3">Adherence Rate Trend (30d)</h3>
+                            <div style="height:200px;position:relative;"><canvas id="chart-adherence"></canvas></div>
+                        </div>
+                        <div class="glass-dark p-4">
+                            <h3 class="text-sm font-semibold text-slate-300 mb-3">Top 10 Side Effects</h3>
+                            <div style="height:200px;position:relative;"><canvas id="chart-side-effects"></canvas></div>
+                        </div>
+                        <div class="glass-dark p-4">
+                            <h3 class="text-sm font-semibold text-slate-300 mb-3">Most Missed Medicines</h3>
+                            <div style="height:200px;position:relative;"><canvas id="chart-missed"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HEALTH TAB -->
+                <div class="tab-section" id="section-health">
+                    <div class="flex items-center justify-between mb-5">
+                        <h2 class="text-lg font-bold text-white">System Health</h2>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-slate-500">Auto-refresh every 60s</span>
+                            <button onclick="loadHealth()" class="btn-ghost px-3 py-1.5 text-xs">↻ Refresh</button>
+                        </div>
+                    </div>
+                    <div id="health-panel" class="space-y-3">
+                        <div class="text-slate-500 text-sm">Loading…</div>
+                    </div>
+                    <p id="health-time" class="text-xs text-slate-600 mt-4"></p>
+                </div>
+
+                <!-- EXPORT & BROADCAST TAB -->
+                <div class="tab-section" id="section-export">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Export -->
+                        <div>
+                            <h2 class="text-lg font-bold text-white mb-4">Export Reports</h2>
+                            <div class="space-y-3">
+                                <div class="glass-dark p-4 flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm font-semibold text-white">Adherence Report</p>
+                                        <p class="text-xs text-slate-400 mt-0.5">All dose records with patient &amp; medicine names</p>
+                                    </div>
+                                    <button onclick="exportCSV('adherence')" class="btn-cyan px-4 py-2 text-xs ml-4 flex-shrink-0">Download CSV</button>
+                                </div>
+                                <div class="glass-dark p-4 flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm font-semibold text-white">Feedback Report</p>
+                                        <p class="text-xs text-slate-400 mt-0.5">All side effect reports with severity</p>
+                                    </div>
+                                    <button onclick="exportCSV('feedback')" class="btn-cyan px-4 py-2 text-xs ml-4 flex-shrink-0">Download CSV</button>
+                                </div>
+                                <div class="glass-dark p-4 flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm font-semibold text-white">Users Report</p>
+                                        <p class="text-xs text-slate-400 mt-0.5">All registered users with roles &amp; status</p>
+                                    </div>
+                                    <button onclick="exportCSV('users')" class="btn-cyan px-4 py-2 text-xs ml-4 flex-shrink-0">Download CSV</button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Broadcast -->
+                        <div>
+                            <h2 class="text-lg font-bold text-white mb-4">Broadcast Announcement</h2>
+                            <div class="glass-dark p-4 space-y-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Target Audience</label>
+                                    <select id="bc-target" class="w-full px-3 py-2 text-sm">
+                                        <option value="all">All Users</option>
+                                        <option value="patients">Patients Only</option>
+                                        <option value="providers">Providers Only</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Message</label>
+                                    <textarea id="bc-message" rows="5" class="w-full px-3 py-2 text-sm" placeholder="Type your announcement…" style="resize:vertical;"></textarea>
+                                </div>
+                                <button id="bc-btn" onclick="sendBroadcast()" class="btn-cyan w-full py-2.5 text-sm">Send Announcement</button>
+                                <div id="bc-result" class="text-sm hidden"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Role Change Modal -->
+    <div class="modal-bg" id="role-modal">
+        <div class="modal-card">
+            <h3 class="text-base font-bold text-white mb-1">Change User Role</h3>
+            <p id="role-modal-desc" class="text-xs text-slate-400 mb-4"></p>
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5">New Role</label>
+            <select id="role-modal-select" class="w-full px-3 py-2 text-sm mb-2">
+                <option value="patient">Patient</option>
+                <option value="provider">Provider</option>
+                <option value="admin">Admin</option>
+            </select>
+            <p class="text-xs text-amber-400 mb-4">⚠ This change takes effect immediately.</p>
+            <div class="flex gap-3">
+                <button onclick="closeRoleModal()" class="btn-ghost flex-1 py-2 text-sm">Cancel</button>
+                <button onclick="confirmRoleChange()" class="btn-cyan flex-1 py-2 text-sm">Confirm Change</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast-msg"></div>
+
+    <script>
+    // ── Auth guard ─────────────────────────────────────────────────────────────
+    const _tok = sessionStorage.getItem('adhera_token');
+    if (!_tok) { window.location.href = '/index.html'; throw 0; }
+    const _pl = JSON.parse(atob(_tok.split('.')[1]));
+    const _role = _pl.app_metadata?.role || _pl.user_metadata?.role || _pl.role || '';
+    if (_role !== 'admin') { window.location.href = '/index.html'; throw 0; }
+    const _name = _pl.app_metadata?.full_name || _pl.user_metadata?.full_name || 'Admin';
+    document.getElementById('admin-name').textContent = _name;
+
+    // ── Core API helper ────────────────────────────────────────────────────────
+    const API = CONFIG.API_BASE; // already includes /v1
+
+    async function api(path, method = 'GET', body = null) {
+        const opts = {
+            method,
+            headers: { 'Authorization': `Bearer ${_tok}`, 'Content-Type': 'application/json' }
+        };
+        if (body) opts.body = JSON.stringify(body);
+        const res = await fetch(`${API}${path}`, opts);
+        if (res.status === 401) { sessionStorage.removeItem('adhera_token'); window.location.href = '/index.html'; }
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error?.message || 'Error');
+        return data.data;
+    }
+
+    // ── Chart instances (never inside reactive proxy) ──────────────────────────
+    const _charts = { dau: null, adherence: null, sideEffects: null, missed: null };
+
+    function destroyChart(key) {
+        if (_charts[key]) { try { _charts[key].destroy(); } catch(_){} _charts[key] = null; }
+    }
+
+    const _chartDefaults = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10 } } },
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', font: { size: 10 } } }
+        }
+    };
+
+    // ── Toast ──────────────────────────────────────────────────────────────────
+    function showToast(msg, type = 'success') {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.style.display = 'block';
+        el.style.background = type === 'success' ? '#059669' : type === 'error' ? '#dc2626' : '#d97706';
+        el.style.color = 'white';
+        setTimeout(() => { el.style.display = 'none'; }, 3500);
+    }
+
+    // ── Debounce ───────────────────────────────────────────────────────────────
+    const _dt = {};
+    function debounce(fn, ms) {
+        return function(...args) {
+            clearTimeout(_dt[fn.name]);
+            _dt[fn.name] = setTimeout(() => fn(...args), ms);
+        };
+    }
+
+    // ── Tab switching ──────────────────────────────────────────────────────────
+    const TAB_LOADERS = {
+        overview: loadOverview,
+        approvals: loadPending,
+        users: loadUsers,
+        alerts: loadAlerts,
+        analytics: loadAnalytics,
+        health: loadHealth,
+        export: () => {},
+    };
+    let _activeTab = 'overview';
+
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`section-${tab}`).classList.add('active');
+        document.getElementById(`tab-${tab}`).classList.add('active');
+        _activeTab = tab;
+        if (TAB_LOADERS[tab]) TAB_LOADERS[tab]();
+    }
+
+    // ── STATS ─────────────────────────────────────────────────────────────────
+    const STAT_DEFS = [
+        { key: 'total_users',      label: 'Total Users',       color: '#00dbe7', icon: '👥' },
+        { key: 'active_providers', label: 'Active Providers',  color: '#34d399', icon: '🩺' },
+        { key: 'pending_providers',label: 'Pending Approvals', color: '#fbbf24', icon: '⏳' },
+        { key: 'adherence_rate',   label: 'Adherence Rate',    color: '#a78bfa', icon: '📊', suffix: '%' },
+        { key: 'feedback_today',   label: 'Reports Today',     color: '#f87171', icon: '⚠' },
+        { key: 'total_medicines',  label: 'Medicines Logged',  color: '#60a5fa', icon: '💊' },
+    ];
+
+    async function loadStats() {
+        try {
+            const d = await api('/admin/stats');
+            const row = document.getElementById('stats-row');
+            row.innerHTML = STAT_DEFS.map(s => `
+                <div class="stat-card">
+                    <span style="font-size:22px;">${s.icon}</span>
+                    <span style="font-size:28px;font-weight:800;color:${s.color};">${(d[s.key] ?? 0)}${s.suffix || ''}</span>
+                    <span style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">${s.label}</span>
+                </div>
+            `).join('');
+        } catch(e) {
+            document.getElementById('stats-row').innerHTML = `<p class="text-red-400 text-sm col-span-6">Failed to load stats: ${e.message}</p>`;
+        }
+    }
+
+    // ── OVERVIEW ──────────────────────────────────────────────────────────────
+    async function loadOverview() {
+        await loadStats();
+        await loadPendingInline();
+    }
+
+    async function loadPendingInline() {
+        const el = document.getElementById('ov-pending-list');
+        try {
+            const data = await api('/admin/providers/pending');
+            updateBadge('approvals', data.length);
+            if (!data.length) { el.innerHTML = '<p class="text-slate-500 text-sm">No pending approvals.</p>'; return; }
+            el.innerHTML = data.slice(0, 3).map(p => renderProviderCard(p, true)).join('');
+        } catch(e) {
+            el.innerHTML = `<p class="text-red-400 text-sm">${e.message}</p>`;
+        }
+    }
+
+    function ovSearch(q) {
+        const res = document.getElementById('ov-results');
+        if (!q.trim()) { res.style.display = 'none'; return; }
+        if (!_allUsers.length) { loadAllUsersCache().then(() => ovSearch(q)); return; }
+        const matches = _allUsers.filter(u =>
+            (u.full_name || '').toLowerCase().includes(q.toLowerCase()) ||
+            (u.email || '').toLowerCase().includes(q.toLowerCase())
+        ).slice(0, 8);
+        res.style.display = matches.length ? 'block' : 'none';
+        res.innerHTML = matches.map(u => `
+            <div class="glass-dark p-3 flex items-center gap-3" style="cursor:default;">
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-white truncate">${u.full_name || 'Unknown'}</p>
+                    <p class="text-xs text-slate-400 truncate">${u.email || ''}</p>
+                </div>
+                <span class="text-xs px-2 py-0.5 rounded-full font-bold" style="${roleBadgeStyle(u.role)}">${u.role}</span>
+                <span class="text-xs px-2 py-0.5 rounded-full font-bold" style="${statusBadgeStyle(u.is_active)}">${u.is_active ? 'Active' : 'Inactive'}</span>
+            </div>
+        `).join('');
+    }
+
+    // ── PENDING APPROVALS ──────────────────────────────────────────────────────
+    let _pendingData = [];
+
+    async function loadPending() {
+        const el = document.getElementById('approvals-list');
+        el.innerHTML = '<div class="text-slate-500 text-sm">Loading…</div>';
+        try {
+            _pendingData = await api('/admin/providers/pending');
+            updateBadge('approvals', _pendingData.length);
+            if (!_pendingData.length) {
+                el.innerHTML = '<div class="glass-dark p-6 text-center"><p class="text-slate-400 text-sm">✓ No pending provider approvals</p></div>';
+                return;
+            }
+            el.innerHTML = _pendingData.map(p => renderProviderCard(p, false)).join('');
+        } catch(e) {
+            el.innerHTML = `<p class="text-red-400 text-sm">${e.message}</p>`;
+        }
+    }
+
+    function renderProviderCard(p, compact) {
+        const date = p.created_at ? new Date(p.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '—';
+        return `
+            <div class="glass-dark p-4" id="pcard-${p.id}">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <p class="font-semibold text-white">${p.full_name || 'Unknown'}</p>
+                            <span style="font-size:10px;padding:2px 8px;border-radius:99px;background:rgba(0,219,231,.12);border:1px solid rgba(0,219,231,.3);color:#00dbe7;font-weight:700;">PROVIDER</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-0.5">${p.email || ''}</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Registered: ${date}</p>
+                    </div>
+                    <div class="flex gap-2 flex-shrink-0">
+                        <button onclick="doApprove('${p.id}')" class="btn-green px-3 py-1.5 text-xs font-bold">Approve</button>
+                        <button onclick="showRejectInput('${p.id}')" class="btn-red px-3 py-1.5 text-xs font-bold">Reject</button>
+                    </div>
+                </div>
+                <div id="reject-input-${p.id}" style="display:none;" class="mt-3 flex gap-2">
+                    <input type="text" id="reject-reason-${p.id}" placeholder="Rejection reason (required)" class="flex-1 px-3 py-1.5 text-sm">
+                    <button onclick="doReject('${p.id}')" class="btn-red px-3 py-1.5 text-xs font-bold">Confirm</button>
+                    <button onclick="hideRejectInput('${p.id}')" class="btn-ghost px-3 py-1.5 text-xs">Cancel</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function showRejectInput(id) {
+        document.getElementById(`reject-input-${id}`).style.display = 'flex';
+        document.getElementById(`reject-reason-${id}`).focus();
+    }
+    function hideRejectInput(id) {
+        document.getElementById(`reject-input-${id}`).style.display = 'none';
+    }
+
+    async function doApprove(id) {
+        if (!confirm('Approve this provider?')) return;
+        try {
+            await api(`/admin/users/${id}/approve`, 'POST');
+            showToast('Provider approved');
+            document.getElementById(`pcard-${id}`)?.remove();
+            await loadStats();
+            updateBadge('approvals', document.querySelectorAll('[id^="pcard-"]').length);
+        } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    async function doReject(id) {
+        const reason = document.getElementById(`reject-reason-${id}`).value.trim();
+        if (!reason) { showToast('Rejection reason required', 'error'); return; }
+        if (!confirm(`Reject this provider? Reason: "${reason}"`)) return;
+        try {
+            await api(`/admin/users/${id}/reject`, 'POST', { reason });
+            showToast('Provider rejected');
+            document.getElementById(`pcard-${id}`)?.remove();
+            await loadStats();
+        } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    // ── USERS ──────────────────────────────────────────────────────────────────
+    let _allUsers = [];
+    let _userPage = 0;
+    const PAGE_SIZE = 20;
+
+    async function loadAllUsersCache() {
+        try { _allUsers = await api('/admin/users'); } catch(_) {}
+    }
+
+    async function loadUsers() {
+        const tbody = document.getElementById('users-tbody');
+        tbody.innerHTML = `<tr><td colspan="6" class="text-slate-500 text-sm py-6 text-center">Loading…</td></tr>`;
+        const search = document.getElementById('user-search').value.trim();
+        const role = document.getElementById('user-role-filter').value;
+        const status = document.getElementById('user-status-filter').value;
+        try {
+            const params = new URLSearchParams();
+            if (role !== 'all') params.set('role', role);
+            if (status !== 'all') params.set('status', status);
+            if (search) params.set('search', search);
+            _allUsers = await api(`/admin/users?${params}`);
+            renderUsersPage();
+        } catch(e) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-red-400 text-sm py-6 text-center">${e.message}</td></tr>`;
+        }
+    }
+
+    function renderUsersPage() {
+        const total = _allUsers.length;
+        const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+        if (_userPage >= totalPages) _userPage = 0;
+        const slice = _allUsers.slice(_userPage * PAGE_SIZE, (_userPage + 1) * PAGE_SIZE);
+        const tbody = document.getElementById('users-tbody');
+
+        if (!slice.length) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-slate-500 text-sm py-6 text-center">No users found.</td></tr>`;
+        } else {
+            tbody.innerHTML = slice.map(u => `
+                <tr>
+                    <td>
+                        <p class="font-medium text-white text-sm">${u.full_name || '—'}</p>
+                    </td>
+                    <td class="text-slate-400 text-xs">${u.email || '—'}</td>
+                    <td><span style="${roleBadgeStyle(u.role)};font-size:10px;padding:2px 8px;border-radius:99px;font-weight:700;">${u.role}</span></td>
+                    <td><span style="${statusBadgeStyle(u.is_active)};font-size:10px;padding:2px 8px;border-radius:99px;font-weight:700;">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+                    <td class="text-slate-400 text-xs">${u.created_at ? new Date(u.created_at).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) : '—'}</td>
+                    <td>
+                        <div class="flex gap-1 flex-wrap">
+                            ${u.is_active
+                                ? `<button onclick="doSuspend('${u.id}')" class="btn-red px-2 py-1 text-xs">Suspend</button>`
+                                : `<button onclick="doReactivate('${u.id}')" class="btn-green px-2 py-1 text-xs">Reactivate</button>`
+                            }
+                            <button onclick="openRoleModal('${u.id}','${u.full_name || 'User'}','${u.role}')" class="btn-amber px-2 py-1 text-xs">Change Role</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        document.getElementById('users-count').textContent = `${total} user${total !== 1 ? 's' : ''} total`;
+        document.getElementById('users-page-label').textContent = `Page ${_userPage + 1} / ${totalPages}`;
+        document.getElementById('users-prev').disabled = _userPage === 0;
+        document.getElementById('users-next').disabled = _userPage >= totalPages - 1;
+    }
+
+    function userPage(dir) {
+        _userPage = Math.max(0, _userPage + dir);
+        renderUsersPage();
+    }
+
+    async function doSuspend(id) {
+        if (!confirm('Suspend this user?')) return;
+        try {
+            await api(`/admin/users/${id}/suspend`, 'PATCH');
+            showToast('User suspended');
+            loadUsers();
+        } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    async function doReactivate(id) {
+        if (!confirm('Reactivate this user?')) return;
+        try {
+            await api(`/admin/users/${id}/reactivate`, 'PATCH');
+            showToast('User reactivated');
+            loadUsers();
+        } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    // ── ROLE MODAL ─────────────────────────────────────────────────────────────
+    let _roleModalUserId = null;
+
+    function openRoleModal(id, name, currentRole) {
+        _roleModalUserId = id;
+        document.getElementById('role-modal-desc').textContent = `Change ${name}'s role from "${currentRole}" to:`;
+        document.getElementById('role-modal-select').value = currentRole;
+        document.getElementById('role-modal').classList.add('open');
+    }
+
+    function closeRoleModal() {
+        document.getElementById('role-modal').classList.remove('open');
+        _roleModalUserId = null;
+    }
+
+    async function confirmRoleChange() {
+        if (!_roleModalUserId) return;
+        const newRole = document.getElementById('role-modal-select').value;
+        try {
+            await api(`/admin/users/${_roleModalUserId}/role`, 'PATCH', { role: newRole });
+            showToast(`Role changed to ${newRole}`);
+            closeRoleModal();
+            loadUsers();
+        } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    document.getElementById('role-modal').addEventListener('click', e => {
+        if (e.target === document.getElementById('role-modal')) closeRoleModal();
+    });
+
+    // ── ALERTS ─────────────────────────────────────────────────────────────────
+    async function loadAlerts() {
+        const el = document.getElementById('alerts-list');
+        el.innerHTML = '<div class="text-slate-500 text-sm">Loading…</div>';
+        try {
+            const data = await api('/admin/critical-feedback');
+            updateBadge('alerts', data.length);
+            if (!data.length) {
+                el.innerHTML = '<div class="glass-dark p-6 text-center"><p class="text-slate-400 text-sm">✓ No unreviewed critical alerts</p></div>';
+                return;
+            }
+            el.innerHTML = data.map(f => {
+                const sev = f.severity || 3;
+                const patient = (f.profiles || {}).full_name || 'Unknown patient';
+                const date = f.created_at ? new Date(f.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—';
+                return `
+                    <div class="glass-dark p-4 ${sev >= 4 ? 'severity-4' : 'severity-3'}" id="alert-${f.id}">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                    <p class="font-semibold text-white text-sm">${patient}</p>
+                                    <span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:700;background:${sev >= 4 ? 'rgba(239,68,68,.2)' : 'rgba(249,115,22,.2)'};color:${sev >= 4 ? '#f87171' : '#fb923c'};">
+                                        Severity ${sev} — ${sev >= 4 ? 'EMERGENCY' : 'SEVERE'}
+                                    </span>
+                                </div>
+                                ${f.medicine_name ? `<p class="text-xs text-slate-400 mb-1">Medicine: ${f.medicine_name}</p>` : ''}
+                                <p class="text-sm text-slate-300">${f.description || '—'}</p>
+                                <p class="text-xs text-slate-500 mt-1">${date}</p>
+                            </div>
+                            <button onclick="markReviewed('${f.id}')" class="btn-ghost px-3 py-1.5 text-xs flex-shrink-0">
+                                ✓ Mark Reviewed
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch(e) {
+            el.innerHTML = `<p class="text-red-400 text-sm">${e.message}</p>`;
+        }
+    }
+
+    async function markReviewed(id) {
+        try {
+            await api(`/admin/feedback/${id}/review`, 'PATCH');
+            document.getElementById(`alert-${id}`)?.remove();
+            const remaining = document.querySelectorAll('[id^="alert-"]').length;
+            updateBadge('alerts', remaining);
+            if (!remaining) {
+                document.getElementById('alerts-list').innerHTML =
+                    '<div class="glass-dark p-6 text-center"><p class="text-slate-400 text-sm">✓ No unreviewed critical alerts</p></div>';
+            }
+            showToast('Marked as reviewed');
+        } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    // ── ANALYTICS ──────────────────────────────────────────────────────────────
+    async function loadAnalytics() {
+        try {
+            const [dau, adh, effects, missed] = await Promise.all([
+                api('/admin/analytics/daily-active-users'),
+                api('/admin/analytics/adherence-trend'),
+                api('/admin/analytics/top-side-effects'),
+                api('/admin/analytics/missed-medicines'),
+            ]);
+            renderDAU(dau);
+            renderAdherence(adh);
+            renderSideEffects(effects);
+            renderMissed(missed);
+        } catch(e) { showToast(`Analytics error: ${e.message}`, 'error'); }
+    }
+
+    function renderDAU(data) {
+        destroyChart('dau');
+        const ctx = document.getElementById('chart-dau');
+        if (!ctx || !data.length) return;
+        _charts.dau = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => d.date?.slice(5)),
+                datasets: [{ data: data.map(d => d.users), borderColor: '#00dbe7', backgroundColor: 'rgba(0,219,231,0.08)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 2 }]
+            },
+            options: { ..._chartDefaults }
+        });
+    }
+
+    function renderAdherence(data) {
+        destroyChart('adherence');
+        const ctx = document.getElementById('chart-adherence');
+        if (!ctx || !data.length) return;
+        _charts.adherence = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => d.date?.slice(5)),
+                datasets: [{ data: data.map(d => d.rate), borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.08)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 2 }]
+            },
+            options: { ..._chartDefaults, scales: { ..._chartDefaults.scales, y: { ..._chartDefaults.scales.y, min: 0, max: 100 } } }
+        });
+    }
+
+    function renderSideEffects(data) {
+        destroyChart('sideEffects');
+        const ctx = document.getElementById('chart-side-effects');
+        if (!ctx || !data.length) return;
+        _charts.sideEffects = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.effect),
+                datasets: [{ data: data.map(d => d.count), backgroundColor: 'rgba(167,139,250,0.7)', borderColor: '#a78bfa', borderWidth: 1, borderRadius: 4 }]
+            },
+            options: { ..._chartDefaults, indexAxis: 'y' }
+        });
+    }
+
+    function renderMissed(data) {
+        destroyChart('missed');
+        const ctx = document.getElementById('chart-missed');
+        if (!ctx || !data.length) return;
+        _charts.missed = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.name),
+                datasets: [{ data: data.map(d => d.count), backgroundColor: 'rgba(248,113,113,0.7)', borderColor: '#f87171', borderWidth: 1, borderRadius: 4 }]
+            },
+            options: { ..._chartDefaults }
+        });
+    }
+
+    // ── HEALTH ─────────────────────────────────────────────────────────────────
+    async function loadHealth() {
+        const el = document.getElementById('health-panel');
+        el.innerHTML = '<div class="text-slate-500 text-sm">Checking services…</div>';
+        try {
+            const d = await api('/admin/health');
+            const services = [
+                { key: 'database',           label: 'Database (Supabase)' },
+                { key: 'push_notifications', label: 'Push Notifications (VAPID)' },
+                { key: 'email_service',      label: 'Email Service (Resend)' },
+            ];
+            el.innerHTML = services.map(s => {
+                const val = d[s.key] || 'unknown';
+                const ok = val === 'ok';
+                const nc = val === 'not_configured';
+                const icon = ok ? '✓' : nc ? '⚠' : '✗';
+                const color = ok ? '#34d399' : nc ? '#fbbf24' : '#f87171';
+                const bg = ok ? 'rgba(52,211,153,.08)' : nc ? 'rgba(251,191,36,.08)' : 'rgba(248,113,113,.08)';
+                const border = ok ? 'rgba(52,211,153,.2)' : nc ? 'rgba(251,191,36,.2)' : 'rgba(248,113,113,.2)';
+                return `
+                    <div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">
+                        <span style="font-size:13px;color:#e2e2e8;">${s.label}</span>
+                        <span style="font-size:12px;font-weight:700;color:${color};">${icon} ${val.replace('_', ' ').toUpperCase()}</span>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('health-time').textContent = `Last checked: ${new Date(d.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} | Environment: ${d.environment || 'unknown'}`;
+        } catch(e) {
+            el.innerHTML = `<p class="text-red-400 text-sm">${e.message}</p>`;
+        }
+    }
+
+    // Auto-refresh health every 60s
+    setInterval(() => { if (_activeTab === 'health') loadHealth(); }, 60000);
+
+    // ── EXPORT ─────────────────────────────────────────────────────────────────
+    async function exportCSV(report) {
+        try {
+            const res = await fetch(`${API}/admin/export?report=${report}`, {
+                headers: { 'Authorization': `Bearer ${_tok}` }
+            });
+            if (!res.ok) { showToast('Export failed', 'error'); return; }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `adhera_${report}_report.csv`;
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast(`${report} report downloaded`);
+        } catch(e) { showToast(e.message, 'error'); }
+    }
+
+    // ── BROADCAST ──────────────────────────────────────────────────────────────
+    async function sendBroadcast() {
+        const message = document.getElementById('bc-message').value.trim();
+        const target = document.getElementById('bc-target').value;
+        const resultEl = document.getElementById('bc-result');
+        const btn = document.getElementById('bc-btn');
+        if (!message) { showToast('Message is required', 'error'); return; }
+        if (!confirm(`Send announcement to ${target === 'all' ? 'all users' : target + ' only'}?`)) return;
+        btn.textContent = 'Sending…'; btn.disabled = true;
+        resultEl.classList.add('hidden');
+        try {
+            const d = await api('/admin/broadcast', 'POST', { message, target });
+            resultEl.textContent = `✓ ${d.message}`;
+            resultEl.style.color = '#34d399';
+            resultEl.classList.remove('hidden');
+            document.getElementById('bc-message').value = '';
+            showToast(d.message);
+        } catch(e) {
+            resultEl.textContent = `Error: ${e.message}`;
+            resultEl.style.color = '#f87171';
+            resultEl.classList.remove('hidden');
+            showToast(e.message, 'error');
+        } finally {
+            btn.textContent = 'Send Announcement'; btn.disabled = false;
+        }
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    function updateBadge(tabKey, count) {
+        const el = document.getElementById(`badge-${tabKey}`);
+        if (!el) return;
+        if (count > 0) { el.textContent = count; el.style.display = 'inline-flex'; }
+        else { el.style.display = 'none'; }
+    }
+
+    function roleBadgeStyle(role) {
+        if (role === 'provider') return 'background:rgba(0,219,231,.12);border:1px solid rgba(0,219,231,.3);color:#00dbe7;';
+        if (role === 'admin')    return 'background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);color:#fbbf24;';
+        return 'background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.3);color:#a78bfa;';
+    }
+
+    function statusBadgeStyle(isActive) {
+        return isActive
+            ? 'background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.3);color:#34d399;'
+            : 'background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3);color:#f87171;';
+    }
+
+    function adminLogout() {
+        sessionStorage.removeItem('adhera_token');
+        window.location.href = '/index.html';
+    }
+
+    // ── Init ───────────────────────────────────────────────────────────────────
+    Chart.defaults.color = '#64748b';
+    Chart.defaults.font.family = 'Inter';
+    loadOverview();
+    </script>
+</body>
+</html>
