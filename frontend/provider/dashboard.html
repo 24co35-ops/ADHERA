@@ -442,6 +442,107 @@ async function apiGet(path) {
 </template>
 </div>
 </section>
+<!-- Toast Notification -->
+<div x-show="toastVisible" x-cloak
+     :class="toastType === 'success' ? 'bg-status-success/20 border-status-success/40 text-status-success' : 'bg-status-error/20 border-status-error/40 text-status-error'"
+     class="fixed bottom-6 right-6 z-50 px-5 py-3 rounded-2xl border flex items-center gap-3 shadow-xl backdrop-blur-xl transition-all duration-300 font-label-lg text-label-lg">
+    <span class="material-symbols-outlined text-[20px]" x-text="toastType === 'success' ? 'check_circle' : 'error'"></span>
+    <span x-text="toastMessage"></span>
+</div>
+<!-- Pending Patient Requests (Spans full width) -->
+<section x-show="pendingRequests.length > 0 || pendingLoading" x-cloak class="glass-panel rounded-3xl p-lg md:col-span-12 flex flex-col" style="border: 1px solid rgba(245, 158, 11, 0.3); background: rgba(245, 158, 11, 0.04);">
+    <div class="flex justify-between items-center mb-md">
+        <h2 class="font-headline-md text-headline-md text-status-warning flex items-center gap-sm">
+            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">pending_actions</span>
+            Pending Requests
+            <span x-show="pendingRequests.length > 0" class="bg-status-warning text-black text-xs font-bold px-2 py-0.5 rounded-full ml-1" x-text="pendingRequests.length"></span>
+        </h2>
+    </div>
+    <!-- Skeleton loader -->
+    <div x-show="pendingLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md" x-cloak>
+        <template x-for="i in [1,2,3]">
+            <div class="animate-pulse bg-glass-surface rounded-2xl p-md border border-glass-border h-28"></div>
+        </template>
+    </div>
+    <!-- Pending request cards -->
+    <div x-show="!pendingLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
+        <template x-for="req in pendingRequests" :key="req.id">
+            <div class="bg-surface-container-high rounded-2xl p-md border border-status-warning/30 flex flex-col gap-sm hover:border-status-warning/60 transition-colors">
+                <div class="flex items-center gap-sm">
+                    <div class="h-10 w-10 rounded-full bg-status-warning/20 flex items-center justify-center text-status-warning font-label-lg flex-shrink-0"
+                         x-text="(req.profiles?.full_name || 'P').charAt(0).toUpperCase()"></div>
+                    <div class="min-w-0">
+                        <p class="font-label-lg text-label-lg text-on-surface truncate" x-text="req.profiles?.full_name || 'Unknown Patient'"></p>
+                        <p class="font-label-sm text-label-sm text-on-surface-variant truncate" x-text="req.profiles?.email || req.profiles?.contact_number || ''"></p>
+                    </div>
+                </div>
+                <p class="font-label-sm text-label-sm text-on-surface-variant">
+                    Requested: <span x-text="new Date(req.assigned_on).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'})"></span>
+                </p>
+                <div class="flex gap-sm mt-auto">
+                    <button @click="acceptRequest(req.patient_id)"
+                            :disabled="actionInProgress === req.patient_id"
+                            class="flex-1 bg-status-success/20 text-status-success border border-status-success/30 hover:bg-status-success/30 font-label-lg text-label-lg py-sm rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-1">
+                        <span class="material-symbols-outlined text-[16px]">check</span>
+                        <span x-text="actionInProgress === req.patient_id ? 'Working...' : 'Accept'"></span>
+                    </button>
+                    <button @click="declineRequest(req.patient_id)"
+                            :disabled="actionInProgress === req.patient_id"
+                            class="flex-1 bg-status-error/20 text-status-error border border-status-error/30 hover:bg-status-error/30 font-label-lg text-label-lg py-sm rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-1">
+                        <span class="material-symbols-outlined text-[16px]">close</span>
+                        <span x-text="actionInProgress === req.patient_id ? 'Working...' : 'Decline'"></span>
+                    </button>
+                </div>
+            </div>
+        </template>
+    </div>
+</section>
+<!-- Toast Notification -->
+<div x-show="toastVisible" x-cloak
+     :class="toastType === 'success' ? 'bg-status-success/20 border-status-success/40 text-status-success' : 'bg-status-error/20 border-status-error/40 text-status-error'"
+     class="fixed bottom-6 right-6 z-50 px-5 py-3 rounded-2xl border flex items-center gap-3 shadow-xl backdrop-blur-xl font-label-lg text-label-lg">
+    <span class="material-symbols-outlined text-[20px]" x-text="toastType === 'success' ? 'check_circle' : 'error'"></span>
+    <span x-text="toastMessage"></span>
+</div>
+<!-- Pending Patient Requests -->
+<section x-show="pendingRequests.length > 0 || pendingLoading" x-cloak class="glass-panel rounded-3xl p-lg md:col-span-12 flex flex-col" style="border:1px solid rgba(245,158,11,0.3);background:rgba(245,158,11,0.04);">
+    <div class="flex justify-between items-center mb-md">
+        <h2 class="font-headline-md text-headline-md text-status-warning flex items-center gap-sm">
+            <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">pending_actions</span>
+            Pending Requests
+            <span x-show="pendingRequests.length > 0" class="bg-status-warning text-black text-xs font-bold px-2 py-0.5 rounded-full ml-1" x-text="pendingRequests.length"></span>
+        </h2>
+    </div>
+    <div x-show="pendingLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md" x-cloak>
+        <template x-for="i in [1,2,3]"><div class="animate-pulse bg-glass-surface rounded-2xl p-md border border-glass-border h-28"></div></template>
+    </div>
+    <div x-show="!pendingLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
+        <template x-for="req in pendingRequests" :key="req.id">
+            <div class="bg-surface-container-high rounded-2xl p-md border border-status-warning/30 flex flex-col gap-sm hover:border-status-warning/60 transition-colors">
+                <div class="flex items-center gap-sm">
+                    <div class="h-10 w-10 rounded-full bg-status-warning/20 flex items-center justify-center text-status-warning font-label-lg flex-shrink-0" x-text="(req.profiles?.full_name||'P').charAt(0).toUpperCase()"></div>
+                    <div class="min-w-0">
+                        <p class="font-label-lg text-label-lg text-on-surface truncate" x-text="req.profiles?.full_name||'Unknown Patient'"></p>
+                        <p class="font-label-sm text-label-sm text-on-surface-variant truncate" x-text="req.profiles?.email||req.profiles?.contact_number||''"></p>
+                    </div>
+                </div>
+                <p class="font-label-sm text-label-sm text-on-surface-variant">Requested: <span x-text="new Date(req.assigned_on).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})"></span></p>
+                <div class="flex gap-sm mt-auto">
+                    <button @click="acceptRequest(req.patient_id)" :disabled="actionInProgress===req.patient_id"
+                        class="flex-1 bg-status-success/20 text-status-success border border-status-success/30 hover:bg-status-success/30 font-label-lg text-label-lg py-sm rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-1">
+                        <span class="material-symbols-outlined text-[16px]">check</span>
+                        <span x-text="actionInProgress===req.patient_id?'Working...':'Accept'"></span>
+                    </button>
+                    <button @click="declineRequest(req.patient_id)" :disabled="actionInProgress===req.patient_id"
+                        class="flex-1 bg-status-error/20 text-status-error border border-status-error/30 hover:bg-status-error/30 font-label-lg text-label-lg py-sm rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-1">
+                        <span class="material-symbols-outlined text-[16px]">close</span>
+                        <span x-text="actionInProgress===req.patient_id?'Working...':'Decline'"></span>
+                    </button>
+                </div>
+            </div>
+        </template>
+    </div>
+</section>
 <!-- Patient List (Spans full width below) -->
 <section class="glass-panel rounded-3xl p-lg md:col-span-12 flex flex-col">
 <div class="flex justify-between items-center mb-md">
