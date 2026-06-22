@@ -1,5 +1,6 @@
 import logging
 from supabase import create_client, Client
+from supabase._async.client import create_client as create_async_client, AsyncClient
 from app.core.config import settings
 
 logger = logging.getLogger("adhera.db")
@@ -24,4 +25,13 @@ supabase_admin: Client = supabase
 # Auth client — separate instance for sign_in/sign_up so it doesn't
 # mutate the shared service-role client's Authorization header
 supabase_auth: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+
+# Async clients
+supabase_async: AsyncClient = (
+    create_async_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    if settings.SUPABASE_SERVICE_ROLE_KEY
+    else create_async_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+)
+
+supabase_auth_async: AsyncClient = create_async_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
 

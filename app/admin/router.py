@@ -685,25 +685,39 @@ async def update_assignment(request: Request, id: str, payload: AssignmentUpdate
 @limiter.limit("30/minute")
 async def get_providers_with_patients(request: Request, user: dict = Depends(require_role("admin"))):
     providers = supabase.table("profiles").select("id, full_name, is_active, role").eq("role", "provider").execute().data or []
+    provider_ids = [p["id"] for p in providers]
+    if not provider_ids:
+        return SuccessResponse(data=[])
+        
     try:
         auth_users = supabase.auth.admin.list_users()
         email_map = {u.id: u.email for u in auth_users}
     except Exception:
         email_map = {}
+        
+    assignments_res = supabase.table("assignments").select("provider_id, patient_id").eq("status", "active").in_("provider_id", provider_ids).execute().data or []
+    patient_ids = list(set(a["patient_id"] for a in assignments_res if a.get("patient_id")))
+    
+    if patient_ids:
+        patient_profiles_res = supabase.table("profiles").select("id, full_name").in_("id", patient_ids).execute().data or []
+        patient_profiles = {p["id"]: p for p in patient_profiles_res}
+    else:
+        patient_profiles = {}
+        
+    from collections import defaultdict
+    provider_assignments = defaultdict(list)
+    for a in assignments_res:
+        pid = a["patient_id"]
+        prov_id = a["provider_id"]
+        prof = dict(patient_profiles.get(pid, {"id": pid, "full_name": "Unknown"}))
+        prof["email"] = email_map.get(pid, "")
+        provider_assignments[prov_id].append({"patient_id": pid, "profiles": prof})
+        
     for p in providers:
         p["email"] = email_map.get(p["id"], "")
-        raw_assignments = supabase.table("assignments").select("patient_id") \
-            .eq("provider_id", p["id"]).eq("status", "active").execute().data or []
-        assignments = []
-        for a in raw_assignments:
-            pid = a.get("patient_id")
-            if pid:
-                pres = supabase.table("profiles").select("id, full_name").eq("id", pid).execute()
-                profile = pres.data[0] if pres.data else {"id": pid, "full_name": "Unknown"}
-                profile["email"] = email_map.get(pid, "")
-                assignments.append({"patient_id": pid, "profiles": profile})
-        p["assigned_patients"] = assignments
-        p["patient_count"] = len(assignments)
+        p["assigned_patients"] = provider_assignments[p["id"]]
+        p["patient_count"] = len(p["assigned_patients"])
+        
     return SuccessResponse(data=providers)
 
 @router.get("/unassigned-patients")

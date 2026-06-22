@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     CORS_ORIGIN: str = "http://localhost:3000"
     ENVIRONMENT: str = "development"  # "production" enables strict CORS validation
     FRONTEND_URL: str = "https://adhera-seven.vercel.app"  # Used for password reset redirect URLs
+    SENTRY_DSN: Optional[str] = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

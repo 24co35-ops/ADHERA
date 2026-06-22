@@ -34,6 +34,14 @@ _DEV_LOCALHOST_ORIGINS = [
 logger = logging.getLogger("adhera.main")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s     %(name)s - %(message)s")
 
+if settings.SENTRY_DSN:
+    import sentry_sdk
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        environment=settings.ENVIRONMENT,
+        traces_sample_rate=1.0,
+    )
+
 
 def _get_cors_origins() -> list[str]:
     """Validate CORS_ORIGIN on startup; raise RuntimeError in production for unsafe values."""
