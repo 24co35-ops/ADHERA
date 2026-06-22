@@ -70,6 +70,7 @@
                 async fetchPendingRequests() {
                     const data = await this.api('/provider/pending-requests') || [];
                     this.pendingRequests = data;
+                    _renderPendingRequests(data);
                 },
 
                 async acceptRequest(patientId) {
@@ -261,20 +262,85 @@
             }
         }
 
-        // Global helpers — called by :onclick bindings to avoid Alpine x-for scope loss at click time
-        function _adheAccept(pid) {
-            try {
-                const el = document.querySelector('[x-data]');
-                const data = window.Alpine ? Alpine.$data(el) : el._x_dataStack[0];
-                data.acceptRequest(pid);
-            } catch(e) { console.error('_adheAccept error', e); }
+        // ── Vanilla-JS pending-requests renderer (no Alpine) ──────────────────
+        function _renderPendingRequests(requests) {
+            const section = document.getElementById('pending-requests-section');
+            const list    = document.getElementById('pending-requests-list');
+            const badge   = document.getElementById('pending-requests-count');
+            if (!section || !list) return;
+            if (!requests || !requests.length) { section.style.display = 'none'; return; }
+            section.style.display = '';
+            if (badge) badge.textContent = requests.length;
+            list.innerHTML = requests.map(r => {
+                const pid  = r.patient_id || '';
+                const name = (r.profiles && r.profiles.full_name) ? r.profiles.full_name : 'Unknown Patient';
+                const init = name.charAt(0).toUpperCase();
+                const email = (r.profiles && r.profiles.email) ? r.profiles.email : '';
+                const phone = (r.profiles && r.profiles.contact_number) ? r.profiles.contact_number : '';
+                return `<div class="bg-white/5 p-4 rounded-xl border border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+  <div class="flex items-center gap-4">
+    <div class="w-10 h-10 rounded-full bg-cyan-900/50 flex items-center justify-center text-cyan-400 font-bold border border-cyan-500/30 shrink-0">${init}</div>
+    <div class="min-w-0">
+      <div class="font-bold text-lg text-cyan-50">${name}</div>
+      <div class="text-sm text-slate-400 mt-1 flex flex-wrap items-center gap-2">
+        ${email ? '<span>'+email+'</span>' : ''}
+        ${(email && phone) ? '<span>\u2022</span>' : ''}
+        ${phone ? '<span>'+phone+'</span>' : ''}
+      </div>
+    </div>
+  </div>
+  <div class="flex items-center gap-3 shrink-0">
+    <span id="req-feedback-${pid}" style="display:none;" class="text-emerald-400 text-sm font-semibold flex items-center gap-1">\u2713 Patient added to your list</span>
+    <span id="req-error-${pid}"   style="display:none;" class="text-rose-400 text-sm font-semibold"></span>
+    <div id="req-btns-${pid}" class="flex gap-2">
+      <button id="accept-${pid}" onclick="_adheAccept('${pid}')"
+        style="background:#00dbe7;color:#002022;border-radius:12px;font-weight:700;padding:8px 16px;font-size:0.875rem;border:none;cursor:pointer;">
+        Accept
+      </button>
+      <button id="decline-${pid}" onclick="_adheDecline('${pid}')"
+        style="background:transparent;border:1px solid rgba(255,255,255,0.2);color:#cbd5e1;border-radius:12px;font-weight:700;padding:8px 16px;font-size:0.875rem;cursor:pointer;">
+        Decline
+      </button>
+    </div>
+  </div>
+</div>`;
+            }).join('');
         }
-        function _adheDecline(pid) {
+
+        function _adheAccept(pid) {
+            const ab = document.getElementById('accept-'+pid);
+            const db = document.getElementById('decline-'+pid);
+            if (ab) { ab.textContent = 'Accepting…'; ab.disabled = true; ab.style.opacity = '0.5'; }
+            if (db) { db.disabled = true; db.style.opacity = '0.5'; }
             try {
-                const el = document.querySelector('[x-data]');
-                const data = window.Alpine ? Alpine.$data(el) : el._x_dataStack[0];
-                data.declineRequest(pid);
-            } catch(e) { console.error('_adheDecline error', e); }
+                const el   = document.querySelector('[x-data]');
+                const data = (window.Alpine && Alpine.$data) ? Alpine.$data(el) : el._x_dataStack && el._x_dataStack[0];
+                if (data && data.acceptRequest) {
+                    Promise.resolve(data.acceptRequest(pid)).catch(e => console.error('acceptRequest error', e));
+                } else { console.error('Alpine data not found'); }
+            } catch(e) {
+                console.error('_adheAccept error', e);
+                if (ab) { ab.textContent = 'Accept'; ab.disabled = false; ab.style.opacity = '1'; }
+                if (db) { db.disabled = false; db.style.opacity = '1'; }
+            }
+        }
+
+        function _adheDecline(pid) {
+            const db = document.getElementById('decline-'+pid);
+            const ab = document.getElementById('accept-'+pid);
+            if (db) { db.textContent = 'Declining…'; db.disabled = true; db.style.opacity = '0.5'; }
+            if (ab) { ab.disabled = true; ab.style.opacity = '0.5'; }
+            try {
+                const el   = document.querySelector('[x-data]');
+                const data = (window.Alpine && Alpine.$data) ? Alpine.$data(el) : el._x_dataStack && el._x_dataStack[0];
+                if (data && data.declineRequest) {
+                    Promise.resolve(data.declineRequest(pid)).catch(e => console.error('declineRequest error', e));
+                } else { console.error('Alpine data not found'); }
+            } catch(e) {
+                console.error('_adheDecline error', e);
+                if (db) { db.textContent = 'Decline'; db.disabled = false; db.style.opacity = '1'; }
+                if (ab) { ab.disabled = false; ab.style.opacity = '1'; }
+            }
         }
     </script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -330,59 +396,13 @@
     </div>
 
     <main class="flex-1 p-6 max-w-5xl mx-auto w-full space-y-6">
-        <!-- Patient Requests Section -->
-        <div x-show="pendingRequests.length > 0" class="glass p-6 rounded-xl relative space-y-4" x-cloak>
+        <!-- Patient Requests Section — rendered by vanilla JS _renderPendingRequests() -->
+        <div id="pending-requests-section" style="display:none;" class="glass p-6 rounded-xl relative space-y-4">
             <div class="flex items-center gap-2 mb-4">
                 <h2 class="text-2xl font-bold">Patient Requests</h2>
-                <span class="bg-cyan-500/20 text-cyan-400 text-xs font-bold px-2 py-0.5 rounded-full border border-cyan-500/30" x-text="pendingRequests.length"></span>
+                <span id="pending-requests-count" class="bg-cyan-500/20 text-cyan-400 text-xs font-bold px-2 py-0.5 rounded-full border border-cyan-500/30">0</span>
             </div>
-            <div class="space-y-4">
-                <template x-for="r in pendingRequests" :key="r.patient_id">
-                    <div class="bg-white/5 p-4 rounded-xl border border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div class="flex items-center gap-4">
-                            <div class="w-10 h-10 rounded-full bg-cyan-900/50 flex items-center justify-center text-cyan-400 font-bold border border-cyan-500/30 shrink-0">
-                                <span x-text="(r.profiles && r.profiles.full_name ? r.profiles.full_name : 'P').charAt(0).toUpperCase()"></span>
-                            </div>
-                            <div class="min-w-0">
-                                <div class="font-bold text-lg text-cyan-50" x-text="r.profiles && r.profiles.full_name ? r.profiles.full_name : 'Unknown Patient'"></div>
-                                <div class="text-sm text-slate-400 mt-1 flex flex-wrap items-center gap-2">
-                                    <span x-text="r.profiles && r.profiles.email ? r.profiles.email : ''"></span>
-                                    <span x-show="r.profiles && r.profiles.email && r.profiles.contact_number">•</span>
-                                    <span x-text="r.profiles && r.profiles.contact_number ? r.profiles.contact_number : ''"></span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="flex items-center gap-3 shrink-0">
-                            <!-- Success Feedback -->
-                            <span x-show="actionFeedback[r.patient_id] === 'success'"
-                                  class="text-emerald-400 text-sm font-semibold flex items-center gap-1">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                Patient added to your list
-                            </span>
-
-                            <!-- Error Feedback -->
-                            <span x-show="actionFeedback[r.patient_id] === 'error'"
-                                  class="text-rose-400 text-sm font-semibold flex items-center gap-1"
-                                  x-text="actionErrorMsg[r.patient_id] || 'Error'"></span>
-
-                            <!-- Action Buttons -->
-                            <div x-show="actionFeedback[r.patient_id] !== 'success'" class="flex gap-2">
-                                <button :onclick="`_adheAccept('${r.patient_id}')`"
-                                        :disabled="actionLoading[r.patient_id]"
-                                        class="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-cyan-950 font-bold px-4 py-2 rounded-xl text-sm transition-colors flex items-center gap-1">
-                                    <span x-text="actionLoading[r.patient_id] ? 'Accepting...' : 'Accept'"></span>
-                                </button>
-                                <button :onclick="`_adheDecline('${r.patient_id}')`"
-                                        :disabled="actionLoading[r.patient_id]"
-                                        class="bg-transparent hover:bg-white/5 border border-white/20 hover:border-white/40 disabled:opacity-50 text-slate-300 font-bold px-4 py-2 rounded-xl text-sm transition-colors">
-                                    <span x-text="actionLoading[r.patient_id] ? 'Declining...' : 'Decline'"></span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-            </div>
+            <div id="pending-requests-list" class="space-y-4"></div>
         </div>
 
         <div class="glass p-6 rounded-xl relative">
