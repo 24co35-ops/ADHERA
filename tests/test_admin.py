@@ -21,8 +21,8 @@ def test_reject_provider_valid(mock_supabase):
 def test_create_assignment_duplicate(mock_supabase):
     mock_supabase.table().select().eq().eq().execute.return_value = MagicMock(data=[])
     mock_supabase.table().insert().execute.side_effect = Exception("duplicate key value violates unique constraint 'one_active_assignment'")
-    with pytest.raises(Exception):
-        client.post("/v1/admin/assignments", headers=headers(), json={"patient_id": "1", "provider_id": "2"})
+    res = client.post("/v1/admin/assignments", headers=headers(), json={"patient_id": "1", "provider_id": "2"})
+    assert res.status_code == 409
 
 def test_admin_route_forbidden_for_patient():
     res = client.get("/v1/admin/assignments", headers=headers("patient"))

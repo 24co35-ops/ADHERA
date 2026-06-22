@@ -618,7 +618,10 @@ async def admin_create_assignment(request: Request, payload: dict, user: dict = 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        err_msg = str(e)
+        if "duplicate key" in err_msg or "unique constraint" in err_msg:
+            raise HTTPException(status_code=409, detail="Duplicate key violation: assignment already exists.")
+        raise HTTPException(status_code=500, detail=err_msg)
 
 @router.patch("/assignments/{assignment_id}/approve", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
