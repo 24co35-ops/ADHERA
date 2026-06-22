@@ -70,6 +70,64 @@
     </div>
 
     <main class="flex-1 p-6 max-w-5xl mx-auto w-full space-y-6">
+        <!-- Patient Requests Section -->
+        <div x-show="pendingRequests.length > 0" class="glass p-6 rounded-xl relative space-y-4" x-cloak>
+            <div class="flex items-center gap-2 mb-4">
+                <h2 class="text-2xl font-bold">Patient Requests</h2>
+                <span class="bg-cyan-500/20 text-cyan-400 text-xs font-bold px-2 py-0.5 rounded-full border border-cyan-500/30" x-text="pendingRequests.length"></span>
+            </div>
+            <div class="space-y-4">
+                <template x-for="r in pendingRequests" :key="r.patient_id">
+                    <div class="bg-white/5 p-4 rounded-xl border border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-cyan-900/50 flex items-center justify-center text-cyan-400 font-bold border border-cyan-500/30 shrink-0">
+                                <span x-text="(r.profiles && r.profiles.full_name ? r.profiles.full_name : 'P').charAt(0).toUpperCase()"></span>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="font-bold text-lg text-cyan-50" x-text="r.profiles && r.profiles.full_name ? r.profiles.full_name : 'Unknown Patient'"></div>
+                                <div class="text-sm text-slate-400 mt-1 flex flex-wrap items-center gap-2">
+                                    <span x-text="r.profiles && r.profiles.email ? r.profiles.email : ''"></span>
+                                    <span x-show="r.profiles && r.profiles.email && r.profiles.contact_number">•</span>
+                                    <span x-text="r.profiles && r.profiles.contact_number ? r.profiles.contact_number : ''"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center gap-3 shrink-0">
+                            <!-- Success Feedback -->
+                            <template x-if="actionFeedback[r.patient_id] === 'success'">
+                                <span class="text-emerald-400 text-sm font-semibold flex items-center gap-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    Patient added to your list
+                                </span>
+                            </template>
+
+                            <!-- Error Feedback -->
+                            <template x-if="actionFeedback[r.patient_id] === 'error'">
+                                <span class="text-rose-400 text-sm font-semibold flex items-center gap-1" x-text="actionErrorMsg[r.patient_id] || 'Error'"></span>
+                            </template>
+                            
+                            <!-- Action Buttons -->
+                            <template x-if="actionFeedback[r.patient_id] !== 'success'">
+                                <div class="flex gap-2">
+                                    <button @click="acceptRequest(r.patient_id)"
+                                            :disabled="actionLoading[r.patient_id]"
+                                            class="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-cyan-950 font-bold px-4 py-2 rounded-xl text-sm transition-colors flex items-center gap-1">
+                                        <span x-text="actionLoading[r.patient_id] ? 'Accepting...' : 'Accept'"></span>
+                                    </button>
+                                    <button @click="declineRequest(r.patient_id)"
+                                            :disabled="actionLoading[r.patient_id]"
+                                            class="bg-transparent hover:bg-white/5 border border-white/20 hover:border-white/40 disabled:opacity-50 text-slate-300 font-bold px-4 py-2 rounded-xl text-sm transition-colors">
+                                        <span x-text="actionLoading[r.patient_id] ? 'Declining...' : 'Decline'"></span>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
         <div class="glass p-6 rounded-xl relative">
             <h2 class="text-2xl font-bold mb-4">Assigned Patients</h2>
             <div x-show="loading" class="text-slate-400 text-sm">Loading patients...</div>
@@ -207,12 +265,16 @@
                 patients: [], loading: true, expanded: null,
                 presenceMap: {},
                 presenceChannel: null,
+                pendingRequests: [],
+                actionLoading: {},
+                actionFeedback: {},
+                actionErrorMsg: {},
                 
                 async init() {
                     Chart.defaults.color = '#849495';
                     Chart.defaults.font.family = 'Inter';
                     
-                    await this.fetchPatients();
+                    await Promise.all([this.fetchPatients(), this.fetchPendingRequests()]);
                     this.setupPresence(_payload);
                 },
                 
@@ -220,12 +282,62 @@
                     return this.patients.filter(p => p.adherence && p.adherence.weekly_percentage < 50);
                 },
  
-                async api(path) {
-                    const res = await fetch(`${CONFIG.API_BASE}${path}`, { headers: { 'Authorization': `Bearer ${this.token}` } });
+                async api(path, method = 'GET') {
+                    const res = await fetch(`${CONFIG.API_BASE}${path}`, {
+                        method,
+                        headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' }
+                    });
                     if (res.status === 401) { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
                     const data = await res.json();
                     if (!data.success) return null;
                     return data.data;
+                },
+
+                async fetchPendingRequests() {
+                    const data = await this.api('/provider/pending-requests') || [];
+                    this.pendingRequests = data;
+                },
+
+                async acceptRequest(patientId) {
+                    this.actionLoading[patientId] = true;
+                    this.actionFeedback[patientId] = '';
+                    this.actionErrorMsg[patientId] = '';
+                    try {
+                        const res = await this.api(`/provider/requests/${patientId}/accept`, 'PATCH');
+                        if (res) {
+                            this.actionFeedback[patientId] = 'success';
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            await Promise.all([this.fetchPendingRequests(), this.fetchPatients()]);
+                        } else {
+                            this.actionFeedback[patientId] = 'error';
+                            this.actionErrorMsg[patientId] = 'Failed to accept request';
+                        }
+                    } catch (e) {
+                        this.actionFeedback[patientId] = 'error';
+                        this.actionErrorMsg[patientId] = 'Error processing request';
+                    } finally {
+                        this.actionLoading[patientId] = false;
+                    }
+                },
+
+                async declineRequest(patientId) {
+                    this.actionLoading[patientId] = true;
+                    this.actionFeedback[patientId] = '';
+                    this.actionErrorMsg[patientId] = '';
+                    try {
+                        const res = await this.api(`/provider/requests/${patientId}/decline`, 'PATCH');
+                        if (res) {
+                            await this.fetchPendingRequests();
+                        } else {
+                            this.actionFeedback[patientId] = 'error';
+                            this.actionErrorMsg[patientId] = 'Failed to decline request';
+                        }
+                    } catch (e) {
+                        this.actionFeedback[patientId] = 'error';
+                        this.actionErrorMsg[patientId] = 'Error processing request';
+                    } finally {
+                        this.actionLoading[patientId] = false;
+                    }
                 },
                 
                 async fetchPatients() {
