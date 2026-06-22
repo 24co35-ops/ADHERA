@@ -260,6 +260,22 @@
                 }
             }
         }
+
+        // Global helpers — called by :onclick bindings to avoid Alpine x-for scope loss at click time
+        function _adheAccept(pid) {
+            try {
+                const el = document.querySelector('[x-data]');
+                const data = window.Alpine ? Alpine.$data(el) : el._x_dataStack[0];
+                data.acceptRequest(pid);
+            } catch(e) { console.error('_adheAccept error', e); }
+        }
+        function _adheDecline(pid) {
+            try {
+                const el = document.querySelector('[x-data]');
+                const data = window.Alpine ? Alpine.$data(el) : el._x_dataStack[0];
+                data.declineRequest(pid);
+            } catch(e) { console.error('_adheDecline error', e); }
+        }
     </script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
@@ -352,12 +368,12 @@
 
                             <!-- Action Buttons -->
                             <div x-show="actionFeedback[r.patient_id] !== 'success'" class="flex gap-2">
-                                <button @click="acceptRequest(r.patient_id)"
+                                <button :onclick="`_adheAccept('${r.patient_id}')`"
                                         :disabled="actionLoading[r.patient_id]"
                                         class="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-cyan-950 font-bold px-4 py-2 rounded-xl text-sm transition-colors flex items-center gap-1">
                                     <span x-text="actionLoading[r.patient_id] ? 'Accepting...' : 'Accept'"></span>
                                 </button>
-                                <button @click="declineRequest(r.patient_id)"
+                                <button :onclick="`_adheDecline('${r.patient_id}')`"
                                         :disabled="actionLoading[r.patient_id]"
                                         class="bg-transparent hover:bg-white/5 border border-white/20 hover:border-white/40 disabled:opacity-50 text-slate-300 font-bold px-4 py-2 rounded-xl text-sm transition-colors">
                                     <span x-text="actionLoading[r.patient_id] ? 'Declining...' : 'Decline'"></span>
