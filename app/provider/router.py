@@ -1,11 +1,84 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from collections import defaultdict
 from app.db.supabase import supabase
 from app.auth.dependencies import require_role, get_current_user
 from app.core.responses import SuccessResponse
 from app.core.rate_limit import limiter
 
 router = APIRouter()
+
+@router.get("/dashboard", response_model=SuccessResponse[dict])
+@limiter.limit("60/minute")
+async def get_provider_dashboard(request: Request, user: dict = Depends(require_role("provider"))):
+    try:
+        assignments_res = supabase.table("assignments").select("patient_id").eq("provider_id", user["user_id"]).eq("status", "active").execute()
+        assignments = assignments_res.data or []
+        patient_ids = [a["patient_id"] for a in assignments]
+        if not patient_ids:
+            return SuccessResponse(data={
+                "stats": {"avg_adherence": 0.0, "active_patients": 0, "critical_risk": 0},
+                "patients": [],
+                "alerts": []
+            })
+        profiles_res = supabase.table("profiles").select("id, full_name, contact_number, date_of_birth, blood_group").in_("id", patient_ids).execute()
+        profiles = {p["id"]: p for p in (profiles_res.data or [])}
+        try:
+            auth_users = supabase.auth.admin.list_users()
+            email_map = {u.id: u.email for u in auth_users}
+        except Exception:
+            email_map = {}
+        now = datetime.now(timezone.utc)
+        d30 = (now - timedelta(days=30)).isoformat()
+        d7 = (now - timedelta(days=7)).isoformat()
+        adh_res = supabase.table("adherence").select("user_id, status, scheduled_utc").in_("user_id", patient_ids).gte("scheduled_utc", d30).execute()
+        patient_adh = defaultdict(list)
+        for r in (adh_res.data or []):
+            patient_adh[r["user_id"]].append(r)
+        def get_rate(data: list) -> float:
+            t = len(data)
+            tk = len([x for x in data if x['status'] == 'taken'])
+            return round((tk / t * 100), 1) if t > 0 else 0.0
+        from app.core.utils import calculate_age
+        patients_list = []
+        weekly_percentages = []
+        critical_risk_count = 0
+        for pid in patient_ids:
+            p = profiles.get(pid)
+            if not p: continue
+            p_copy = dict(p)
+            p_copy["email"] = email_map.get(pid, "")
+            p_copy["age"] = calculate_age(p_copy.get("date_of_birth"))
+            user_adh = patient_adh.get(pid, [])
+            w_data = [x for x in user_adh if x['scheduled_utc'] >= d7]
+            weekly_percentage = get_rate(w_data) if w_data else (get_rate(user_adh) if user_adh else 80.0)
+            weekly_percentages.append(weekly_percentage)
+            if weekly_percentage < 70:
+                critical_risk_count += 1
+            patients_list.append({
+                "patient_id": pid,
+                "profiles": p_copy,
+                "adherence": {"weekly_percentage": weekly_percentage}
+            })
+        avg_adherence = round(sum(weekly_percentages) / len(weekly_percentages), 1) if weekly_percentages else 0.0
+        feedback_res = supabase.table("feedback").select("*, profiles(full_name)").in_("user_id", patient_ids).gte("severity", 3).order("created_at", desc=True).limit(10).execute()
+        alerts_list = []
+        for f in (feedback_res.data or []):
+            prof_data = f.get("profiles") or {}
+            alerts_list.append({
+                "id": f.get("id"),
+                "profiles": {"full_name": prof_data.get("full_name", "Unknown Patient")},
+                "severity": f.get("severity", 3),
+                "description": f.get("description", ""),
+                "created_at": f.get("created_at")
+            })
+        return SuccessResponse(data={
+            "stats": {"avg_adherence": avg_adherence, "active_patients": len(patients_list), "critical_risk": critical_risk_count},
+            "patients": patients_list,
+            "alerts": alerts_list
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/patients", response_model=SuccessResponse[list])
 @limiter.limit("60/minute")

@@ -682,6 +682,8 @@
                                             <div>
                                                 <span class="text-on-surface block"
                                                     x-text="patient.profiles.full_name">Sarah Jenkins</span>
+                                                <span class="text-on-surface-variant text-xs block"
+                                                    x-text="`Age: ${patient.profiles.age || 'Not provided'} | Blood Group: ${patient.profiles.blood_group || 'Not provided'}`"></span>
                                             </div>
                                         </div>
                                     </td>
@@ -799,58 +801,4 @@
         </a>
     </nav>
 </body>
-
-</html>md">
-<div class="flex items-center gap-2">
-    <div class="w-24 h-2 bg-surface-container-highest rounded-full overflow-hidden">
-        <div class="h-full bg-status-success rounded-full" style="width: 95%;"></div>
-    </div>
-    <span class="text-on-surface font-label-sm">95%</span>
-</div>
-</td>
-<td class="py-md text-on-surface-variant">Today, 11:05 AM</td>
-<td class="py-md text-right pr-sm">
-    <button
-        class="text-primary hover:text-primary-fixed-dim transition-colors p-1 rounded-full hover:bg-glass-surface"><span
-            class="material-symbols-outlined text-[20px]">more_vert</span></button>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="mt-md flex justify-between items-center text-on-surface-variant border-t border-glass-border pt-sm">
-    <span class="font-label-sm text-label-sm">Showing 1-4 of 1,204 patients</span>
-    <div class="flex gap-1">
-        <button class="p-1 rounded hover:bg-glass-surface disabled:opacity-50"><span
-                class="material-symbols-outlined">chevron_left</span></button>
-        <button class="p-1 rounded hover:bg-glass-surface"><span
-                class="material-symbols-outlined">chevron_right</span></button>
-    </div>
-</div>
-</section>
-</div>
-</main>
-<!-- Bottom Nav (Mobile Only) -->
-<nav
-    class="md:hidden fixed bottom-0 left-0 w-full bg-glass-surface backdrop-blur-3xl border-t border-glass-border pb-safe pt-sm px-md flex justify-around items-center z-50">
-    <a class="flex flex-col items-center gap-1 p-2 text-primary-fixed-dim" href="#">
-        <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
-        <span class="font-label-sm text-[10px]">Dashboard</span>
-    </a>
-    <a class="flex flex-col items-center gap-1 p-2 text-on-surface-variant hover:text-primary" href="#">
-        <span class="material-symbols-outlined">group</span>
-        <span class="font-label-sm text-[10px]">Patients</span>
-    </a>
-    <a class="flex flex-col items-center gap-1 p-2 text-status-error relative" href="#">
-        <span class="absolute top-1 right-1 w-2 h-2 bg-status-error rounded-full"></span>
-        <span class="material-symbols-outlined">warning</span>
-        <span class="font-label-sm text-[10px]">Alerts</span>
-    </a>
-    <a class="flex flex-col items-center gap-1 p-2 text-on-surface-variant hover:text-primary" href="#">
-        <span class="material-symbols-outlined">monitoring</span>
-        <span class="font-label-sm text-[10px]">Reports</span>
-    </a>
-</nav>
-</body>
-
 </html>
