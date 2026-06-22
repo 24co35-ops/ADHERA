@@ -15,7 +15,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adhera Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="/js/alpine-collapse.min.js"></script>
+    <script defer src="/js/alpine.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -138,7 +139,21 @@
             </div>
             <!-- Medicines sub-tab -->
             <div x-show="detailTab==='medicines'" class="space-y-3">
-                <div x-show="detailMedsLoading" class="text-slate-400 text-sm">Loading...</div>
+                <!-- Loading Skeletons for Medicines -->
+                <div x-show="detailMedsLoading" class="space-y-3" x-cloak>
+                    <div class="bg-white/5 rounded-xl p-4 border border-white/5 animate-pulse h-14">
+                        <div class="flex justify-between items-center h-full">
+                            <div class="h-4 bg-white/10 rounded w-1/3"></div>
+                            <div class="w-4 h-4 bg-white/10 rounded-full"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white/5 rounded-xl p-4 border border-white/5 animate-pulse h-14">
+                        <div class="flex justify-between items-center h-full">
+                            <div class="h-4 bg-white/10 rounded w-1/4"></div>
+                            <div class="w-4 h-4 bg-white/10 rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
                 <template x-for="med in detailMeds" :key="med.id">
                     <div class="bg-white/5 rounded-xl p-3 border border-white/5">
                         <div class="flex justify-between items-center cursor-pointer" @click="toggleDetailMed(med.id)">
@@ -248,7 +263,7 @@
         const _role = _p.role || _p.app_metadata?.role || _p.user_metadata?.role;
         if (_role !== 'admin') { window.location.href = 'index.html'; }
 
-        const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", ""), SUPABASE_JS_URL: "https://olsgvrmxqsftymsbeqve.supabase.co", SUPABASE_ANON: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sc2d2cm14cXNmdHltc2JlcXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2OTA0MjksImV4cCI6MjA5NTI2NjQyOX0.aZLBUgVPtRaCKbjHu8ljvsKOYWU6TDXO1gAE79jq9cM" };
+        const config = { SUPABASE_URL: CONFIG.SUPABASE_URL, SUPABASE_JS_URL: CONFIG.SUPABASE_URL, SUPABASE_ANON: CONFIG.SUPABASE_ANON_KEY };
         // Chart instances must not be stored inside Alpine's reactive proxy to prevent 'Maximum call stack exceeded' errors.
         let globalCharts = { w: null, m: null };
         

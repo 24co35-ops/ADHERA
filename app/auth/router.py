@@ -77,7 +77,7 @@ async def register(request: Request, user_data: UserRegister):
                     "is_active": is_active,
                 }).execute()
             except Exception as ex:
-                print(f"Failed to create profile: {repr(ex)}")
+                logger.error(f"Failed to create profile: {repr(ex)}")
 
         log_audit_action("USER_REGISTERED", res.user.id, {"role": user_data.role, "is_active": is_active})
 
@@ -190,7 +190,7 @@ async def forgot_password(request: Request, body: ForgotPassword):
     try:
         supabase_auth.auth.reset_password_for_email(
             body.email,
-            options={"redirect_to": "https://adhera-seven.vercel.app/reset-password.html"}
+            options={"redirect_to": f"{settings.FRONTEND_URL}/reset-password.html"}
         )
     except Exception:
         pass
@@ -212,8 +212,16 @@ async def verify_email(token: str):
     return SuccessResponse(data={"message": "Email verified handled by Supabase client implicitly."})
 
 def get_mfa_cipher():
-    key_bytes = hashlib.sha256(settings.SUPABASE_JWT_SECRET.encode()).digest()
-    fernet_key = base64.urlsafe_b64encode(key_bytes)
+    # Use dedicated MFA_ENCRYPTION_KEY if set; fall back to deriving from JWT secret for backward compat
+    if settings.MFA_ENCRYPTION_KEY:
+        fernet_key = settings.MFA_ENCRYPTION_KEY.encode()
+        # Ensure it's valid base64url 32-byte key
+        if len(fernet_key) < 44:  # Fernet keys are 44 base64url chars
+            key_bytes = hashlib.sha256(settings.MFA_ENCRYPTION_KEY.encode()).digest()
+            fernet_key = base64.urlsafe_b64encode(key_bytes)
+    else:
+        key_bytes = hashlib.sha256(settings.SUPABASE_JWT_SECRET.encode()).digest()
+        fernet_key = base64.urlsafe_b64encode(key_bytes)
     return Fernet(fernet_key)
 
 @router.get("/mfa/status", response_model=SuccessResponse[dict])
@@ -255,7 +263,7 @@ async def mfa_enable(request: Request, current_user: dict = Depends(get_current_
                 qr.save(buf, format="PNG")
                 qr_base64 = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
             except Exception as qr_err:
-                print(f"QR code generation error: {str(qr_err)}")
+                logger.warning(f"QR code generation error: {str(qr_err)}")
 
         log_audit_action("MFA_ENABLE_INITIATED", user_id, {})
         return SuccessResponse(data={
@@ -266,7 +274,7 @@ async def mfa_enable(request: Request, current_user: dict = Depends(get_current_
     except HTTPException:
         raise
     except Exception as e:
-        print(f"MFA enable error: {str(e)}")
+        logger.error(f"MFA enable error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"MFA setup failed: {str(e)}")
 
 @router.post("/mfa/verify", response_model=SuccessResponse[dict])

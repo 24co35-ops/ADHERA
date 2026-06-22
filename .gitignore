@@ -57,3 +57,4 @@ start.ps1
 README_LOCAL.md
 
 testsprite_tests\tmp\config.json
+frontend/config.js

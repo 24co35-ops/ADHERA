@@ -32,8 +32,14 @@ app.state.limiter.enabled = False
 TEST_USER_ID = "00000000-0000-0000-0000-000000000123"
 
 def get_test_cipher():
-    key_bytes = hashlib.sha256(settings.SUPABASE_JWT_SECRET.encode()).digest()
-    fernet_key = base64.urlsafe_b64encode(key_bytes)
+    if settings.MFA_ENCRYPTION_KEY:
+        fernet_key = settings.MFA_ENCRYPTION_KEY.encode()
+        if len(fernet_key) < 44:
+            key_bytes = hashlib.sha256(settings.MFA_ENCRYPTION_KEY.encode()).digest()
+            fernet_key = base64.urlsafe_b64encode(key_bytes)
+    else:
+        key_bytes = hashlib.sha256(settings.SUPABASE_JWT_SECRET.encode()).digest()
+        fernet_key = base64.urlsafe_b64encode(key_bytes)
     return Fernet(fernet_key)
 
 def headers(role="patient", user_id=TEST_USER_ID, mfa_pending=None):

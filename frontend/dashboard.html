@@ -19,7 +19,9 @@
     <script src="js/nav.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <script src="https://unpkg.com/chart.js@4/dist/chart.umd.js"></script>
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <script defer src="/js/alpine-collapse.min.js"></script>
+    <script defer src="/js/alpine.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; }
@@ -228,7 +230,7 @@
         const _role = _payload.app_metadata?.role || _payload.user_metadata?.role || _payload.role;
         if (_role !== 'patient') window.location.href = 'index.html';
 
-        const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", ""), SUPABASE_JS_URL: "https://olsgvrmxqsftymsbeqve.supabase.co", SUPABASE_ANON: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sc2d2cm14cXNmdHltc2JlcXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2OTA0MjksImV4cCI6MjA5NTI2NjQyOX0.aZLBUgVPtRaCKbjHu8ljvsKOYWU6TDXO1gAE79jq9cM" };
+        const config = { SUPABASE_URL: CONFIG.SUPABASE_URL, SUPABASE_JS_URL: CONFIG.SUPABASE_URL, SUPABASE_ANON: CONFIG.SUPABASE_ANON_KEY };
         
         // Chart instances must not be stored inside Alpine's reactive proxy to prevent 'Maximum call stack exceeded' errors.
         let weeklyChartInstance = null;

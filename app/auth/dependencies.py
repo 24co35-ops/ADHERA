@@ -3,8 +3,10 @@ from jwt import PyJWKClient, PyJWKClientError
 from jose import jwt as jose_jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
+import logging
 from app.config import settings
 
+logger = logging.getLogger(__name__)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="v1/auth/login")
 
 # JWKS client — keys cached for 1 hour; fetched lazily on first request
@@ -63,7 +65,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     except HTTPException:
         raise
     except Exception as e:
-        print("JWT DECODE ERROR:", repr(e))
+        logger.error(f"JWT DECODE ERROR: {repr(e)}")
         raise HTTPException(status_code=401, detail="Invalid token")
 
 

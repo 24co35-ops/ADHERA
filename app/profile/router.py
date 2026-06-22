@@ -8,9 +8,11 @@ from app.profile.schemas import ProfileUpdate, EmergencyContact, PushSubscriptio
 import csv
 import io
 import json as json_mod
+import logging
 from datetime import datetime
 import os
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.get("/", response_model=SuccessResponse[dict])
@@ -101,7 +103,7 @@ async def delete_push_subscription(request: Request, user=Depends(get_current_us
         result = supabase.table("push_subscriptions").delete().eq("user_id", user_id).execute()
         return {"success": True, "message": "Push subscription removed"}
     except Exception as e:
-        print(f"DELETE push-subscription error for user {user_id}: {str(e)}")
+        logger.error(f"DELETE push-subscription error for user {user_id}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to remove subscription: {str(e)}"

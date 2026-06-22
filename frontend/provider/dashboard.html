@@ -260,7 +260,9 @@
     </style>
 </head>
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <script defer src="/js/alpine-collapse.min.js"></script>
+    <script defer src="/js/alpine.min.js"></script>
 <script>
     const API_BASE_URL = CONFIG.API_BASE;
     function getAuthHeader() {
@@ -288,7 +290,7 @@
 
             async init() {
                 if (!localStorage.getItem('access_token')) {
-                    window.location.href = '../login.html';
+                    window.location.href = '../index.html';
                     return;
                 }
                 await Promise.allSettled([this.fetchData(), this.loadPendingRequests()]);

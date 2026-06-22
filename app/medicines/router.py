@@ -46,6 +46,25 @@ async def create_medicine(request: Request, medicine: MedicineCreate, user: dict
 async def list_medicines(request: Request, patient_id: str = Query(None), user: dict = Depends(get_current_user)):
     uid = _resolve_user_id(user, patient_id)
     res = supabase.table("medicines").select("*").eq("user_id", uid).eq("is_active", True).execute()
+    
+    try:
+        from collections import Counter
+        reminders_res = supabase.table("reminders").select("id, medicine_id").eq("user_id", uid).eq("is_active", True).execute()
+        adherence_res = supabase.table("adherence").select("reminder_id").eq("user_id", uid).eq("status", "missed").execute()
+        
+        reminder_med_map = {r["id"]: r["medicine_id"] for r in (reminders_res.data or [])}
+        missed_counts = Counter()
+        for a in (adherence_res.data or []):
+            med_id = reminder_med_map.get(a["reminder_id"])
+            if med_id:
+                missed_counts[med_id] += 1
+                
+        for med in (res.data or []):
+            med["missed_count"] = missed_counts[med["id"]]
+    except Exception:
+        for med in (res.data or []):
+            med["missed_count"] = 0
+            
     return SuccessResponse(data=res.data)
 
 @router.get("/{id}", response_model=SuccessResponse[dict])

@@ -24,7 +24,7 @@
         const _role = _payload.app_metadata?.role || _payload.user_metadata?.role || _payload.role;
         if (_role !== 'provider') window.location.href = 'index.html';
 
-        const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", ""), SUPABASE_JS_URL: "https://olsgvrmxqsftymsbeqve.supabase.co", SUPABASE_ANON: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sc2d2cm14cXNmdHltc2JlcXZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2OTA0MjksImV4cCI6MjA5NTI2NjQyOX0.aZLBUgVPtRaCKbjHu8ljvsKOYWU6TDXO1gAE79jq9cM" };
+        const config = { SUPABASE_URL: CONFIG.SUPABASE_URL, SUPABASE_JS_URL: CONFIG.SUPABASE_URL, SUPABASE_ANON: CONFIG.SUPABASE_ANON_KEY };
         // Chart instances must not be stored inside Alpine's reactive proxy to prevent 'Maximum call stack exceeded' errors.
         let globalCharts = {};
         
@@ -38,6 +38,8 @@
                 actionLoading: {},
                 actionFeedback: {},
                 actionErrorMsg: {},
+                hasMorePatients: false,
+                totalPatientCount: 0,
                 
                 async init() {
                     Chart.defaults.color = '#849495';
@@ -118,7 +120,14 @@
                 async fetchPatients() {
                     this.loading = true;
                     try { 
-                        const pts = await this.api('/provider/patients') || []; 
+                        let pts = await this.api('/provider/patients') || []; 
+                        this.totalPatientCount = pts.length;
+                        if (pts.length > 15) {
+                            this.hasMorePatients = true;
+                            pts = pts.slice(0, 15);
+                        } else {
+                            this.hasMorePatients = false;
+                        }
                         
                         // Fetch adherence/stats concurrently for all patients
                         const enriched = await Promise.all(pts.map(async p => {
@@ -343,7 +352,9 @@
             }
         }
     </script>
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <script defer src="/js/alpine-collapse.min.js"></script>
+    <script defer src="/js/alpine.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; }
@@ -407,7 +418,37 @@
 
         <div class="glass p-6 rounded-xl relative">
             <h2 class="text-2xl font-bold mb-4">Assigned Patients</h2>
-            <div x-show="loading" class="text-slate-400 text-sm">Loading patients...</div>
+            <!-- Limit Warning Banner -->
+            <div x-show="hasMorePatients" class="bg-amber-900/30 border border-amber-500/30 p-3 rounded-xl text-amber-400 text-sm mb-4" x-cloak>
+                ⚠️ Showing first 15 of <span x-text="totalPatientCount"></span> patients. Patient search and pagination are coming soon.
+            </div>
+            <!-- Loading Skeletons -->
+            <div x-show="loading" class="space-y-4" x-cloak>
+                <div class="bg-white/5 rounded-xl border border-white/10 p-4 animate-pulse">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-white/10"></div>
+                            <div class="space-y-2">
+                                <div class="h-4 bg-white/10 rounded w-24"></div>
+                                <div class="h-3 bg-white/10 rounded w-32"></div>
+                            </div>
+                        </div>
+                        <div class="h-8 bg-white/10 rounded w-16"></div>
+                    </div>
+                </div>
+                <div class="bg-white/5 rounded-xl border border-white/10 p-4 animate-pulse">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-white/10"></div>
+                            <div class="space-y-2">
+                                <div class="h-4 bg-white/10 rounded w-28"></div>
+                                <div class="h-3 bg-white/10 rounded w-36"></div>
+                            </div>
+                        </div>
+                        <div class="h-8 bg-white/10 rounded w-16"></div>
+                    </div>
+                </div>
+            </div>
             <div x-show="!loading && patients.length === 0" class="text-slate-400">No assigned patients.</div>
             
             <div class="space-y-4">
@@ -489,7 +530,7 @@
                                                         <tr class="border-b border-white/5 last:border-0">
                                                             <td class="py-2" x-text="med.name"></td>
                                                             <td class="py-2 text-slate-400" x-text="med.dosage_amount + ' ' + med.dosage_unit + ' ' + med.route"></td>
-                                                            <td class="py-2 text-red-400">N/A</td>
+                                                            <td class="py-2 text-red-400" x-text="med.missed_count || 0"></td>
                                                         </tr>
                                                     </template>
                                                     <tr x-show="!(p.medicines?.length)"><td colspan="3" class="py-4 text-center text-slate-500">No active medicines found.</td></tr>
