@@ -95,33 +95,30 @@
                         
                         <div class="flex items-center gap-3 shrink-0">
                             <!-- Success Feedback -->
-                            <template x-if="actionFeedback[r.patient_id] === 'success'">
-                                <span class="text-emerald-400 text-sm font-semibold flex items-center gap-1">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                    Patient added to your list
-                                </span>
-                            </template>
+                            <span x-show="actionFeedback[r.patient_id] === 'success'"
+                                  class="text-emerald-400 text-sm font-semibold flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                Patient added to your list
+                            </span>
 
                             <!-- Error Feedback -->
-                            <template x-if="actionFeedback[r.patient_id] === 'error'">
-                                <span class="text-rose-400 text-sm font-semibold flex items-center gap-1" x-text="actionErrorMsg[r.patient_id] || 'Error'"></span>
-                            </template>
-                            
+                            <span x-show="actionFeedback[r.patient_id] === 'error'"
+                                  class="text-rose-400 text-sm font-semibold flex items-center gap-1"
+                                  x-text="actionErrorMsg[r.patient_id] || 'Error'"></span>
+
                             <!-- Action Buttons -->
-                            <template x-if="actionFeedback[r.patient_id] !== 'success'">
-                                <div class="flex gap-2">
-                                    <button @click="acceptRequest(r.patient_id)"
-                                            :disabled="actionLoading[r.patient_id]"
-                                            class="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-cyan-950 font-bold px-4 py-2 rounded-xl text-sm transition-colors flex items-center gap-1">
-                                        <span x-text="actionLoading[r.patient_id] ? 'Accepting...' : 'Accept'"></span>
-                                    </button>
-                                    <button @click="declineRequest(r.patient_id)"
-                                            :disabled="actionLoading[r.patient_id]"
-                                            class="bg-transparent hover:bg-white/5 border border-white/20 hover:border-white/40 disabled:opacity-50 text-slate-300 font-bold px-4 py-2 rounded-xl text-sm transition-colors">
-                                        <span x-text="actionLoading[r.patient_id] ? 'Declining...' : 'Decline'"></span>
-                                    </button>
-                                </div>
-                            </template>
+                            <div x-show="actionFeedback[r.patient_id] !== 'success'" class="flex gap-2">
+                                <button @click="acceptRequest(r.patient_id)"
+                                        :disabled="actionLoading[r.patient_id]"
+                                        class="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-cyan-950 font-bold px-4 py-2 rounded-xl text-sm transition-colors flex items-center gap-1">
+                                    <span x-text="actionLoading[r.patient_id] ? 'Accepting...' : 'Accept'"></span>
+                                </button>
+                                <button @click="declineRequest(r.patient_id)"
+                                        :disabled="actionLoading[r.patient_id]"
+                                        class="bg-transparent hover:bg-white/5 border border-white/20 hover:border-white/40 disabled:opacity-50 text-slate-300 font-bold px-4 py-2 rounded-xl text-sm transition-colors">
+                                    <span x-text="actionLoading[r.patient_id] ? 'Declining...' : 'Decline'"></span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </template>
