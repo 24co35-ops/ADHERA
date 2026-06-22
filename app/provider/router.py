@@ -126,19 +126,30 @@ async def get_patient_report(request: Request, id: str, user: dict = Depends(req
 @router.get("/pending-requests", response_model=SuccessResponse[list])
 @limiter.limit("60/minute")
 async def get_pending_requests(request: Request, user: dict = Depends(require_role("provider"))):
-    result = supabase.table("assignments").select(
-        "*, profiles!assignments_patient_id_fkey(id, full_name, contact_number, date_of_birth)"
-    ).eq("provider_id", user["user_id"]).eq("status", "pending").order("assigned_on", desc=True).execute()
+    result = supabase.table("assignments").select("*") \
+        .eq("provider_id", user["user_id"]) \
+        .eq("status", "pending") \
+        .order("assigned_on", desc=True).execute()
     data = result.data or []
     try:
         auth_users = supabase.auth.admin.list_users()
         email_map = {u.id: u.email for u in auth_users}
-        for row in data:
-            pid = (row.get("profiles") or {}).get("id") or row.get("patient_id")
-            if pid and row.get("profiles"):
-                row["profiles"]["email"] = email_map.get(pid)
     except Exception:
-        pass
+        email_map = {}
+    from app.core.utils import calculate_age
+    for row in data:
+        pid = row.get("patient_id")
+        if pid:
+            prof = supabase.table("profiles").select(
+                "id, full_name, contact_number, date_of_birth, blood_group"
+            ).eq("id", pid).execute()
+            if prof.data:
+                p = prof.data[0]
+                p["email"] = email_map.get(pid)
+                p["age"] = calculate_age(p.get("date_of_birth"))
+                row["profiles"] = p
+            else:
+                row["profiles"] = None
     return SuccessResponse(data=data)
 
 @router.patch("/requests/{patient_id}/accept")

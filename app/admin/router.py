@@ -692,13 +692,16 @@ async def get_providers_with_patients(request: Request, user: dict = Depends(req
         email_map = {}
     for p in providers:
         p["email"] = email_map.get(p["id"], "")
-        assignments = supabase.table("assignments").select(
-            "patient_id, profiles!assignments_patient_id_fkey(id, full_name)"
-        ).eq("provider_id", p["id"]).eq("status", "active").execute().data or []
-        for a in assignments:
-            pid = (a.get("profiles") or {}).get("id") or a.get("patient_id")
-            if pid and a.get("profiles"):
-                a["profiles"]["email"] = email_map.get(pid, "")
+        raw_assignments = supabase.table("assignments").select("patient_id") \
+            .eq("provider_id", p["id"]).eq("status", "active").execute().data or []
+        assignments = []
+        for a in raw_assignments:
+            pid = a.get("patient_id")
+            if pid:
+                pres = supabase.table("profiles").select("id, full_name").eq("id", pid).execute()
+                profile = pres.data[0] if pres.data else {"id": pid, "full_name": "Unknown"}
+                profile["email"] = email_map.get(pid, "")
+                assignments.append({"patient_id": pid, "profiles": profile})
         p["assigned_patients"] = assignments
         p["patient_count"] = len(assignments)
     return SuccessResponse(data=providers)
