@@ -283,13 +283,18 @@
                 },
  
                 async api(path, method = 'GET') {
+                    const isGet = method === 'GET';
                     const res = await fetch(`${CONFIG.API_BASE}${path}`, {
                         method,
-                        headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' }
+                        headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+                        body: isGet ? undefined : JSON.stringify({})
                     });
                     if (res.status === 401) { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
                     const data = await res.json();
-                    if (!data.success) return null;
+                    if (!data.success) {
+                        console.error(`API ${method} ${path} failed:`, res.status, data);
+                        return null;
+                    }
                     return data.data;
                 },
 
@@ -299,44 +304,44 @@
                 },
 
                 async acceptRequest(patientId) {
-                    this.actionLoading[patientId] = true;
-                    this.actionFeedback[patientId] = '';
-                    this.actionErrorMsg[patientId] = '';
+                    this.actionLoading = { ...this.actionLoading, [patientId]: true };
+                    this.actionFeedback = { ...this.actionFeedback, [patientId]: '' };
+                    this.actionErrorMsg = { ...this.actionErrorMsg, [patientId]: '' };
                     try {
                         const res = await this.api(`/provider/requests/${patientId}/accept`, 'PATCH');
                         if (res) {
-                            this.actionFeedback[patientId] = 'success';
+                            this.actionFeedback = { ...this.actionFeedback, [patientId]: 'success' };
                             await new Promise(resolve => setTimeout(resolve, 1000));
                             await Promise.all([this.fetchPendingRequests(), this.fetchPatients()]);
                         } else {
-                            this.actionFeedback[patientId] = 'error';
-                            this.actionErrorMsg[patientId] = 'Failed to accept request';
+                            this.actionFeedback = { ...this.actionFeedback, [patientId]: 'error' };
+                            this.actionErrorMsg = { ...this.actionErrorMsg, [patientId]: 'Failed to accept request' };
                         }
                     } catch (e) {
-                        this.actionFeedback[patientId] = 'error';
-                        this.actionErrorMsg[patientId] = 'Error processing request';
+                        this.actionFeedback = { ...this.actionFeedback, [patientId]: 'error' };
+                        this.actionErrorMsg = { ...this.actionErrorMsg, [patientId]: 'Error processing request' };
                     } finally {
-                        this.actionLoading[patientId] = false;
+                        this.actionLoading = { ...this.actionLoading, [patientId]: false };
                     }
                 },
 
                 async declineRequest(patientId) {
-                    this.actionLoading[patientId] = true;
-                    this.actionFeedback[patientId] = '';
-                    this.actionErrorMsg[patientId] = '';
+                    this.actionLoading = { ...this.actionLoading, [patientId]: true };
+                    this.actionFeedback = { ...this.actionFeedback, [patientId]: '' };
+                    this.actionErrorMsg = { ...this.actionErrorMsg, [patientId]: '' };
                     try {
                         const res = await this.api(`/provider/requests/${patientId}/decline`, 'PATCH');
                         if (res) {
                             await this.fetchPendingRequests();
                         } else {
-                            this.actionFeedback[patientId] = 'error';
-                            this.actionErrorMsg[patientId] = 'Failed to decline request';
+                            this.actionFeedback = { ...this.actionFeedback, [patientId]: 'error' };
+                            this.actionErrorMsg = { ...this.actionErrorMsg, [patientId]: 'Failed to decline request' };
                         }
                     } catch (e) {
-                        this.actionFeedback[patientId] = 'error';
-                        this.actionErrorMsg[patientId] = 'Error processing request';
+                        this.actionFeedback = { ...this.actionFeedback, [patientId]: 'error' };
+                        this.actionErrorMsg = { ...this.actionErrorMsg, [patientId]: 'Error processing request' };
                     } finally {
-                        this.actionLoading[patientId] = false;
+                        this.actionLoading = { ...this.actionLoading, [patientId]: false };
                     }
                 },
                 
