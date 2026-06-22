@@ -1,0 +1,49 @@
+version: "2"
+type: backend
+tech_stack:
+  - Python
+  - FastAPI
+  - Supabase
+  - pytest
+features:
+  - name: Health Check API
+    description: Verifies API and database status
+    files:
+      - app/main.py
+    endpoints:
+      - method: GET
+        path: /v1/health
+        description: Health check endpoint
+        auth_required: false
+        response_schema:
+          "200": SuccessResponse
+  - name: Authentication API
+    description: Handles signup, login, password resets, and forgot password endpoints
+    files:
+      - app/auth/router.py
+      - app/auth/dependencies.py
+    endpoints:
+      - method: POST
+        path: /v1/auth/signup
+        description: Register a new user
+        auth_required: false
+        response_schema:
+          "200": SuccessResponse
+      - method: POST
+        path: /v1/auth/login
+        description: User login
+        auth_required: false
+        response_schema:
+          "200": SuccessResponse
+  - name: Provider API
+    description: Handles pending requests, assignments, and dashboards
+    files:
+      - app/provider/router.py
+    endpoints:
+      - method: GET
+        path: /v1/provider/pending-requests
+        description: Fetch pending provider requests
+        auth_required: true
+        response_schema:
+          "200": SuccessResponse
+known_limitations: []

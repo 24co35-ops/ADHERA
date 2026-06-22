@@ -411,41 +411,265 @@ async def list_assignments(request: Request, user: dict = Depends(require_role("
     res = supabase.table("assignments").select("*").execute()
     return SuccessResponse(data=res.data)
 
+@router.get("/providers-list", response_model=SuccessResponse[list])
+@limiter.limit("60/minute")
+async def get_admin_providers_list(request: Request, user: dict = Depends(require_role("admin"))):
+    try:
+        providers = supabase.table("profiles").select("*").eq("role", "provider").order("created_at", desc=True).execute().data or []
+        try:
+            auth_users = supabase.auth.admin.list_users()
+            email_map = {u.id: u.email for u in auth_users}
+        except Exception:
+            email_map = {}
+        assignments = supabase.table("assignments").select("id, patient_id, provider_id, status").eq("status", "active").execute().data or []
+        provider_assignments = defaultdict(list)
+        patient_ids = [a["patient_id"] for a in assignments]
+        patients_profiles = {}
+        if patient_ids:
+            p_res = supabase.table("profiles").select("id, full_name").in_("id", patient_ids).execute().data or []
+            patients_profiles = {p["id"]: p["full_name"] for p in p_res}
+        for a in assignments:
+            pid = a["patient_id"]
+            prov_id = a["provider_id"]
+            patient_name = patients_profiles.get(pid, "Unknown")
+            patient_email = email_map.get(pid, "")
+            provider_assignments[prov_id].append({
+                "patient_id": pid,
+                "full_name": patient_name,
+                "email": patient_email,
+                "assignment_id": a["id"]
+            })
+        result = []
+        for p in providers:
+            prov_id = p["id"]
+            assigned_list = provider_assignments[prov_id]
+            result.append({
+                "id": prov_id,
+                "full_name": p.get("full_name"),
+                "email": email_map.get(prov_id, ""),
+                "is_active": p.get("is_active"),
+                "created_at": p.get("created_at"),
+                "assigned_patients": assigned_list,
+                "patient_count": len(assigned_list)
+            })
+        return SuccessResponse(data=result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/patients-list", response_model=SuccessResponse[list])
+@limiter.limit("60/minute")
+async def get_admin_patients_list(request: Request, user: dict = Depends(require_role("admin"))):
+    try:
+        patients = supabase.table("profiles").select("*").eq("role", "patient").order("created_at", desc=True).execute().data or []
+        try:
+            auth_users = supabase.auth.admin.list_users()
+            email_map = {u.id: u.email for u in auth_users}
+        except Exception:
+            email_map = {}
+        assignments = supabase.table("assignments").select("patient_id, provider_id").eq("status", "active").execute().data or []
+        assigned_map = {a["patient_id"]: a["provider_id"] for a in assignments}
+        provider_ids = list(set(assigned_map.values()))
+        providers_profiles = {}
+        if provider_ids:
+            prov_res = supabase.table("profiles").select("id, full_name").in_("id", provider_ids).execute().data or []
+            providers_profiles = {p["id"]: p["full_name"] for p in prov_res}
+        result = []
+        for p in patients:
+            pid = p["id"]
+            prov_id = assigned_map.get(pid)
+            prov_name = providers_profiles.get(prov_id) if prov_id else "Unassigned"
+            result.append({
+                "id": pid,
+                "full_name": p.get("full_name"),
+                "email": email_map.get(pid, ""),
+                "is_active": p.get("is_active"),
+                "created_at": p.get("created_at"),
+                "assigned_provider": prov_name,
+                "provider_id": prov_id
+            })
+        return SuccessResponse(data=result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/pending-patient-requests", response_model=SuccessResponse[list])
+@limiter.limit("60/minute")
+async def get_admin_pending_patient_requests(request: Request, user: dict = Depends(require_role("admin"))):
+    try:
+        res = supabase.table("assignments").select("*").eq("status", "pending").eq("initiated_by", "patient").execute().data or []
+        if not res:
+            return SuccessResponse(data=[])
+        user_ids = list(set([r["patient_id"] for r in res] + [r["provider_id"] for r in res]))
+        profiles = {}
+        if user_ids:
+            p_res = supabase.table("profiles").select("id, full_name").in_("id", user_ids).execute().data or []
+            profiles = {p["id"]: p["full_name"] for p in p_res}
+        try:
+            auth_users = supabase.auth.admin.list_users()
+            email_map = {u.id: u.email for u in auth_users}
+        except Exception:
+            email_map = {}
+        result = []
+        for r in res:
+            pid = r["patient_id"]
+            prov_id = r["provider_id"]
+            result.append({
+                "assignment_id": r["id"],
+                "patient_id": pid,
+                "patient_name": profiles.get(pid, "Unknown"),
+                "patient_email": email_map.get(pid, ""),
+                "requested_provider_name": profiles.get(prov_id, "Unknown"),
+                "provider_email": email_map.get(prov_id, ""),
+                "requested_on": r["assigned_on"] or r["created_at"]
+            })
+        return SuccessResponse(data=result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/pending-provider-requests", response_model=SuccessResponse[list])
+@limiter.limit("60/minute")
+async def get_admin_pending_provider_requests(request: Request, user: dict = Depends(require_role("admin"))):
+    try:
+        res = supabase.table("assignments").select("*").eq("status", "pending").eq("initiated_by", "provider").execute().data or []
+        if not res:
+            return SuccessResponse(data=[])
+        user_ids = list(set([r["patient_id"] for r in res] + [r["provider_id"] for r in res]))
+        profiles = {}
+        if user_ids:
+            p_res = supabase.table("profiles").select("id, full_name").in_("id", user_ids).execute().data or []
+            profiles = {p["id"]: p["full_name"] for p in p_res}
+        try:
+            auth_users = supabase.auth.admin.list_users()
+            email_map = {u.id: u.email for u in auth_users}
+        except Exception:
+            email_map = {}
+        result = []
+        for r in res:
+            pid = r["patient_id"]
+            prov_id = r["provider_id"]
+            result.append({
+                "assignment_id": r["id"],
+                "patient_id": pid,
+                "patient_name": profiles.get(pid, "Unknown"),
+                "patient_email": email_map.get(pid, ""),
+                "provider_name": profiles.get(prov_id, "Unknown"),
+                "provider_email": email_map.get(prov_id, ""),
+                "requested_on": r["assigned_on"] or r["created_at"]
+            })
+        return SuccessResponse(data=result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/all-assignments", response_model=SuccessResponse[list])
+@limiter.limit("60/minute")
+async def get_admin_all_assignments(request: Request, user: dict = Depends(require_role("admin"))):
+    try:
+        res = supabase.table("assignments").select("*").eq("status", "active").execute().data or []
+        if not res:
+            return SuccessResponse(data=[])
+        user_ids = list(set([r["patient_id"] for r in res] + [r["provider_id"] for r in res]))
+        profiles = {}
+        if user_ids:
+            p_res = supabase.table("profiles").select("id, full_name").in_("id", user_ids).execute().data or []
+            profiles = {p["id"]: p["full_name"] for p in p_res}
+        try:
+            auth_users = supabase.auth.admin.list_users()
+            email_map = {u.id: u.email for u in auth_users}
+        except Exception:
+            email_map = {}
+        result = []
+        for r in res:
+            pid = r["patient_id"]
+            prov_id = r["provider_id"]
+            initiated = r.get("initiated_by", "patient")
+            assigned_by = "Admin" if initiated == "admin" else "Self"
+            result.append({
+                "assignment_id": r["id"],
+                "patient_name": profiles.get(pid, "Unknown"),
+                "patient_email": email_map.get(pid, ""),
+                "provider_name": profiles.get(prov_id, "Unknown"),
+                "provider_email": email_map.get(prov_id, ""),
+                "assigned_on": r["assigned_on"] or r["created_at"],
+                "assigned_by": assigned_by
+            })
+        return SuccessResponse(data=result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/assignments", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
-async def create_assignment(request: Request, payload: dict, user: dict = Depends(require_role("admin"))):
-    patient_id = payload.get("patient_id")
-    provider_id = payload.get("provider_id")
-    if not patient_id or not provider_id:
-        raise HTTPException(400, "patient_id and provider_id are required")
-    existing = supabase.table("assignments").select("id").eq("patient_id", patient_id).eq("status", "active").execute().data
-    if existing:
-        raise HTTPException(409, "Patient is already assigned to a provider. Remove the existing assignment first.")
-    res = supabase.table("assignments").insert({
-        "patient_id": patient_id,
-        "provider_id": provider_id,
-        "status": "active",
-        "assigned_on": datetime.now(timezone.utc).isoformat(),
-    }).execute()
-    log_audit_action("ADMIN_ASSIGNMENT_CREATE", user["user_id"], {"patient": patient_id, "provider": provider_id})
-    return SuccessResponse(data=res.data[0] if res.data else {})
+async def admin_create_assignment(request: Request, payload: dict, user: dict = Depends(require_role("admin"))):
+    try:
+        patient_id = payload.get("patient_id")
+        provider_id = payload.get("provider_id")
+        if not patient_id or not provider_id:
+            raise HTTPException(400, "patient_id and provider_id are required")
+        existing = supabase.table("assignments").select("id").eq("patient_id", patient_id).eq("status", "active").execute().data
+        if existing:
+            raise HTTPException(409, "Patient is already assigned to a provider")
+        supabase.table("assignments").insert({
+            "patient_id": patient_id,
+            "provider_id": provider_id,
+            "status": "active",
+            "initiated_by": "admin",
+            "assigned_on": datetime.now(timezone.utc).isoformat(),
+        }).execute()
+        log_audit_action("ADMIN_ASSIGNMENT_CREATE", user["user_id"], {"patient": patient_id, "provider": provider_id})
+        return SuccessResponse(data={"message": "Assignment created successfully"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-
-@router.delete("/assignments")
+@router.patch("/assignments/{assignment_id}/approve", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
-async def remove_assignment(request: Request, payload: dict, user: dict = Depends(require_role("admin"))):
-    patient_id = payload.get("patient_id")
-    provider_id = payload.get("provider_id")
-    if not patient_id or not provider_id:
-        raise HTTPException(400, "patient_id and provider_id are required")
-    supabase.table("assignments").update({
-        "status": "removed",
-        "removed_at": datetime.now(timezone.utc).isoformat(),
-    }).eq("patient_id", patient_id).eq("provider_id", provider_id).eq("status", "active").execute()
-    log_audit_action("ADMIN_ASSIGNMENT_REMOVE", user["user_id"], {"patient": patient_id, "provider": provider_id})
-    return SuccessResponse(data={"removed": True})
+async def admin_approve_assignment(request: Request, assignment_id: str, user: dict = Depends(require_role("admin"))):
+    try:
+        res = supabase.table("assignments").update({
+            "status": "active",
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }).eq("id", assignment_id).execute().data
+        if not res:
+            raise HTTPException(404, "Assignment not found")
+        log_audit_action("ADMIN_ASSIGNMENT_APPROVE", user["user_id"], {"assignment_id": assignment_id})
+        return SuccessResponse(data={"message": "Assignment approved successfully"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
+@router.patch("/assignments/{assignment_id}/reject", response_model=SuccessResponse[dict])
+@limiter.limit("60/minute")
+async def admin_reject_assignment(request: Request, assignment_id: str, user: dict = Depends(require_role("admin"))):
+    try:
+        res = supabase.table("assignments").update({
+            "status": "declined",
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }).eq("id", assignment_id).execute().data
+        if not res:
+            raise HTTPException(404, "Assignment not found")
+        log_audit_action("ADMIN_ASSIGNMENT_REJECT", user["user_id"], {"assignment_id": assignment_id})
+        return SuccessResponse(data={"message": "Assignment rejected successfully"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/assignments/{assignment_id}", response_model=SuccessResponse[dict])
+@limiter.limit("60/minute")
+async def admin_delete_assignment(request: Request, assignment_id: str, user: dict = Depends(require_role("admin"))):
+    try:
+        res = supabase.table("assignments").update({
+            "status": "removed",
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }).eq("id", assignment_id).execute().data
+        if not res:
+            raise HTTPException(404, "Assignment not found")
+        log_audit_action("ADMIN_ASSIGNMENT_REMOVE", user["user_id"], {"assignment_id": assignment_id})
+        return SuccessResponse(data={"message": "Assignment removed successfully"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.patch("/assignments/{id}", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
@@ -453,7 +677,6 @@ async def update_assignment(request: Request, id: str, payload: AssignmentUpdate
     res = supabase.table("assignments").update(payload.model_dump()).eq("id", id).execute()
     log_audit_action("ADMIN_ASSIGNMENT_UPDATE", user["user_id"], {"target": id})
     return SuccessResponse(data=res.data[0])
-
 
 @router.get("/providers-with-patients")
 @limiter.limit("30/minute")
@@ -476,7 +699,6 @@ async def get_providers_with_patients(request: Request, user: dict = Depends(req
         p["assigned_patients"] = assignments
         p["patient_count"] = len(assignments)
     return SuccessResponse(data=providers)
-
 
 @router.get("/unassigned-patients")
 @limiter.limit("30/minute")

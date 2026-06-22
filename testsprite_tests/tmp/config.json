@@ -1,0 +1,17 @@
+{
+  "status": "init",
+  "scope": "codebase",
+  "type": "backend",
+  "localEndpoint": "http://localhost:8000/",
+  "serverPort": 65248,
+  "executionArgs": {
+    "projectName": "stitch_adhera_glassmorphism_design_system",
+    "projectPath": "c:\\\\Users\\\\ASHWITH\\\\Desktop\\\\Adhera\\\\stitch_adhera_glassmorphism_design_system",
+    "testIds": [],
+    "additionalInstruction": "",
+    "serverMode": "development",
+    "envs": {
+      "API_KEY": "sk-user-l29HCAKVHXF0VX-z7U1KSkxOOdnBeNV8ZpxCNcRmCyVFD01-JDQAkgR14MFQMIflb92VQwMpe67KKiKARCYIczUgSl4NE239f94YRwvEpRw7xnYd6EvgT_hvWIFLaTuk33s"
+    }
+  }
+}

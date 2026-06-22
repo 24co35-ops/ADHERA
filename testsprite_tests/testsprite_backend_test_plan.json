@@ -1,0 +1,47 @@
+[
+  {
+    "id": "TC001",
+    "title": "getv1healthreturnsuccesswhenapirunninganddbhealthy",
+    "description": "Verify that a GET request to /v1/health returns a 200 SuccessResponse indicating the API service and database connection are healthy."
+  },
+  {
+    "id": "TC002",
+    "title": "getv1healthreturnserrorwhendatabaseunavailable",
+    "description": "Verify that a GET request to /v1/health returns a non-200 error response when the database is unavailable, indicating service health check failure."
+  },
+  {
+    "id": "TC003",
+    "title": "postv1authsignupcreatesaccountwithvaliddata",
+    "description": "Verify that a POST request to /v1/auth/signup with valid patient or provider registration data returns a 200 SuccessResponse and creates a new user account."
+  },
+  {
+    "id": "TC004",
+    "title": "postv1authsignupreturnsvalidationerrorwithinvaliddata",
+    "description": "Verify that a POST request to /v1/auth/signup with missing or invalid required fields returns a validation error response and does not create an account."
+  },
+  {
+    "id": "TC005",
+    "title": "postv1authloginreturnssuccesswithvalidcredentials",
+    "description": "Verify that a POST request to /v1/auth/login with valid email and password returns a 200 SuccessResponse with authenticated session details."
+  },
+  {
+    "id": "TC006",
+    "title": "postv1authloginreturnserrorwithinvalidcredentials",
+    "description": "Verify that a POST request to /v1/auth/login with invalid credentials returns an authentication error response and no session is issued."
+  },
+  {
+    "id": "TC007",
+    "title": "getv1providerpendingrequestsreturnsdatawithvalidtoken",
+    "description": "Verify that after successful provider login, a GET request to /v1/provider/pending-requests with a valid auth token returns a 200 SuccessResponse containing pending provider requests."
+  },
+  {
+    "id": "TC008",
+    "title": "getv1providerpendingrequestsdeniesaccesswithoutauthentication",
+    "description": "Verify that a GET request to /v1/provider/pending-requests without authentication returns an authorization error response and no request data."
+  },
+  {
+    "id": "TC009",
+    "title": "getv1providerpendingrequestsdeniesaccesswithinvalidtoken",
+    "description": "Verify that a GET request to /v1/provider/pending-requests with an expired or invalid token returns a 401 or 403 error response and access is denied."
+  }
+]
