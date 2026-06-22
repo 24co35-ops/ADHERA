@@ -15,8 +15,66 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Patient Details</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/chart.js@4/dist/chart.umd.js"></script>
+    <script>
+        const _token = sessionStorage.getItem('adhera_token');
+        if (!_token) { window.location.href = 'index.html'; throw new Error('No token'); }
+        const _payload = JSON.parse(atob(_token.split('.')[1]));
+        const _role = _payload.app_metadata?.role || _payload.user_metadata?.role || _payload.role;
+        if (_role !== 'provider') window.location.href = 'index.html';
+
+        const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", "") };
+        // Chart instances must not be stored inside Alpine's reactive proxy to prevent 'Maximum call stack exceeded' errors.
+        let globalCharts = { w: null, m: null };
+        function patientData() {
+            return {
+                token: sessionStorage.getItem('adhera_token'), patient: {}, pid: new URLSearchParams(window.location.search).get('id'),
+                tab: 'overview', stats: {}, adherenceData: {}, trend: [],
+                patientMeds: [], medsLoading: false, expandedMed: null, timings: {},
+                editRem: null, editRemForm: {}, addTimingFor: null, addForm: {},
+                feedbackList: [], fbLoading: false, fbOffset: 0,
+                async init() {
+                    if (!this.pid) return window.location.href = 'provider-dashboard.html';
+                    Chart.defaults.color = '#849495'; Chart.defaults.font.family = 'Inter';
+                    await Promise.all([this.fetchPatient(), this.fetchStats(), this.fetchMeds()]);
+                    this.$nextTick(() => this.initCharts());
+                },
+                async api(path, method='GET', body=null) {
+                    const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
+                    if (body) opts.body = JSON.stringify(body);
+                    const res = await fetch(`${CONFIG.API_BASE}${path}`, opts);
+                    if (res.status === 401) { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
+                    const data = await res.json();
+                    if (!data.success) throw new Error(data.error?.message || 'Error');
+                    return data.data;
+                },
+                async fetchPatient() { try { this.patient = await this.api(`/provider/patients/${this.pid}`); } catch(e){} },
+                async fetchStats() {
+                    try {
+                        const [s,a,t] = await Promise.all([this.api(`/analytics/dashboard?patient_id=${this.pid}`),this.api(`/analytics/adherence?patient_id=${this.pid}`),this.api(`/analytics/trend?patient_id=${this.pid}`)]);
+                        this.stats = s; this.adherenceData = a; this.trend = t;
+                    } catch(e){}
+                },
+                async fetchMeds() { this.medsLoading=true; try { this.patientMeds = await this.api(`/medicines/?patient_id=${this.pid}`); } catch(e){} finally { this.medsLoading=false; } },
+                async toggleMedTimings(id) { if(this.expandedMed===id){this.expandedMed=null;return;} this.expandedMed=id; try{this.timings[id]=await this.api(`/medicines/${id}/reminders`);}catch(e){this.timings[id]=[];} },
+                async saveAddTiming(medId) { try{await this.api(`/medicines/${medId}/reminders`,'POST',this.addForm);this.addTimingFor=null;this.timings[medId]=await this.api(`/medicines/${medId}/reminders`);}catch(e){} },
+                async saveEditRem(medId) { try{await this.api(`/reminders/${this.editRem}`,'PATCH',this.editRemForm);this.editRem=null;this.timings[medId]=await this.api(`/medicines/${medId}/reminders`);}catch(e){} },
+                async deleteRem(remId,medId) { if(!confirm('Delete?'))return; try{await this.api(`/reminders/${remId}`,'DELETE');this.timings[medId]=await this.api(`/medicines/${medId}/reminders`);}catch(e){} },
+                async fetchFeedback() { this.fbLoading=true;this.fbOffset=0; try{this.feedbackList=await this.api(`/feedback/?patient_id=${this.pid}&limit=20&offset=0`);}catch(e){this.feedbackList=[];} finally{this.fbLoading=false;} },
+                async loadMoreFb() { this.fbOffset+=20; try{const more=await this.api(`/feedback/?patient_id=${this.pid}&limit=20&offset=${this.fbOffset}`);this.feedbackList=[...this.feedbackList,...more];}catch(e){} },
+                processTrend(days) { const now=new Date();const map={};for(let i=days-1;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);map[d.toISOString().split('T')[0]]={taken:0,total:0};}this.trend.forEach(t=>{const ds=t.scheduled_utc.split('T')[0];if(map[ds]){map[ds].total++;if(t.status==='taken')map[ds].taken++;}});const labels=[],data=[];for(const[date,c] of Object.entries(map)){labels.push(new Date(date).toLocaleDateString(undefined,{month:'short',day:'numeric'}));data.push(c.total>0?Math.round(c.taken/c.total*100):0);}return{labels,data};},
+                initCharts() {
+                    const co={responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:100,grid:{color:'rgba(255,255,255,0.05)'}},x:{grid:{display:false}}},plugins:{legend:{display:false}}};
+                    const w=this.processTrend(7),m=this.processTrend(30);
+                    const wc=document.getElementById('ppWeekly'),mc=document.getElementById('ppMonthly');
+                    if(wc){ if(globalCharts.w) globalCharts.w.destroy(); globalCharts.w=new Chart(wc,{type:'bar',data:{labels:w.labels,datasets:[{data:w.data,backgroundColor:'#00dbe7',borderRadius:4}]},options:co}); }
+                    if(mc){ if(globalCharts.m) globalCharts.m.destroy(); globalCharts.m=new Chart(mc,{type:'line',data:{labels:m.labels,datasets:[{data:m.data,borderColor:'#0566d9',backgroundColor:'rgba(5,102,217,0.1)',borderWidth:3,tension:0.4,fill:true,pointRadius:2}]},options:co}); }
+                },
+                logout() { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
+            }
+        }
+    </script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; }
@@ -141,64 +199,5 @@
             <div x-show="feedbackList.length>=20 && !fbLoading" class="text-center"><button @click="loadMoreFb" class="text-sm text-cyan-400 hover:underline">Load more</button></div>
         </div>
     </main>
-
-    <script>
-        const _token = sessionStorage.getItem('adhera_token');
-        if (!_token) { window.location.href = 'index.html'; throw new Error('No token'); }
-        const _payload = JSON.parse(atob(_token.split('.')[1]));
-        const _role = _payload.app_metadata?.role || _payload.user_metadata?.role || _payload.role;
-        if (_role !== 'provider') window.location.href = 'index.html';
-
-        const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", "") };
-        // Chart instances must not be stored inside Alpine's reactive proxy to prevent 'Maximum call stack exceeded' errors.
-        let globalCharts = { w: null, m: null };
-        function patientData() {
-            return {
-                token: sessionStorage.getItem('adhera_token'), patient: {}, pid: new URLSearchParams(window.location.search).get('id'),
-                tab: 'overview', stats: {}, adherenceData: {}, trend: [],
-                patientMeds: [], medsLoading: false, expandedMed: null, timings: {},
-                editRem: null, editRemForm: {}, addTimingFor: null, addForm: {},
-                feedbackList: [], fbLoading: false, fbOffset: 0,
-                async init() {
-                    if (!this.pid) return window.location.href = 'provider-dashboard.html';
-                    Chart.defaults.color = '#849495'; Chart.defaults.font.family = 'Inter';
-                    await Promise.all([this.fetchPatient(), this.fetchStats(), this.fetchMeds()]);
-                    this.$nextTick(() => this.initCharts());
-                },
-                async api(path, method='GET', body=null) {
-                    const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
-                    if (body) opts.body = JSON.stringify(body);
-                    const res = await fetch(`${CONFIG.API_BASE}${path}`, opts);
-                    if (res.status === 401) { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
-                    const data = await res.json();
-                    if (!data.success) throw new Error(data.error?.message || 'Error');
-                    return data.data;
-                },
-                async fetchPatient() { try { this.patient = await this.api(`/provider/patients/${this.pid}`); } catch(e){} },
-                async fetchStats() {
-                    try {
-                        const [s,a,t] = await Promise.all([this.api(`/analytics/dashboard?patient_id=${this.pid}`),this.api(`/analytics/adherence?patient_id=${this.pid}`),this.api(`/analytics/trend?patient_id=${this.pid}`)]);
-                        this.stats = s; this.adherenceData = a; this.trend = t;
-                    } catch(e){}
-                },
-                async fetchMeds() { this.medsLoading=true; try { this.patientMeds = await this.api(`/medicines/?patient_id=${this.pid}`); } catch(e){} finally { this.medsLoading=false; } },
-                async toggleMedTimings(id) { if(this.expandedMed===id){this.expandedMed=null;return;} this.expandedMed=id; try{this.timings[id]=await this.api(`/medicines/${id}/reminders`);}catch(e){this.timings[id]=[];} },
-                async saveAddTiming(medId) { try{await this.api(`/medicines/${medId}/reminders`,'POST',this.addForm);this.addTimingFor=null;this.timings[medId]=await this.api(`/medicines/${medId}/reminders`);}catch(e){} },
-                async saveEditRem(medId) { try{await this.api(`/reminders/${this.editRem}`,'PATCH',this.editRemForm);this.editRem=null;this.timings[medId]=await this.api(`/medicines/${medId}/reminders`);}catch(e){} },
-                async deleteRem(remId,medId) { if(!confirm('Delete?'))return; try{await this.api(`/reminders/${remId}`,'DELETE');this.timings[medId]=await this.api(`/medicines/${medId}/reminders`);}catch(e){} },
-                async fetchFeedback() { this.fbLoading=true;this.fbOffset=0; try{this.feedbackList=await this.api(`/feedback/?patient_id=${this.pid}&limit=20&offset=0`);}catch(e){this.feedbackList=[];} finally{this.fbLoading=false;} },
-                async loadMoreFb() { this.fbOffset+=20; try{const more=await this.api(`/feedback/?patient_id=${this.pid}&limit=20&offset=${this.fbOffset}`);this.feedbackList=[...this.feedbackList,...more];}catch(e){} },
-                processTrend(days) { const now=new Date();const map={};for(let i=days-1;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);map[d.toISOString().split('T')[0]]={taken:0,total:0};}this.trend.forEach(t=>{const ds=t.scheduled_utc.split('T')[0];if(map[ds]){map[ds].total++;if(t.status==='taken')map[ds].taken++;}});const labels=[],data=[];for(const[date,c] of Object.entries(map)){labels.push(new Date(date).toLocaleDateString(undefined,{month:'short',day:'numeric'}));data.push(c.total>0?Math.round(c.taken/c.total*100):0);}return{labels,data};},
-                initCharts() {
-                    const co={responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:100,grid:{color:'rgba(255,255,255,0.05)'}},x:{grid:{display:false}}},plugins:{legend:{display:false}}};
-                    const w=this.processTrend(7),m=this.processTrend(30);
-                    const wc=document.getElementById('ppWeekly'),mc=document.getElementById('ppMonthly');
-                    if(wc){ if(globalCharts.w) globalCharts.w.destroy(); globalCharts.w=new Chart(wc,{type:'bar',data:{labels:w.labels,datasets:[{data:w.data,backgroundColor:'#00dbe7',borderRadius:4}]},options:co}); }
-                    if(mc){ if(globalCharts.m) globalCharts.m.destroy(); globalCharts.m=new Chart(mc,{type:'line',data:{labels:m.labels,datasets:[{data:m.data,borderColor:'#0566d9',backgroundColor:'rgba(5,102,217,0.1)',borderWidth:3,tension:0.4,fill:true,pointRadius:2}]},options:co}); }
-                },
-                logout() { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
-            }
-        }
-    </script>
 </body>
 </html>

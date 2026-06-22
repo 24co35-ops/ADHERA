@@ -15,7 +15,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adhera - Register</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script>
+        const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", "") };
+        function registerData() {
+            return {
+                form: { full_name: '', email: '', password: '', role: 'patient', date_of_birth: '', contact_number: '', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' },
+                disclaimer: false, error: null, successMessage: null, loading: false,
+                async register() {
+                    this.error = null; this.loading = true;
+                    try {
+                        const payload = { ...this.form };
+                        console.log("Register payload:", JSON.stringify(payload));
+                        for (const key in payload) {
+                            if (payload[key] === null || payload[key] === undefined) {
+                                console.warn(`Field ${key} is null/undefined before submission`);
+                            }
+                        }
+                        if (!payload.date_of_birth) delete payload.date_of_birth;
+                        const res = await fetch(`${CONFIG.API_BASE}/auth/register`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                        });
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.error?.message || "Registration failed");
+                        if (data.data?.pending) {
+                            this.successMessage = "Registration submitted. An admin will review your account within 24 hours.";
+                        } else if (data.data?.email_confirm_required) {
+                            this.successMessage = "Check your inbox to confirm your email.";
+                        } else {
+                            window.location.href = 'index.html?registered=true';
+                        }
+                    } catch (e) { this.error = e.message; }
+                    finally { this.loading = false; }
+                }
+            }
+        }
+    </script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; }
@@ -96,40 +131,5 @@
             </div>
         </form>
     </div>
-    <script>
-        const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", "") };
-        function registerData() {
-            return {
-                form: { full_name: '', email: '', password: '', role: 'patient', date_of_birth: '', contact_number: '', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' },
-                disclaimer: false, error: null, successMessage: null, loading: false,
-                async register() {
-                    this.error = null; this.loading = true;
-                    try {
-                        const payload = { ...this.form };
-                        console.log("Register payload:", JSON.stringify(payload));
-                        for (const key in payload) {
-                            if (payload[key] === null || payload[key] === undefined) {
-                                console.warn(`Field ${key} is null/undefined before submission`);
-                            }
-                        }
-                        if (!payload.date_of_birth) delete payload.date_of_birth;
-                        const res = await fetch(`${CONFIG.API_BASE}/auth/register`, {
-                            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-                        });
-                        const data = await res.json();
-                        if (!data.success) throw new Error(data.error?.message || "Registration failed");
-                        if (data.data?.pending) {
-                            this.successMessage = "Registration submitted. An admin will review your account within 24 hours.";
-                        } else if (data.data?.email_confirm_required) {
-                            this.successMessage = "Check your inbox to confirm your email.";
-                        } else {
-                            window.location.href = 'index.html?registered=true';
-                        }
-                    } catch (e) { this.error = e.message; }
-                    finally { this.loading = false; }
-                }
-            }
-        }
-    </script>
 </body>
 </html>

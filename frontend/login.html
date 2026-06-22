@@ -14,8 +14,45 @@
     <meta name="theme-color" content="#6366f1"><meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Adhera - Sign In</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+const API_BASE_URL = CONFIG.API_BASE;
+
+function loginForm() {
+    return {
+        email: '',
+        password: '',
+        loading: false,
+        error: null,
+        async submit() {
+            this.loading = true;
+            this.error = null;
+            try {
+                const res = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: this.email, password: this.password })
+                });
+                const json = await res.json();
+                if (json.success && json.data?.access_token) {
+                    localStorage.setItem('access_token', json.data.access_token);
+                    const role = json.data.role || 'patient';
+                    if (role === 'provider') window.location.href = 'provider/dashboard.html';
+                    else if (role === 'admin') window.location.href = 'admin/dashboard.html';
+                    else window.location.href = 'dashboard.html';
+                } else {
+                    this.error = json.error?.message || 'Invalid credentials';
+                }
+            } catch (err) {
+                this.error = 'Network error. Please try again.';
+            } finally {
+                this.loading = false;
+            }
+        }
+    }
+}
+</script>
+<script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 <script id="tailwind-config">
 tailwind.config = {
     darkMode: "class",
@@ -118,43 +155,5 @@ body {
         </div>
     </div>
 </main>
-
-<script>
-const API_BASE_URL = CONFIG.API_BASE;
-
-function loginForm() {
-    return {
-        email: '',
-        password: '',
-        loading: false,
-        error: null,
-        async submit() {
-            this.loading = true;
-            this.error = null;
-            try {
-                const res = await fetch(`${API_BASE_URL}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: this.email, password: this.password })
-                });
-                const json = await res.json();
-                if (json.success && json.data?.access_token) {
-                    localStorage.setItem('access_token', json.data.access_token);
-                    const role = json.data.role || 'patient';
-                    if (role === 'provider') window.location.href = 'provider/dashboard.html';
-                    else if (role === 'admin') window.location.href = 'admin/dashboard.html';
-                    else window.location.href = 'dashboard.html';
-                } else {
-                    this.error = json.error?.message || 'Invalid credentials';
-                }
-            } catch (err) {
-                this.error = 'Network error. Please try again.';
-            } finally {
-                this.loading = false;
-            }
-        }
-    }
-}
-</script>
 </body>
 </html>

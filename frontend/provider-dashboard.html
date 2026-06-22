@@ -15,237 +15,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adhera Provider</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; }
-        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); }
-        input, select, textarea { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.12) !important; color: #e2e2e8 !important; border-radius: 12px !important; }
-        input:focus, select:focus, textarea:focus { outline: none !important; border-color: #00dbe7 !important; }
-        button[type="submit"], button.bg-cyan-600 { background: #00dbe7 !important; color: #002022 !important; border-radius: 12px !important; }
-        button.bg-slate-700 { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 12px !important; }
-        select option { background-color: #1a1d24 !important; color: #e2e2e8 !important; }
-        [x-cloak] { display: none !important; }
-    </style>
-</head>
-<body x-data="providerData()" class="min-h-screen flex flex-col">
-    <!-- Nav Header -->
-    <nav class="glass p-4 sticky top-0 z-50 flex justify-between items-center mb-6 rounded-none border-t-0 border-l-0 border-r-0">
-        <a href="dashboard.html" class="flex items-center" style="height: 40px; overflow: visible;">
-            <div style="transform: scale(0.25); transform-origin: left center; width: 50px;">
-                <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <defs>
-                    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stop-color="#00F2FF" />
-                      <stop offset="100%" stop-color="#3B82F6" />
-                    </linearGradient>
-                    <filter id="blur" x="-20%" y="-20%" width="140%" height="140%">
-                      <feGaussianBlur in="SourceGraphic" stdDeviation="5" />
-                    </filter>
-                  </defs>
-                  <circle cx="100" cy="100" r="80" fill="url(#glow)" fill-opacity="0.1" stroke="url(#glow)" stroke-width="2" />
-                  <circle cx="100" cy="100" r="60" fill="white" fill-opacity="0.05" style="backdrop-filter: blur(10px)" stroke="white" stroke-opacity="0.2" />
-                  <path d="M100 60L135 140H115L100 105L85 140H65L100 60Z" fill="url(#glow)" />
-                  <rect x="92" y="110" width="16" height="4" rx="2" fill="white" fill-opacity="0.8" />
-                </svg>
-            </div>
-            <span style="color: #00dbe7; font-weight: 700; font-size: 1.5rem; letter-spacing: -0.02em;">Adhera</span>
-        </a>
-        <div class="space-x-4">
-            <button @click="logout" class="text-red-400 hover:text-red-300">Logout</button>
-        </div>
-    </nav>
-
-    <!-- Critical Alert Banner -->
-    <div x-show="criticalPatients.length > 0" class="max-w-5xl mx-auto w-full px-6 mb-6" x-cloak>
-        <div class="bg-red-900/30 border border-red-500/30 p-4 rounded-xl flex items-start gap-3">
-            <svg class="w-6 h-6 text-red-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-            <div>
-                <h3 class="text-red-400 font-bold" x-text="criticalPatients.length + ' patient(s) need immediate attention'"></h3>
-                <p class="text-sm text-red-300/80 mt-1" x-text="criticalPatients.map(p => p.profiles.full_name).join(', ')"></p>
-            </div>
-        </div>
-    </div>
-
-    <main class="flex-1 p-6 max-w-5xl mx-auto w-full space-y-6">
-        <!-- Patient Requests Section -->
-        <div x-show="pendingRequests.length > 0" class="glass p-6 rounded-xl relative space-y-4" x-cloak>
-            <div class="flex items-center gap-2 mb-4">
-                <h2 class="text-2xl font-bold">Patient Requests</h2>
-                <span class="bg-cyan-500/20 text-cyan-400 text-xs font-bold px-2 py-0.5 rounded-full border border-cyan-500/30" x-text="pendingRequests.length"></span>
-            </div>
-            <div class="space-y-4">
-                <template x-for="r in pendingRequests" :key="r.patient_id">
-                    <div class="bg-white/5 p-4 rounded-xl border border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div class="flex items-center gap-4">
-                            <div class="w-10 h-10 rounded-full bg-cyan-900/50 flex items-center justify-center text-cyan-400 font-bold border border-cyan-500/30 shrink-0">
-                                <span x-text="(r.profiles && r.profiles.full_name ? r.profiles.full_name : 'P').charAt(0).toUpperCase()"></span>
-                            </div>
-                            <div class="min-w-0">
-                                <div class="font-bold text-lg text-cyan-50" x-text="r.profiles && r.profiles.full_name ? r.profiles.full_name : 'Unknown Patient'"></div>
-                                <div class="text-sm text-slate-400 mt-1 flex flex-wrap items-center gap-2">
-                                    <span x-text="r.profiles && r.profiles.email ? r.profiles.email : ''"></span>
-                                    <span x-show="r.profiles && r.profiles.email && r.profiles.contact_number">•</span>
-                                    <span x-text="r.profiles && r.profiles.contact_number ? r.profiles.contact_number : ''"></span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="flex items-center gap-3 shrink-0">
-                            <!-- Success Feedback -->
-                            <span x-show="actionFeedback[r.patient_id] === 'success'"
-                                  class="text-emerald-400 text-sm font-semibold flex items-center gap-1">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                Patient added to your list
-                            </span>
-
-                            <!-- Error Feedback -->
-                            <span x-show="actionFeedback[r.patient_id] === 'error'"
-                                  class="text-rose-400 text-sm font-semibold flex items-center gap-1"
-                                  x-text="actionErrorMsg[r.patient_id] || 'Error'"></span>
-
-                            <!-- Action Buttons -->
-                            <div x-show="actionFeedback[r.patient_id] !== 'success'" class="flex gap-2">
-                                <button @click="acceptRequest(r.patient_id)"
-                                        :disabled="actionLoading[r.patient_id]"
-                                        class="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-cyan-950 font-bold px-4 py-2 rounded-xl text-sm transition-colors flex items-center gap-1">
-                                    <span x-text="actionLoading[r.patient_id] ? 'Accepting...' : 'Accept'"></span>
-                                </button>
-                                <button @click="declineRequest(r.patient_id)"
-                                        :disabled="actionLoading[r.patient_id]"
-                                        class="bg-transparent hover:bg-white/5 border border-white/20 hover:border-white/40 disabled:opacity-50 text-slate-300 font-bold px-4 py-2 rounded-xl text-sm transition-colors">
-                                    <span x-text="actionLoading[r.patient_id] ? 'Declining...' : 'Decline'"></span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-            </div>
-        </div>
-
-        <div class="glass p-6 rounded-xl relative">
-            <h2 class="text-2xl font-bold mb-4">Assigned Patients</h2>
-            <div x-show="loading" class="text-slate-400 text-sm">Loading patients...</div>
-            <div x-show="!loading && patients.length === 0" class="text-slate-400">No assigned patients.</div>
-            
-            <div class="space-y-4">
-                <template x-for="p in patients" :key="p.patient_id">
-                    <div class="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
-                        
-                        <!-- Row Header (Clickable) -->
-                        <div class="p-4 cursor-pointer hover:bg-white/5 transition-colors flex justify-between items-center" @click="toggleExpand(p.patient_id)">
-                            <div class="flex items-center gap-4">
-                                <div class="w-10 h-10 rounded-full bg-cyan-900/50 flex items-center justify-center text-cyan-400 font-bold border border-cyan-500/30">
-                                    <span x-text="p.profiles.full_name.charAt(0)"></span>
-                                </div>
-                                <div>
-                                    <div class="font-bold text-lg text-cyan-50 flex items-center gap-2">
-                                        <span x-text="p.profiles.full_name"></span>
-                                        <!-- Presence Indicator -->
-                                        <span class="flex items-center gap-1.5 text-xs font-normal" :class="presenceMap[p.patient_id]?.online ? 'text-emerald-400' : 'text-slate-500'">
-                                            <span class="w-2 h-2 rounded-full" :class="presenceMap[p.patient_id]?.online ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-slate-600'"></span>
-                                            <span x-text="presenceMap[p.patient_id]?.online ? 'Online' : (presenceMap[p.patient_id]?.last_seen ? 'Offline — last seen ' + formatRelativeTime(presenceMap[p.patient_id].last_seen) : 'Never logged in')"></span>
-                                        </span>
-                                    </div>
-                                    <div class="text-sm text-slate-400 mt-1 flex items-center gap-3">
-                                        <span x-text="'Age: ' + (p.profiles.age !== undefined && p.profiles.age !== null ? p.profiles.age : 'N/A')"></span>
-                                        <span>•</span>
-                                        <span x-text="'Streak: ' + (p.stats?.streak || 0) + ' days'"></span>
-                                        <span>•</span>
-                                        <span x-text="'Missed this month: ' + (p.stats?.missed_this_month || 0)"></span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="flex items-center gap-4">
-                                <!-- Adherence Badge -->
-                                <template x-if="p.adherence">
-                                    <div class="flex items-center px-3 py-1.5 rounded-lg border font-semibold text-sm"
-                                         :class="{
-                                            'bg-emerald-500/20 text-emerald-400 border-emerald-500/30': p.adherence.weekly_percentage >= 80,
-                                            'bg-amber-500/20 text-amber-400 border-amber-500/30': p.adherence.weekly_percentage >= 50 && p.adherence.weekly_percentage < 80,
-                                            'bg-rose-500/20 text-rose-400 border-rose-500/30': p.adherence.weekly_percentage < 50
-                                         }">
-                                        <svg x-show="p.adherence.weekly_percentage < 80" class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                                        <span x-text="p.adherence.weekly_percentage >= 80 ? 'On Track' : (p.adherence.weekly_percentage >= 50 ? 'Needs Attention (Low Adherence)' : 'Critical (Low Adherence)')"></span>
-                                        <span class="ml-2 font-bold" x-text="p.adherence.weekly_percentage + '%'"></span>
-                                    </div>
-                                </template>
-                                <svg class="w-5 h-5 text-slate-400 transition-transform duration-200" :class="expanded === p.patient_id ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </div>
-                        </div>
-
-                        <!-- Expanded Panel -->
-                        <div x-show="expanded === p.patient_id" x-collapse x-cloak>
-                            <div class="p-6 border-t border-white/10 bg-black/20 space-y-6">
-                                
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div class="glass p-4 rounded-xl">
-                                        <h4 class="font-bold text-sm mb-3">Weekly Adherence</h4>
-                                        <div class="relative h-40 w-full"><canvas :id="'weeklyChart-' + p.patient_id"></canvas></div>
-                                    </div>
-                                    <div class="glass p-4 rounded-xl">
-                                        <h4 class="font-bold text-sm mb-3">Monthly Trend</h4>
-                                        <div class="relative h-40 w-full"><canvas :id="'monthlyChart-' + p.patient_id"></canvas></div>
-                                    </div>
-                                </div>
-
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div class="glass p-4 rounded-xl">
-                                        <h4 class="font-bold text-sm mb-3">Medicine Breakdown</h4>
-                                        <div class="overflow-x-auto">
-                                            <table class="w-full text-left text-sm border-collapse">
-                                                <thead>
-                                                    <tr class="text-slate-400 border-b border-white/10">
-                                                        <th class="pb-2 font-medium">Medicine</th>
-                                                        <th class="pb-2 font-medium">Schedule</th>
-                                                        <th class="pb-2 font-medium">Missed</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <template x-for="med in (p.medicines || [])" :key="med.id">
-                                                        <tr class="border-b border-white/5 last:border-0">
-                                                            <td class="py-2" x-text="med.name"></td>
-                                                            <td class="py-2 text-slate-400" x-text="med.dosage_amount + ' ' + med.dosage_unit + ' ' + med.route"></td>
-                                                            <td class="py-2 text-red-400">N/A</td>
-                                                        </tr>
-                                                    </template>
-                                                    <tr x-show="!(p.medicines?.length)"><td colspan="3" class="py-4 text-center text-slate-500">No active medicines found.</td></tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-
-                                    <div class="glass p-4 rounded-xl">
-                                        <h4 class="font-bold text-sm mb-3">Recent Feedback</h4>
-                                        <div class="space-y-2">
-                                            <template x-for="fb in (p.feedback || [])" :key="fb.id">
-                                                <div class="text-xs bg-white/5 p-3 rounded-lg border border-white/5">
-                                                    <div class="flex justify-between mb-1">
-                                                        <span class="px-1.5 py-0.5 rounded font-medium" :class="fb.severity >= 3 ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'" x-text="'Sev ' + fb.severity"></span>
-                                                        <span class="text-slate-500" x-text="new Date(fb.created_at).toLocaleDateString()"></span>
-                                                    </div>
-                                                    <div class="text-slate-300 truncate" x-text="fb.description"></div>
-                                                </div>
-                                            </template>
-                                            <div x-show="!(p.feedback?.length)" class="text-center py-4 text-slate-500 text-sm">No recent feedback.</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="flex justify-end">
-                                    <a :href="'provider-patient.html?id=' + p.patient_id" class="bg-transparent hover:bg-white/5 border border-cyan-500/50 text-cyan-400 px-4 py-2 rounded-lg text-sm font-bold transition-colors">View Full Report</a>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-                </template>
-            </div>
-        </div>
-    </main>    <script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="https://unpkg.com/chart.js@4/dist/chart.umd.js"></script>
+    <script>
         const _token = sessionStorage.getItem('adhera_token');
         if (!_token) { window.location.href = 'index.html'; throw new Error('No token'); }
         const _payload = JSON.parse(atob(_token.split('.')[1]));
@@ -489,5 +261,234 @@
             }
         }
     </script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); }
+        input, select, textarea { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.12) !important; color: #e2e2e8 !important; border-radius: 12px !important; }
+        input:focus, select:focus, textarea:focus { outline: none !important; border-color: #00dbe7 !important; }
+        button[type="submit"], button.bg-cyan-600 { background: #00dbe7 !important; color: #002022 !important; border-radius: 12px !important; }
+        button.bg-slate-700 { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 12px !important; }
+        select option { background-color: #1a1d24 !important; color: #e2e2e8 !important; }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body x-data="providerData()" class="min-h-screen flex flex-col">
+    <!-- Nav Header -->
+    <nav class="glass p-4 sticky top-0 z-50 flex justify-between items-center mb-6 rounded-none border-t-0 border-l-0 border-r-0">
+        <a href="dashboard.html" class="flex items-center" style="height: 40px; overflow: visible;">
+            <div style="transform: scale(0.25); transform-origin: left center; width: 50px;">
+                <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#00F2FF" />
+                      <stop offset="100%" stop-color="#3B82F6" />
+                    </linearGradient>
+                    <filter id="blur" x="-20%" y="-20%" width="140%" height="140%">
+                      <feGaussianBlur in="SourceGraphic" stdDeviation="5" />
+                    </filter>
+                  </defs>
+                  <circle cx="100" cy="100" r="80" fill="url(#glow)" fill-opacity="0.1" stroke="url(#glow)" stroke-width="2" />
+                  <circle cx="100" cy="100" r="60" fill="white" fill-opacity="0.05" style="backdrop-filter: blur(10px)" stroke="white" stroke-opacity="0.2" />
+                  <path d="M100 60L135 140H115L100 105L85 140H65L100 60Z" fill="url(#glow)" />
+                  <rect x="92" y="110" width="16" height="4" rx="2" fill="white" fill-opacity="0.8" />
+                </svg>
+            </div>
+            <span style="color: #00dbe7; font-weight: 700; font-size: 1.5rem; letter-spacing: -0.02em;">Adhera</span>
+        </a>
+        <div class="space-x-4">
+            <button @click="logout" class="text-red-400 hover:text-red-300">Logout</button>
+        </div>
+    </nav>
+
+    <!-- Critical Alert Banner -->
+    <div x-show="criticalPatients.length > 0" class="max-w-5xl mx-auto w-full px-6 mb-6" x-cloak>
+        <div class="bg-red-900/30 border border-red-500/30 p-4 rounded-xl flex items-start gap-3">
+            <svg class="w-6 h-6 text-red-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            <div>
+                <h3 class="text-red-400 font-bold" x-text="criticalPatients.length + ' patient(s) need immediate attention'"></h3>
+                <p class="text-sm text-red-300/80 mt-1" x-text="criticalPatients.map(p => p.profiles.full_name).join(', ')"></p>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 p-6 max-w-5xl mx-auto w-full space-y-6">
+        <!-- Patient Requests Section -->
+        <div x-show="pendingRequests.length > 0" class="glass p-6 rounded-xl relative space-y-4" x-cloak>
+            <div class="flex items-center gap-2 mb-4">
+                <h2 class="text-2xl font-bold">Patient Requests</h2>
+                <span class="bg-cyan-500/20 text-cyan-400 text-xs font-bold px-2 py-0.5 rounded-full border border-cyan-500/30" x-text="pendingRequests.length"></span>
+            </div>
+            <div class="space-y-4">
+                <template x-for="r in pendingRequests" :key="r.patient_id">
+                    <div class="bg-white/5 p-4 rounded-xl border border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-cyan-900/50 flex items-center justify-center text-cyan-400 font-bold border border-cyan-500/30 shrink-0">
+                                <span x-text="(r.profiles && r.profiles.full_name ? r.profiles.full_name : 'P').charAt(0).toUpperCase()"></span>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="font-bold text-lg text-cyan-50" x-text="r.profiles && r.profiles.full_name ? r.profiles.full_name : 'Unknown Patient'"></div>
+                                <div class="text-sm text-slate-400 mt-1 flex flex-wrap items-center gap-2">
+                                    <span x-text="r.profiles && r.profiles.email ? r.profiles.email : ''"></span>
+                                    <span x-show="r.profiles && r.profiles.email && r.profiles.contact_number">•</span>
+                                    <span x-text="r.profiles && r.profiles.contact_number ? r.profiles.contact_number : ''"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center gap-3 shrink-0">
+                            <!-- Success Feedback -->
+                            <span x-show="actionFeedback[r.patient_id] === 'success'"
+                                  class="text-emerald-400 text-sm font-semibold flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                Patient added to your list
+                            </span>
+
+                            <!-- Error Feedback -->
+                            <span x-show="actionFeedback[r.patient_id] === 'error'"
+                                  class="text-rose-400 text-sm font-semibold flex items-center gap-1"
+                                  x-text="actionErrorMsg[r.patient_id] || 'Error'"></span>
+
+                            <!-- Action Buttons -->
+                            <div x-show="actionFeedback[r.patient_id] !== 'success'" class="flex gap-2">
+                                <button @click="acceptRequest(r.patient_id)"
+                                        :disabled="actionLoading[r.patient_id]"
+                                        class="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-cyan-950 font-bold px-4 py-2 rounded-xl text-sm transition-colors flex items-center gap-1">
+                                    <span x-text="actionLoading[r.patient_id] ? 'Accepting...' : 'Accept'"></span>
+                                </button>
+                                <button @click="declineRequest(r.patient_id)"
+                                        :disabled="actionLoading[r.patient_id]"
+                                        class="bg-transparent hover:bg-white/5 border border-white/20 hover:border-white/40 disabled:opacity-50 text-slate-300 font-bold px-4 py-2 rounded-xl text-sm transition-colors">
+                                    <span x-text="actionLoading[r.patient_id] ? 'Declining...' : 'Decline'"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <div class="glass p-6 rounded-xl relative">
+            <h2 class="text-2xl font-bold mb-4">Assigned Patients</h2>
+            <div x-show="loading" class="text-slate-400 text-sm">Loading patients...</div>
+            <div x-show="!loading && patients.length === 0" class="text-slate-400">No assigned patients.</div>
+            
+            <div class="space-y-4">
+                <template x-for="p in patients" :key="p.patient_id">
+                    <div class="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
+                        
+                        <!-- Row Header (Clickable) -->
+                        <div class="p-4 cursor-pointer hover:bg-white/5 transition-colors flex justify-between items-center" @click="toggleExpand(p.patient_id)">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 rounded-full bg-cyan-900/50 flex items-center justify-center text-cyan-400 font-bold border border-cyan-500/30">
+                                    <span x-text="p.profiles.full_name.charAt(0)"></span>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-lg text-cyan-50 flex items-center gap-2">
+                                        <span x-text="p.profiles.full_name"></span>
+                                        <!-- Presence Indicator -->
+                                        <span class="flex items-center gap-1.5 text-xs font-normal" :class="presenceMap[p.patient_id]?.online ? 'text-emerald-400' : 'text-slate-500'">
+                                            <span class="w-2 h-2 rounded-full" :class="presenceMap[p.patient_id]?.online ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-slate-600'"></span>
+                                            <span x-text="presenceMap[p.patient_id]?.online ? 'Online' : (presenceMap[p.patient_id]?.last_seen ? 'Offline — last seen ' + formatRelativeTime(presenceMap[p.patient_id].last_seen) : 'Never logged in')"></span>
+                                        </span>
+                                    </div>
+                                    <div class="text-sm text-slate-400 mt-1 flex items-center gap-3">
+                                        <span x-text="'Age: ' + (p.profiles.age !== undefined && p.profiles.age !== null ? p.profiles.age : 'N/A')"></span>
+                                        <span>•</span>
+                                        <span x-text="'Streak: ' + (p.stats?.streak || 0) + ' days'"></span>
+                                        <span>•</span>
+                                        <span x-text="'Missed this month: ' + (p.stats?.missed_this_month || 0)"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center gap-4">
+                                <!-- Adherence Badge -->
+                                <template x-if="p.adherence">
+                                    <div class="flex items-center px-3 py-1.5 rounded-lg border font-semibold text-sm"
+                                         :class="{
+                                            'bg-emerald-500/20 text-emerald-400 border-emerald-500/30': p.adherence.weekly_percentage >= 80,
+                                            'bg-amber-500/20 text-amber-400 border-amber-500/30': p.adherence.weekly_percentage >= 50 && p.adherence.weekly_percentage < 80,
+                                            'bg-rose-500/20 text-rose-400 border-rose-500/30': p.adherence.weekly_percentage < 50
+                                         }">
+                                        <svg x-show="p.adherence.weekly_percentage < 80" class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                        <span x-text="p.adherence.weekly_percentage >= 80 ? 'On Track' : (p.adherence.weekly_percentage >= 50 ? 'Needs Attention (Low Adherence)' : 'Critical (Low Adherence)')"></span>
+                                        <span class="ml-2 font-bold" x-text="p.adherence.weekly_percentage + '%'"></span>
+                                    </div>
+                                </template>
+                                <svg class="w-5 h-5 text-slate-400 transition-transform duration-200" :class="expanded === p.patient_id ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+
+                        <!-- Expanded Panel -->
+                        <div x-show="expanded === p.patient_id" x-collapse x-cloak>
+                            <div class="p-6 border-t border-white/10 bg-black/20 space-y-6">
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="glass p-4 rounded-xl">
+                                        <h4 class="font-bold text-sm mb-3">Weekly Adherence</h4>
+                                        <div class="relative h-40 w-full"><canvas :id="'weeklyChart-' + p.patient_id"></canvas></div>
+                                    </div>
+                                    <div class="glass p-4 rounded-xl">
+                                        <h4 class="font-bold text-sm mb-3">Monthly Trend</h4>
+                                        <div class="relative h-40 w-full"><canvas :id="'monthlyChart-' + p.patient_id"></canvas></div>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="glass p-4 rounded-xl">
+                                        <h4 class="font-bold text-sm mb-3">Medicine Breakdown</h4>
+                                        <div class="overflow-x-auto">
+                                            <table class="w-full text-left text-sm border-collapse">
+                                                <thead>
+                                                    <tr class="text-slate-400 border-b border-white/10">
+                                                        <th class="pb-2 font-medium">Medicine</th>
+                                                        <th class="pb-2 font-medium">Schedule</th>
+                                                        <th class="pb-2 font-medium">Missed</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <template x-for="med in (p.medicines || [])" :key="med.id">
+                                                        <tr class="border-b border-white/5 last:border-0">
+                                                            <td class="py-2" x-text="med.name"></td>
+                                                            <td class="py-2 text-slate-400" x-text="med.dosage_amount + ' ' + med.dosage_unit + ' ' + med.route"></td>
+                                                            <td class="py-2 text-red-400">N/A</td>
+                                                        </tr>
+                                                    </template>
+                                                    <tr x-show="!(p.medicines?.length)"><td colspan="3" class="py-4 text-center text-slate-500">No active medicines found.</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <div class="glass p-4 rounded-xl">
+                                        <h4 class="font-bold text-sm mb-3">Recent Feedback</h4>
+                                        <div class="space-y-2">
+                                            <template x-for="fb in (p.feedback || [])" :key="fb.id">
+                                                <div class="text-xs bg-white/5 p-3 rounded-lg border border-white/5">
+                                                    <div class="flex justify-between mb-1">
+                                                        <span class="px-1.5 py-0.5 rounded font-medium" :class="fb.severity >= 3 ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'" x-text="'Sev ' + fb.severity"></span>
+                                                        <span class="text-slate-500" x-text="new Date(fb.created_at).toLocaleDateString()"></span>
+                                                    </div>
+                                                    <div class="text-slate-300 truncate" x-text="fb.description"></div>
+                                                </div>
+                                            </template>
+                                            <div x-show="!(p.feedback?.length)" class="text-center py-4 text-slate-500 text-sm">No recent feedback.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex justify-end">
+                                    <a :href="'provider-patient.html?id=' + p.patient_id" class="bg-transparent hover:bg-white/5 border border-cyan-500/50 text-cyan-400 px-4 py-2 rounded-lg text-sm font-bold transition-colors">View Full Report</a>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </template>
+            </div>
+        </div>
+</main>
 </body>
 </html>
