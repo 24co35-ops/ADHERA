@@ -1,3 +1,24 @@
+import os
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.starlette import StarletteIntegration
+
+sentry_sdk.init(
+    dsn=os.environ.get(
+        "SENTRY_DSN",
+        "https://7fd9d1719a2c710684d1eea366210078@o4511619543465984.ingest.de.sentry.io/4511619570729040",
+    ),
+    integrations=[
+        StarletteIntegration(),
+        FastApiIntegration(),
+    ],
+    traces_sample_rate=0.2,
+    profiles_sample_rate=0.1,
+    environment=os.environ.get("ENVIRONMENT", "development"),
+    send_default_pii=False,
+    before_send=lambda event, hint: None if event.get("level") == "info" else event,
+)
+
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -33,14 +54,6 @@ _DEV_LOCALHOST_ORIGINS = [
 
 logger = logging.getLogger("adhera.main")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s     %(name)s - %(message)s")
-
-if settings.SENTRY_DSN:
-    import sentry_sdk
-    sentry_sdk.init(
-        dsn=settings.SENTRY_DSN,
-        environment=settings.ENVIRONMENT,
-        traces_sample_rate=1.0,
-    )
 
 
 def _get_cors_origins() -> list[str]:
@@ -121,6 +134,10 @@ async def health_check():
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "db": db_status
     })
+
+@app.get("/v1/sentry-test")
+async def sentry_test():
+    raise ValueError("Sentry test error from ADHERA — this confirms monitoring is working")
 
 app.include_router(auth_router, prefix="/v1/auth", tags=["auth"])
 app.include_router(profile_router, prefix="/v1/profile", tags=["profile"])
