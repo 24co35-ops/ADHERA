@@ -135,10 +135,6 @@ async def health_check():
         "db": db_status
     })
 
-@app.get("/v1/sentry-test")
-async def sentry_test():
-    raise ValueError("Sentry test error from ADHERA — this confirms monitoring is working")
-
 app.include_router(auth_router, prefix="/v1/auth", tags=["auth"])
 app.include_router(profile_router, prefix="/v1/profile", tags=["profile"])
 app.include_router(medicines_router, prefix="/v1/medicines", tags=["medicines"])
