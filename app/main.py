@@ -16,7 +16,7 @@ sentry_sdk.init(
     profiles_sample_rate=0.1,
     environment=os.environ.get("ENVIRONMENT", "development"),
     send_default_pii=False,
-    before_send=lambda event, hint: None if event.get("level") == "info" else event,
+    before_send=lambda event, hint: event if event.get("level") in ("error", "fatal", None) else None,
 )
 
 import logging
