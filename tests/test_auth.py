@@ -270,3 +270,29 @@ def test_forgot_password_exception_handled(mock_supabase_auth):
     assert "Reset link sent" in response.json()["data"]["message"]
 
 
+# --- REFRESH TOKEN TESTS ---
+
+@patch("app.auth.router.supabase_auth")
+def test_refresh_token_success(mock_supabase_auth):
+    mock_supabase_auth.auth.refresh_session.return_value = MagicMock(
+        session=MagicMock(access_token="new_access", refresh_token="new_refresh")
+    )
+    response = client.post("/v1/auth/refresh", json={"refresh_token": "valid_refresh"})
+    assert response.status_code == 200
+    data = response.json().get("data", {})
+    assert data["access_token"] == "new_access"
+    assert data["refresh_token"] == "new_refresh"
+
+
+@patch("app.auth.router.supabase_auth")
+def test_refresh_token_invalid_session(mock_supabase_auth):
+    mock_supabase_auth.auth.refresh_session.return_value = MagicMock(session=None)
+    response = client.post("/v1/auth/refresh", json={"refresh_token": "bad_token"})
+    assert response.status_code == 401
+
+
+@patch("app.auth.router.supabase_auth")
+def test_refresh_token_api_error(mock_supabase_auth):
+    mock_supabase_auth.auth.refresh_session.side_effect = create_auth_api_error("Token expired", 401)
+    response = client.post("/v1/auth/refresh", json={"refresh_token": "expired_token"})
+    assert response.status_code == 401

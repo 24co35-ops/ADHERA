@@ -35,3 +35,6 @@ class MfaConfirm(BaseModel):
     partial_token: str
     code: str
 
+class RefreshRequest(BaseModel):
+    refresh_token: str
+

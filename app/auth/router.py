@@ -10,7 +10,7 @@ try:
 except ImportError:
     _QR_AVAILABLE = False
 from fastapi import APIRouter, HTTPException, status, Depends, Request
-from app.auth.schemas import UserRegister, UserLogin, ForgotPassword, ResetPassword, Token, MfaCode, MfaConfirm
+from app.auth.schemas import UserRegister, UserLogin, ForgotPassword, ResetPassword, Token, MfaCode, MfaConfirm, RefreshRequest
 from app.db.supabase import supabase, supabase_auth
 from app.core.responses import SuccessResponse
 from app.core.rate_limit import limiter
@@ -173,6 +173,23 @@ async def login(request: Request, credentials: UserLogin):
     except AuthApiError as e:
         log_audit_action("LOGIN_FAILED", None, {"email": credentials.email, "reason": str(e)})
         raise HTTPException(status_code=401, detail="Invalid email or password.")
+
+@router.post("/refresh", response_model=SuccessResponse[Token])
+@limiter.limit("10/minute")
+async def refresh(request: Request, body: RefreshRequest):
+    try:
+        res = supabase_auth.auth.refresh_session(refresh_token=body.refresh_token)
+        if not res.session:
+            raise HTTPException(status_code=401, detail="Invalid refresh token.")
+        return SuccessResponse(data=Token(
+            access_token=res.session.access_token,
+            refresh_token=res.session.refresh_token,
+            token_type="bearer"
+        ))
+    except AuthApiError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Failed to refresh token.")
 
 @router.post("/logout", response_model=SuccessResponse[dict])
 @limiter.limit("10/minute")

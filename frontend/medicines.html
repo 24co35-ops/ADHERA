@@ -28,6 +28,7 @@
         input:focus, select:focus, textarea:focus { outline: none !important; border-color: #00dbe7 !important; }
         select option { background-color: #1a1d24 !important; color: #e2e2e8 !important; }
         [x-cloak] { display: none !important; }
+        :focus-visible { outline: 2px solid #00dbe7 !important; outline-offset: 2px !important; border-radius: 6px !important; }
     </style>
 </head>
 <body x-data="medicinesData()" class="min-h-screen flex flex-col">
@@ -177,8 +178,7 @@
                 async api(path, method = 'GET', body = null) {
                     const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
                     if (body) opts.body = JSON.stringify(body);
-                    const res = await fetch(`${CONFIG.API_BASE}${path}`, opts);
-                    if (res.status === 401) { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
+                    const res = await adheraFetch(path, opts);
                     const data = await res.json();
                     if (!data.success) throw new Error(data.error?.message || "API Error");
                     return data.data;

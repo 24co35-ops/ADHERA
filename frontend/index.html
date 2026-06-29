@@ -69,6 +69,7 @@
 
                         data.access_token = data.data.access_token;
                         sessionStorage.setItem('adhera_token', data.access_token);
+                        if (data.data.refresh_token) sessionStorage.setItem('adhera_refresh_token', data.data.refresh_token);
                         const showError = (msg) => { this.error = msg; };
                         const _payload = JSON.parse(atob(data.access_token.split('.')[1]));
                         if (_payload.role === 'authenticated') { _payload.role = _payload.app_metadata?.role || _payload.user_metadata?.role || 'authenticated'; }
@@ -93,6 +94,7 @@
                         
                         const token = data.data.access_token;
                         sessionStorage.setItem('adhera_token', token);
+                        if (data.data.refresh_token) sessionStorage.setItem('adhera_refresh_token', data.data.refresh_token);
                         const showError = (msg) => { this.error = msg; };
                         
                         const _payload = JSON.parse(atob(token.split('.')[1]));
