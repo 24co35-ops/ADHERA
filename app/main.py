@@ -20,12 +20,15 @@ sentry_sdk.init(
 )
 
 import logging
+import uuid
+import contextvars
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -45,15 +48,41 @@ from app.reminders.router import router as reminders_router
 from app.routers.assignments import router as assignments_router
 from app.db.supabase import supabase
 
+request_id_ctx = contextvars.ContextVar("request_id", default="-")
+
+class RequestIDFilter(logging.Filter):
+    def filter(self, record):
+        record.request_id = request_id_ctx.get()
+        return True
+
+# Set up logging formatter to include [Request-ID]
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter("%(levelname)s     %(name)s [%(request_id)s] - %(message)s"))
+handler.addFilter(RequestIDFilter())
+
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+root_logger.handlers = [handler]
+
+logger = logging.getLogger("adhera.main")
+
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        token = request_id_ctx.set(request_id)
+        try:
+            response = await call_next(request)
+            response.headers["X-Request-ID"] = request_id
+            return response
+        finally:
+            request_id_ctx.reset(token)
+
 _DEV_LOCALHOST_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:8080",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8080",
 ]
-
-logger = logging.getLogger("adhera.main")
-logging.basicConfig(level=logging.INFO, format="%(levelname)s     %(name)s - %(message)s")
 
 
 def _get_cors_origins() -> list[str]:
@@ -85,6 +114,7 @@ async def lifespan(app):
 
 app = FastAPI(title="Adhera API", version="1.0", lifespan=lifespan)
 
+app.add_middleware(RequestIDMiddleware)
 app.state.limiter = limiter
 
 async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):
