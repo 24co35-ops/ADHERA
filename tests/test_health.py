@@ -40,3 +40,17 @@ def test_health_db_error():
     assert data["db"] == "error"
     # timestamp still present even on DB error
     datetime.fromisoformat(data["timestamp"])
+
+
+def test_config_endpoint_success():
+    """Verify GET /v1/config returns config variables and no-cache headers."""
+    response = client.get("/v1/config")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    data = body["data"]
+    assert "SUPABASE_URL" in data
+    assert "SUPABASE_ANON_KEY" in data
+    assert "VAPID_PUBLIC_KEY" in data
+    assert response.headers["cache-control"] == "no-store, no-cache, must-revalidate, max-age=0"
+

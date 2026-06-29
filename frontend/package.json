@@ -1,0 +1,12 @@
+{
+  "name": "adhera-frontend",
+  "version": "1.0.0",
+  "description": "Adhera frontend CSS build",
+  "scripts": {
+    "build:css": "tailwindcss -i css/adhera.src.css -o css/adhera.css --minify",
+    "watch:css": "tailwindcss -i css/adhera.src.css -o css/adhera.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.19"
+  }
+}

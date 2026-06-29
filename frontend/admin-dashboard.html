@@ -14,11 +14,12 @@
     <meta name="theme-color" content="#6366f1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adhera Admin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/adhera.css">
     <script defer src="/js/alpine-collapse.min.js"></script>
     <script defer src="/js/alpine.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/nav.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; }
@@ -31,15 +32,7 @@
     </style>
 </head>
 <body x-data="adminData()" class="min-h-screen flex flex-col">
-    <nav class="glass p-4 sticky top-0 z-50 flex justify-between items-center mb-6 border-t-0 border-l-0 border-r-0 rounded-none">
-        <a href="dashboard.html" class="flex items-center" style="height:40px;overflow:visible;">
-            <div style="transform:scale(0.25);transform-origin:left center;width:50px;">
-                <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00F2FF"/><stop offset="100%" stop-color="#3B82F6"/></linearGradient></defs><circle cx="100" cy="100" r="80" fill="url(#glow)" fill-opacity="0.1" stroke="url(#glow)" stroke-width="2"/><circle cx="100" cy="100" r="60" fill="white" fill-opacity="0.05" stroke="white" stroke-opacity="0.2"/><path d="M100 60L135 140H115L100 105L85 140H65L100 60Z" fill="url(#glow)"/><rect x="92" y="110" width="16" height="4" rx="2" fill="white" fill-opacity="0.8"/></svg>
-            </div>
-            <span style="color:#00dbe7;font-weight:700;font-size:1.5rem;letter-spacing:-0.02em;">Adhera</span>
-        </a>
-        <div class="space-x-4"><button @click="logout" class="text-red-400 hover:text-red-300">Logout</button></div>
-    </nav>
+    <div id="nav-root"></div>
 
     <main class="flex-1 p-6 max-w-5xl mx-auto w-full space-y-6">
         <!-- Platform Stats -->
@@ -263,7 +256,8 @@
         const _role = _p.role || _p.app_metadata?.role || _p.user_metadata?.role;
         if (_role !== 'admin') { window.location.href = 'index.html'; }
 
-        const config = { SUPABASE_URL: CONFIG.SUPABASE_URL, SUPABASE_JS_URL: CONFIG.SUPABASE_URL, SUPABASE_ANON: CONFIG.SUPABASE_ANON_KEY };
+        // Supabase credentials fetched dynamically via CONFIG onReady
+        const config = {};
         // Chart instances must not be stored inside Alpine's reactive proxy to prevent 'Maximum call stack exceeded' errors.
         let globalCharts = { w: null, m: null };
         
@@ -281,6 +275,7 @@
                 dEditRem: null, dEditForm: {}, dAddFor: null, dAddForm: {},
                 toast: '', rejectingId: null, rejectReason: '',
                 async init() {
+                    renderNav('admin');
                     Chart.defaults.color = '#849495'; Chart.defaults.font.family = 'Inter';
                     await Promise.all([this.fetchPending(), this.fetchAssignments(), this.fetchUsers(), this.fetchPlatformStats()]);
                     this.setupPresence(_p);
@@ -331,10 +326,13 @@
                     if(wc)globalCharts.w=new Chart(wc,{type:'bar',data:{labels:w.labels,datasets:[{data:w.data,backgroundColor:'#00dbe7',borderRadius:4}]},options:co});
                     if(mc)globalCharts.m=new Chart(mc,{type:'line',data:{labels:m.labels,datasets:[{data:m.data,borderColor:'#0566d9',backgroundColor:'rgba(5,102,217,0.1)',borderWidth:3,tension:0.4,fill:true,pointRadius:2}]},options:co});
                 },
-                setupPresence(payload) {
+                async setupPresence(payload) {
                     try {
                         if (!window.supabase) return;
-                        const sb = window.supabase.createClient(config.SUPABASE_JS_URL, config.SUPABASE_ANON);
+                        if (!CONFIG._ready) {
+                            await new Promise(resolve => CONFIG.onReady(resolve));
+                        }
+                        const sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
                         this.presenceChannel = sb.channel('adhera-presence');
                         const myState = { user_id: payload.sub, role: 'admin', full_name: 'Admin', last_seen: new Date().toISOString() };
                         this.presenceChannel.on('presence', { event: 'sync' }, () => {

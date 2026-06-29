@@ -14,7 +14,7 @@
     <meta name="theme-color" content="#6366f1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adhera - Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/adhera.css">
     <script type="module" src="js/i18n.js"></script>
     <script src="js/nav.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -230,7 +230,8 @@
         const _role = _payload.app_metadata?.role || _payload.user_metadata?.role || _payload.role;
         if (_role !== 'patient') window.location.href = 'index.html';
 
-        const config = { SUPABASE_URL: CONFIG.SUPABASE_URL, SUPABASE_JS_URL: CONFIG.SUPABASE_URL, SUPABASE_ANON: CONFIG.SUPABASE_ANON_KEY };
+        // Supabase credentials fetched dynamically via CONFIG onReady
+        const config = {};
         
         // Chart instances must not be stored inside Alpine's reactive proxy to prevent 'Maximum call stack exceeded' errors.
         let weeklyChartInstance = null;
@@ -489,10 +490,13 @@
                         monthlyChartInstance.update('none'); 
                     }
                 },
-                setupRealtime() {
+                async setupRealtime() {
                     try {
                         if (!window.supabase?.createClient) return;
-                        const sb = window.supabase.createClient(config.SUPABASE_JS_URL, config.SUPABASE_ANON);
+                        if (!CONFIG._ready) {
+                            await new Promise(resolve => CONFIG.onReady(resolve));
+                        }
+                        const sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
                         const user_id = JSON.parse(atob(this.token.split('.')[1])).sub;
                         sb.channel('adherence_changes')
                             .on('postgres_changes', { event: '*', schema: 'public', table: 'adherence', filter: `user_id=eq.${user_id}` }, () => {

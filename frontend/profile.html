@@ -14,7 +14,7 @@
     <meta name="theme-color" content="#6366f1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adhera - Profile & Settings</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/adhera.css">
     <script type="module" src="js/i18n.js"></script>
     <script src="js/nav.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -538,7 +538,13 @@
         }
 
         /* ── Change Password Modal (vanilla JS) ── */
-        const _supabaseCp = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+        let _supabaseCp;
+        function getSupabaseCp() {
+            if (!_supabaseCp) {
+                _supabaseCp = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+            }
+            return _supabaseCp;
+        }
 
         function openPasswordModal() {
             document.getElementById('change-password-modal').classList.remove('hidden');
@@ -676,9 +682,10 @@
                 btn.disabled = true;
                 btn.textContent = 'Sending…';
                 try {
-                    const { data: { user } } = await _supabaseCp.auth.getUser();
+                    const sb = getSupabaseCp();
+                    const { data: { user } } = await sb.auth.getUser();
                     if (!user?.email) throw new Error('Could not get your email address.');
-                    const { error } = await _supabaseCp.auth.resetPasswordForEmail(user.email, {
+                    const { error } = await sb.auth.resetPasswordForEmail(user.email, {
                         redirectTo: 'https://adhera-seven.vercel.app/reset-password.html'
                     });
                     if (error) throw error;
@@ -727,7 +734,8 @@
             btn.disabled = true;
             btn.textContent = 'Updating…';
             try {
-                const { error } = await _supabaseCp.auth.updateUser({ password: newPwd });
+                const sb = getSupabaseCp();
+                const { error } = await sb.auth.updateUser({ password: newPwd });
                 if (error) throw error;
                 successEl.classList.remove('hidden');
                 btn.textContent = '✓ Updated';

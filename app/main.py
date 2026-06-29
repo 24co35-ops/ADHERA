@@ -165,6 +165,27 @@ async def health_check():
         "db": db_status
     })
 
+@app.get("/v1/config", response_model=SuccessResponse[dict])
+async def get_config():
+    # Return configuration details dynamically from env
+    # Set headers to prevent caching sensitive configurations
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        content={
+            "success": True,
+            "data": {
+                "SUPABASE_URL": settings.SUPABASE_URL,
+                "SUPABASE_ANON_KEY": settings.SUPABASE_ANON_KEY,
+                "VAPID_PUBLIC_KEY": os.environ.get("VAPID_PUBLIC_KEY", "BP7gOA_zw733v9HapbDhHW7WHXnXTmCs9rRHWegiWnf8nxsVIU9bytYpAGPCP2XyRYZt_5-OcPKBHyhqKrwQrSU")
+            }
+        },
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
+
 app.include_router(auth_router, prefix="/v1/auth", tags=["auth"])
 app.include_router(profile_router, prefix="/v1/profile", tags=["profile"])
 app.include_router(medicines_router, prefix="/v1/medicines", tags=["medicines"])
