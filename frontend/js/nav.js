@@ -26,9 +26,10 @@ function renderNav(activePage) {
                 </div>
                 <span style="color:#00dbe7;font-weight:700;font-size:1.5rem;letter-spacing:-0.02em;">Adhera</span>
             </a>
-            <div class="space-x-4">
-                <span class="text-xs px-2.5 py-1 rounded-full font-bold uppercase bg-amber-900/40 text-amber-400 border border-amber-500/30 mr-2">Admin</span>
-                <button onclick="adheraLogout()" class="text-red-400 hover:text-red-300 font-semibold text-sm">Logout</button>
+            <div class="flex items-center">
+                <span class="inline-flex items-center text-xs px-2.5 py-1 rounded-full font-semibold uppercase tracking-wide bg-red-900/40 text-red-300 border border-red-500/30">
+                    Admin
+                </span>
             </div>
         </nav>
         `;
@@ -63,8 +64,9 @@ function renderNav(activePage) {
             <div class="space-x-4 font-medium text-sm flex items-center">
                 <a href="/provider-dashboard.html" class="${dashboardClass}">Dashboard</a>
                 <a href="/provider/profile.html" class="${profileClass}">Profile</a>
-                <span class="text-xs px-2.5 py-1 rounded-full font-bold uppercase bg-cyan-900/40 text-cyan-400 border border-cyan-500/30 mr-2">Provider</span>
-                <button onclick="adheraLogout()" class="text-red-400 hover:text-red-300 font-semibold text-sm">Logout</button>
+                <span class="inline-flex items-center text-xs px-2.5 py-1 rounded-full font-semibold uppercase tracking-wide bg-indigo-900/40 text-indigo-300 border border-indigo-500/30">
+                    Provider
+                </span>
             </div>
         </nav>
         `;
@@ -105,7 +107,6 @@ function renderNav(activePage) {
         </a>
         <div class="space-x-4 font-medium text-sm flex items-center">
             ${linksHtml}
-            <button onclick="adheraLogout()" class="text-red-400 hover:text-red-300 ml-4 font-semibold text-sm transition-colors">Logout</button>
         </div>
     </nav>
     `;
