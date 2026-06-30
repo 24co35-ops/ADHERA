@@ -8,7 +8,7 @@ from app.config import settings
 client = TestClient(app)
 
 def headers(role="admin"):
-    token = jwt.encode({"aud": "authenticated", "sub": "admin123", "user_metadata": {"role": role}}, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+    token = jwt.encode({"aud": "authenticated", "sub": "22222222-2222-2222-2222-222222222222", "user_metadata": {"role": role}}, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
     return {"Authorization": f"Bearer {token}"}
 
 @patch("app.admin.router.supabase")

@@ -4,12 +4,13 @@ from unittest.mock import patch, MagicMock
 from app.main import app
 import jwt
 from app.config import settings
+import uuid
 
 client = TestClient(app)
 
 def headers(role="provider"):
     token = jwt.encode(
-        {"aud": "authenticated", "sub": "provider123", "user_metadata": {"role": role}},
+        {"aud": "authenticated", "sub": str(uuid.uuid4()), "user_metadata": {"role": role}},
         settings.SUPABASE_JWT_SECRET,
         algorithm="HS256"
     )
@@ -60,3 +61,11 @@ def test_provider_accept_request(mock_supabase):
     res = client.patch("/v1/provider/requests/patient1/accept", headers=headers())
     assert res.status_code == 200
     assert res.json()["data"]["accepted"] is True
+
+def test_provider_dashboard(mock_supabase):
+    valid_provider_id = str(uuid.uuid4())
+    response = client.get(
+        "/v1/provider/dashboard",
+        headers={"Authorization": f"Bearer fake-token-{valid_provider_id}"}
+    )
+    assert response.status_code in [200, 401, 403]

@@ -9,13 +9,13 @@ from datetime import datetime, timezone, timedelta
 client = TestClient(app)
 
 def headers():
-    token = jwt.encode({"aud": "authenticated", "sub": "user123", "user_metadata": {"role": "patient"}}, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+    token = jwt.encode({"aud": "authenticated", "sub": "11111111-1111-1111-1111-111111111111", "user_metadata": {"role": "patient"}}, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
     return {"Authorization": f"Bearer {token}"}
 
 @patch("app.doses.router.supabase")
 def test_dose_taken(mock_supabase):
     mock_supabase.table.return_value.select.return_value.eq.return_value.execute.side_effect = [
-        MagicMock(data=[{"user_id": "user123", "dose_time_utc": "08:00:00"}]),
+        MagicMock(data=[{"user_id": "11111111-1111-1111-1111-111111111111", "dose_time_utc": "08:00:00"}]),
         MagicMock(data=[{"timezone": "UTC"}])
     ]
     mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "d1", "status": "taken"}])

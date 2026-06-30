@@ -11,7 +11,7 @@ from freezegun import freeze_time
 client = TestClient(app)
 
 def get_token(role="patient"):
-    return jwt.encode({"aud": "authenticated", "sub": "user123", "user_metadata": {"role": role}}, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+    return jwt.encode({"aud": "authenticated", "sub": "11111111-1111-1111-1111-111111111111", "user_metadata": {"role": role}}, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
 
 def headers(role="patient"):
     return {"Authorization": f"Bearer {get_token(role)}"}
@@ -67,7 +67,7 @@ def test_spring_forward_missed_automatically(mock_supabase, iana_tz, sf_date, fb
     mock_supabase.table().select().eq().eq().execute.return_value = MagicMock(data=[
         {
             "id": "r1",
-            "user_id": "user123",
+            "user_id": "11111111-1111-1111-1111-111111111111",
             "dose_label": "morning",
             "dose_time_utc": dose_time_utc_sf,
             "timezone": iana_tz,
@@ -116,7 +116,7 @@ def test_fallback_fires_exactly_once(mock_supabase, iana_tz, sf_date, fb_date, d
     mock_supabase.table().select().eq().eq().execute.return_value = MagicMock(data=[
         {
             "id": "r1",
-            "user_id": "user123",
+            "user_id": "11111111-1111-1111-1111-111111111111",
             "dose_label": "morning",
             "dose_time_utc": dose_time_utc_fb,
             "timezone": iana_tz,
@@ -147,7 +147,7 @@ def test_fallback_fires_exactly_once(mock_supabase, iana_tz, sf_date, fb_date, d
         
     # Dose is taken/completed at the first occurrence (recorded in database)
     mock_supabase.table().insert().execute.return_value = MagicMock(data=[{"id": "a1", "status": "taken"}])
-    mock_supabase.table().select().eq().execute.return_value = MagicMock(data=[{"user_id": "user123", "dose_time_utc": dose_time_utc_fb}])
+    mock_supabase.table().select().eq().execute.return_value = MagicMock(data=[{"user_id": "11111111-1111-1111-1111-111111111111", "dose_time_utc": dose_time_utc_fb}])
     
     # Mock POST to /taken
     res_taken = client.post("/v1/doses/r1/taken", headers=headers())
@@ -158,7 +158,7 @@ def test_fallback_fires_exactly_once(mock_supabase, iana_tz, sf_date, fb_date, d
     mock_supabase.table().select().eq().gte().lte().execute.return_value = MagicMock(data=[
         {
             "reminder_id": "r1",
-            "user_id": "user123",
+            "user_id": "11111111-1111-1111-1111-111111111111",
             "scheduled_utc": first_occ_utc_fb,
             "status": "taken"
         }
@@ -200,7 +200,7 @@ def test_india_timezone_conversion(mock_supabase):
     mock_supabase.table().select().eq().eq().execute.return_value = MagicMock(data=[
         {
             "id": "r1",
-            "user_id": "user123",
+            "user_id": "11111111-1111-1111-1111-111111111111",
             "dose_label": "night",
             "dose_time_utc": "18:00:00", # Stored in UTC (18:00)
             "timezone": iana_tz,

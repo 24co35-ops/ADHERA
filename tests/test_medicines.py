@@ -8,7 +8,7 @@ from app.config import settings
 client = TestClient(app)
 
 def get_token(role="patient"):
-    return jwt.encode({"aud": "authenticated", "sub": "user123", "user_metadata": {"role": role}}, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+    return jwt.encode({"aud": "authenticated", "sub": "11111111-1111-1111-1111-111111111111", "user_metadata": {"role": role}}, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
 
 def headers(role="patient"):
     return {"Authorization": f"Bearer {get_token(role)}"}
@@ -50,7 +50,7 @@ def test_soft_delete_medicine(mock_supabase):
 
 @patch("app.medicines.router.supabase")
 def test_create_reminder_advance_notify_true(mock_supabase):
-    mock_supabase.table().select().eq().execute.return_value = type('obj', (object,), {'data': [{'user_id': 'user123'}]})()
+    mock_supabase.table().select().eq().execute.return_value = type('obj', (object,), {'data': [{'user_id': '11111111-1111-1111-1111-111111111111'}]})()
     mock_supabase.table().insert().execute.return_value = type('obj', (object,), {'data': [{'id': 'r1', 'advance_notify': True}]})()
     mock_supabase.table().select().eq().eq().eq().execute.return_value = type('obj', (object,), {'data': [{}]})()
     res = client.post("/v1/medicines/med1/reminders", headers=headers(), json={
@@ -61,7 +61,7 @@ def test_create_reminder_advance_notify_true(mock_supabase):
 
 @patch("app.medicines.router.supabase")
 def test_create_reminder_advance_notify_default_false(mock_supabase):
-    mock_supabase.table().select().eq().execute.return_value = type('obj', (object,), {'data': [{'user_id': 'user123'}]})()
+    mock_supabase.table().select().eq().execute.return_value = type('obj', (object,), {'data': [{'user_id': '11111111-1111-1111-1111-111111111111'}]})()
     mock_supabase.table().insert().execute.return_value = type('obj', (object,), {'data': [{'id': 'r2', 'advance_notify': False}]})()
     mock_supabase.table().select().eq().eq().eq().execute.return_value = type('obj', (object,), {'data': [{}]})()
     res = client.post("/v1/medicines/med1/reminders", headers=headers(), json={
@@ -72,7 +72,7 @@ def test_create_reminder_advance_notify_default_false(mock_supabase):
 
 @patch("app.reminders.router.supabase")
 def test_patch_reminder_advance_notify(mock_supabase):
-    mock_supabase.table().select().eq().execute.return_value = type('obj', (object,), {'data': [{'id': 'r1', 'user_id': 'user123', 'advance_notify': False}]})()
+    mock_supabase.table().select().eq().execute.return_value = type('obj', (object,), {'data': [{'id': 'r1', 'user_id': '11111111-1111-1111-1111-111111111111', 'advance_notify': False}]})()
     mock_supabase.table().update().eq().execute.return_value = type('obj', (object,), {'data': [{'id': 'r1', 'advance_notify': True}]})()
     mock_supabase.table().select().eq().eq().eq().execute.return_value = type('obj', (object,), {'data': [{}]})()
     res = client.patch("/v1/reminders/r1", headers=headers(), json={"advance_notify": True})
