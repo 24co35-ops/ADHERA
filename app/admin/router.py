@@ -33,6 +33,10 @@ async def get_platform_stats(request: Request, user: dict = Depends(require_role
     except Exception:
         pending_providers = 0
     try:
+        active_patients = supabase.table("profiles").select("id", count="exact").eq("role", "patient").eq("is_active", True).execute().count or 0
+    except Exception:
+        active_patients = 0
+    try:
         total_medicines = supabase.table("medicines").select("id", count="exact").execute().count or 0
     except Exception:
         total_medicines = 0
@@ -51,6 +55,7 @@ async def get_platform_stats(request: Request, user: dict = Depends(require_role
         "total_users": total_users,
         "active_providers": active_providers,
         "pending_providers": pending_providers,
+        "active_patients": active_patients,
         "total_medicines": total_medicines,
         "adherence_rate": rate,
         "feedback_today": feedback_today,
@@ -170,6 +175,35 @@ async def missed_medicines(request: Request, user: dict = Depends(require_role("
     except Exception:
         top = []
     return SuccessResponse(data=top)
+
+
+@router.get("/analytics/enrollment-trend")
+@limiter.limit("30/minute")
+async def enrollment_trend(request: Request, user: dict = Depends(require_role("admin"))):
+    try:
+        result = supabase.table("profiles").select("created_at").order("created_at").execute()
+        monthly = defaultdict(int)
+        for r in (result.data or []):
+            c_at = r.get("created_at")
+            if c_at:
+                month = c_at[:7]
+                monthly[month] += 1
+        trend = [{"month": m, "count": monthly[m]} for m in sorted(monthly.keys())[-6:]]
+    except Exception:
+        trend = []
+    return SuccessResponse(data=trend)
+
+
+@router.get("/analytics/role-distribution")
+@limiter.limit("30/minute")
+async def role_distribution(request: Request, user: dict = Depends(require_role("admin"))):
+    try:
+        result = supabase.table("profiles").select("role").execute()
+        counts = Counter(r.get("role") or "unknown" for r in (result.data or []))
+        dist = [{"role": k, "count": v} for k, v in counts.items()]
+    except Exception:
+        dist = []
+    return SuccessResponse(data=dist)
 
 
 # ── Data Export ───────────────────────────────────────────────────────────────

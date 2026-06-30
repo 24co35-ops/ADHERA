@@ -19,7 +19,7 @@
         const config = { SUPABASE_URL: CONFIG.API_BASE.replace("/v1", "") };
         function registerData() {
             return {
-                form: { full_name: '', email: '', password: '', role: 'patient', date_of_birth: '', contact_number: '', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' },
+                form: { full_name: '', email: '', password: '', role: 'patient', date_of_birth: '', contact_number: '', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', specialization: '' },
                 disclaimer: false, error: null, successMessage: null, loading: false,
                 async register() {
                     this.error = null; this.loading = true;
@@ -94,6 +94,22 @@
                     <label class="block text-sm font-medium mb-1">Date of Birth</label>
                     <input type="date" x-model="form.date_of_birth" class="w-full p-2 rounded bg-transparent border border-transparent text-white" :disabled="loading">
                 </div>
+            </div>
+            <div id="specialization-section" x-show="form.role === 'provider'" x-cloak class="mt-4">
+                <label class="block text-sm font-medium mb-1">Specialization</label>
+                <select id="specialization" name="specialization" x-model="form.specialization"
+                    class="w-full p-2 rounded text-white bg-transparent border border-transparent" :required="form.role === 'provider'" :disabled="loading">
+                    <option value="" disabled selected>Select specialization</option>
+                    <option value="Cardiology">Cardiology</option>
+                    <option value="Dermatology">Dermatology</option>
+                    <option value="Endocrinology">Endocrinology</option>
+                    <option value="Gastroenterology">Gastroenterology</option>
+                    <option value="General Medicine">General Medicine</option>
+                    <option value="Neurology">Neurology</option>
+                    <option value="Oncology">Oncology</option>
+                    <option value="Pediatrics">Pediatrics</option>
+                    <option value="Psychiatry">Psychiatry</option>
+                </select>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>

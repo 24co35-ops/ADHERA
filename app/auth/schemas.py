@@ -10,6 +10,7 @@ class UserRegister(BaseModel):
     date_of_birth: Optional[date] = None
     contact_number: Optional[str] = None
     timezone: str = "UTC"
+    specialization: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr

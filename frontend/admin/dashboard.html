@@ -213,6 +213,14 @@
                             <h3 class="text-sm font-semibold text-slate-300 mb-3">Most Missed Medicines</h3>
                             <div style="height:200px;position:relative;"><canvas id="chart-missed"></canvas></div>
                         </div>
+                        <div class="glass-dark p-4">
+                            <h3 class="text-sm font-semibold text-slate-300 mb-3">Enrollment Trends (6 Months)</h3>
+                            <div style="height:200px;position:relative;"><canvas id="chart-enrollment"></canvas></div>
+                        </div>
+                        <div class="glass-dark p-4">
+                            <h3 class="text-sm font-semibold text-slate-300 mb-3">Role Distribution</h3>
+                            <div style="height:200px;position:relative;"><canvas id="chart-role-dist"></canvas></div>
+                        </div>
                     </div>
                 </div>
 
@@ -419,7 +427,7 @@
     }
 
     // ── Chart instances (never inside reactive proxy) ──────────────────────────
-    const _charts = { dau: null, adherence: null, sideEffects: null, missed: null };
+    const _charts = { dau: null, adherence: null, sideEffects: null, missed: null, enrollment: null, roleDist: null };
 
     function destroyChart(key) {
         if (_charts[key]) { try { _charts[key].destroy(); } catch(_){} _charts[key] = null; }
@@ -479,11 +487,11 @@
     // ── STATS ─────────────────────────────────────────────────────────────────
     const STAT_DEFS = [
         { key: 'total_users',      label: 'Total Users',       color: '#00dbe7', icon: '👥' },
+        { key: 'active_patients',  label: 'Active Patients',   color: '#60a5fa', icon: '🤕' },
         { key: 'active_providers', label: 'Active Providers',  color: '#34d399', icon: '🩺' },
         { key: 'pending_providers',label: 'Pending Approvals', color: '#fbbf24', icon: '⏳' },
         { key: 'adherence_rate',   label: 'Adherence Rate',    color: '#a78bfa', icon: '📊', suffix: '%' },
         { key: 'feedback_today',   label: 'Reports Today',     color: '#f87171', icon: '⚠' },
-        { key: 'total_medicines',  label: 'Medicines Logged',  color: '#60a5fa', icon: '💊' },
     ];
 
     async function loadStats() {
@@ -794,16 +802,20 @@
     // ── ANALYTICS ──────────────────────────────────────────────────────────────
     async function loadAnalytics() {
         try {
-            const [dau, adh, effects, missed] = await Promise.all([
+            const [dau, adh, effects, missed, enrollment, roleDist] = await Promise.all([
                 api('/admin/analytics/daily-active-users'),
                 api('/admin/analytics/adherence-trend'),
                 api('/admin/analytics/top-side-effects'),
                 api('/admin/analytics/missed-medicines'),
+                api('/admin/analytics/enrollment-trend'),
+                api('/admin/analytics/role-distribution'),
             ]);
             renderDAU(dau);
             renderAdherence(adh);
             renderSideEffects(effects);
             renderMissed(missed);
+            renderEnrollment(enrollment);
+            renderRoleDist(roleDist);
         } catch(e) { showToast(`Analytics error: ${e.message}`, 'error'); }
     }
 
@@ -860,6 +872,39 @@
                 datasets: [{ data: data.map(d => d.count), backgroundColor: 'rgba(248,113,113,0.7)', borderColor: '#f87171', borderWidth: 1, borderRadius: 4 }]
             },
             options: { ..._chartDefaults }
+        });
+    }
+
+    function renderEnrollment(data) {
+        destroyChart('enrollment');
+        const ctx = document.getElementById('chart-enrollment');
+        if (!ctx || !data.length) return;
+        _charts.enrollment = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.month),
+                datasets: [{ data: data.map(d => d.count), backgroundColor: 'rgba(96,165,250,0.65)', borderColor: '#60a5fa', borderWidth: 1, borderRadius: 5 }]
+            },
+            options: { ..._chartDefaults }
+        });
+    }
+
+    function renderRoleDist(data) {
+        destroyChart('roleDist');
+        const ctx = document.getElementById('chart-role-dist');
+        if (!ctx || !data.length) return;
+        const COLORS = { patient: '#a78bfa', provider: '#00dbe7', admin: '#fbbf24' };
+        _charts.roleDist = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: data.map(d => d.role),
+                datasets: [{ data: data.map(d => d.count), backgroundColor: data.map(d => COLORS[d.role] || '#64748b'), borderWidth: 0 }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: true, position: 'right', labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12 } } }
+            }
         });
     }
 

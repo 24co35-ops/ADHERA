@@ -43,17 +43,21 @@ async def register(request: Request, user_data: UserRegister):
 
     try:
         try:
+            user_metadata = {
+                "full_name": user_data.full_name,
+                "role": user_data.role,
+                "date_of_birth": user_data.date_of_birth.isoformat() if user_data.date_of_birth else None,
+                "contact_number": user_data.contact_number,
+                "timezone": user_data.timezone,
+            }
+            if user_data.role == "provider" and user_data.specialization:
+                user_metadata["specialization"] = user_data.specialization
+
             res = supabase_auth.auth.sign_up({
                 "email": user_data.email,
                 "password": user_data.password,
                 "options": {
-                    "data": {
-                        "full_name": user_data.full_name,
-                        "role": user_data.role,
-                        "date_of_birth": user_data.date_of_birth.isoformat() if user_data.date_of_birth else None,
-                        "contact_number": user_data.contact_number,
-                        "timezone": user_data.timezone,
-                    }
+                    "data": user_metadata
                 },
             })
             if not res.user:
@@ -67,7 +71,7 @@ async def register(request: Request, user_data: UserRegister):
 
         if supabase:
             try:
-                supabase.table("profiles").insert({
+                profile_data = {
                     "id": res.user.id,
                     "full_name": user_data.full_name,
                     "role": user_data.role,
@@ -75,7 +79,9 @@ async def register(request: Request, user_data: UserRegister):
                     "contact_number": user_data.contact_number,
                     "timezone": user_data.timezone,
                     "is_active": is_active,
-                }).execute()
+                    "specialization": user_data.specialization if user_data.role == "provider" else None,
+                }
+                supabase.table("profiles").insert(profile_data).execute()
             except Exception as ex:
                 logger.error(f"Failed to create profile: {repr(ex)}")
 

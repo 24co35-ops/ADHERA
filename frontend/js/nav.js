@@ -35,10 +35,15 @@ function renderNav(activePage) {
         return;
     }
 
-    if (activePage === 'provider') {
+    if (activePage === 'provider' || activePage === 'provider-profile') {
+        const isDashboardActive = activePage === 'provider';
+        const isProfileActive = activePage === 'provider-profile';
+        const dashboardClass = isDashboardActive ? 'text-cyan-400 font-bold' : 'hover:text-cyan-400 transition-colors';
+        const profileClass = isProfileActive ? 'text-cyan-400 font-bold' : 'hover:text-cyan-400 transition-colors';
+
         navRoot.innerHTML = `
         <nav class="glass p-4 sticky top-0 z-50 flex justify-between items-center mb-6 rounded-none border-t-0 border-l-0 border-r-0">
-            <a href="provider-dashboard.html" class="flex items-center" style="height: 40px; overflow: visible;">
+            <a href="/provider-dashboard.html" class="flex items-center" style="height: 40px; overflow: visible;">
                 <div style="transform: scale(0.25); transform-origin: left center; width: 50px;">
                     <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <defs>
@@ -55,7 +60,9 @@ function renderNav(activePage) {
                 </div>
                 <span style="color: #00dbe7; font-weight: 700; font-size: 1.5rem; letter-spacing: -0.02em;">Adhera</span>
             </a>
-            <div class="space-x-4">
+            <div class="space-x-4 font-medium text-sm flex items-center">
+                <a href="/provider-dashboard.html" class="${dashboardClass}">Dashboard</a>
+                <a href="/provider/profile.html" class="${profileClass}">Profile</a>
                 <span class="text-xs px-2.5 py-1 rounded-full font-bold uppercase bg-cyan-900/40 text-cyan-400 border border-cyan-500/30 mr-2">Provider</span>
                 <button onclick="adheraLogout()" class="text-red-400 hover:text-red-300 font-semibold text-sm">Logout</button>
             </div>

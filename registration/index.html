@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Adhera - Registration</title>
+    <script src="config.js" defer></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script defer src="/js/alpine-collapse.min.js"></script>
+    <script defer src="/js/alpine.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed": "#23005c",
+                        "inverse-on-surface": "#2f3035",
+                        "surface-container-lowest": "#0c0e12",
+                        "background": "#111318",
+                        "on-secondary-fixed-variant": "#004395",
+                        "on-tertiary": "#3c0091",
+                        "surface-container": "#1e2024",
+                        "outline": "#849495",
+                        "inverse-primary": "#00696f",
+                        "tertiary": "#fcf5ff",
+                        "surface-dim": "#111318",
+                        "error": "#ffb4ab",
+                        "outline-variant": "#3a494b",
+                        "status-warning": "#F59E0B",
+                        "surface-bright": "#37393e",
+                        "surface-container-high": "#282a2e",
+                        "on-primary": "#00363a",
+                        "primary": "#e1fdff",
+                        "surface-tint": "#00dbe7",
+                        "secondary-container": "#0566d9",
+                        "status-error": "#EF4444",
+                        "surface-variant": "#333539",
+                        "tertiary-fixed-dim": "#d0bcff",
+                        "tertiary-container": "#e2d4ff",
+                        "surface": "#111318",
+                        "on-tertiary-fixed-variant": "#5516be",
+                        "primary-fixed": "#74f5ff",
+                        "on-primary-fixed": "#002022",
+                        "inverse-surface": "#e2e2e8",
+                        "error-container": "#93000a",
+                        "status-success": "#10B981",
+                        "on-secondary-fixed": "#001a42",
+                        "primary-container": "#00f2ff",
+                        "tertiary-fixed": "#e9ddff",
+                        "on-surface-variant": "#b9cacb",
+                        "secondary-fixed": "#d8e2ff",
+                        "on-primary-container": "#006a71",
+                        "on-error": "#690005",
+                        "secondary-fixed-dim": "#adc6ff",
+                        "on-background": "#e2e2e8",
+                        "on-secondary-container": "#e6ecff",
+                        "secondary": "#adc6ff",
+                        "on-surface": "#e2e2e8",
+                        "glass-border": "rgba(255, 255, 255, 0.12)",
+                        "primary-fixed-dim": "#00dbe7",
+                        "on-secondary": "#002e6a",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-highest": "#333539",
+                        "on-tertiary-container": "#6f3cd8",
+                        "on-primary-fixed-variant": "#004f54",
+                        "glass-surface": "rgba(255, 255, 255, 0.05)",
+                        "surface-container-low": "#1a1c20"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "4px",
+                        "gutter": "24px",
+                        "xl": "32px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "3xl": "64px",
+                        "container-max": "1280px",
+                        "2xl": "48px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "display-md-mobile": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "label-lg": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "display-md": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "display-md-mobile": ["28px", { "lineHeight": "34px", "fontWeight": "700" }],
+                        "label-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+                        "headline-lg": ["30px", { "lineHeight": "38px", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "display-md": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0A0C10;
+            background-image: radial-gradient(circle at 20% 30%, rgba(0, 242, 255, 0.15) 0%, transparent 40%),
+                              radial-gradient(circle at 80% 80%, rgba(111, 60, 216, 0.1) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        
+        .glass-panel::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('data:image/svg+xml,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)"/%3E%3C/svg%3E');
+            opacity: 0.02;
+            pointer-events: none;
+            border-radius: inherit;
+        }
+        
+        .glow-hover:hover {
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.2);
+            border-color: rgba(0, 242, 255, 0.5);
+        }
+
+        .input-glass {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #e2e2e8;
+            transition: all 0.3s ease;
+        }
+
+        .input-glass:focus {
+            border-color: #00f2ff;
+            outline: none;
+            box-shadow: 0 0 0 1px rgba(0, 242, 255, 0.3);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        [x-cloak] { display: none !important; }
+    </style>
+    <script>
+        function registerData() {
+            return {
+                form: { full_name: '', email: '', password: '', role: 'patient', date_of_birth: '', contact_number: '', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', specialization: '' },
+                disclaimer: false, error: null, successMessage: null, loading: false,
+                async register() {
+                    this.error = null; this.loading = true;
+                    try {
+                        const payload = { ...this.form };
+                        if (!payload.date_of_birth) delete payload.date_of_birth;
+                        const res = await fetch(`/api/v1/auth/register`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                        });
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.error?.message || "Registration failed");
+                        if (data.data?.pending) {
+                            this.successMessage = "Registration submitted. An admin will review your account within 24 hours.";
+                        } else if (data.data?.email_confirm_required) {
+                            this.successMessage = "Check your inbox to confirm your email.";
+                        } else {
+                            window.location.href = '/index.html?registered=true';
+                        }
+                    } catch (e) { this.error = e.message; }
+                    finally { this.loading = false; }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="text-on-surface min-h-screen flex items-center justify-center p-md md:p-3xl font-body-md antialiased overflow-x-hidden" x-data="registerData()">
+<main class="w-full max-w-md relative z-10">
+    <div class="absolute -inset-4 bg-primary/5 rounded-3xl blur-2xl z-0 pointer-events-none"></div>
+    <div class="glass-panel rounded-3xl p-lg md:p-xl relative z-10 flex flex-col gap-xl shadow-2xl shadow-primary/10">
+        <header class="flex flex-col items-center text-center gap-md">
+            <div class="w-20 h-20 rounded-2xl overflow-hidden relative border border-glass-border shadow-lg shadow-primary/20">
+                <svg width="100%" height="100%" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="100" cy="100" r="80" fill="#00F2FF" fill-opacity="0.1" stroke="#00F2FF" stroke-width="2" />
+                    <circle cx="100" cy="100" r="60" fill="white" fill-opacity="0.05" stroke="white" stroke-opacity="0.2" />
+                    <path d="M100 60L135 140H115L100 105L85 140H65L100 60Z" fill="url(#g)" />
+                    <defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00F2FF"/><stop offset="100%" stop-color="#3B82F6"/></linearGradient></defs>
+                </svg>
+            </div>
+            <div class="flex flex-col gap-xs">
+                <h1 class="font-headline-lg text-headline-lg text-white">Create Account</h1>
+                <p class="font-body-md text-body-md text-on-surface-variant">Start monitoring your health securely</p>
+            </div>
+        </header>
+        <div x-show="successMessage" x-cloak class="bg-green-900/50 text-green-400 p-4 rounded mb-4" x-text="successMessage"></div>
+        <form @submit.prevent="register" class="flex flex-col gap-lg" x-show="!successMessage">
+            <fieldset class="flex flex-col gap-sm">
+                <legend class="font-label-lg text-label-lg text-on-surface-variant mb-xs">Select Role</legend>
+                <div class="grid grid-cols-2 gap-md">
+                    <label class="cursor-pointer relative">
+                        <input class="peer sr-only" name="role" type="radio" value="patient" x-model="form.role"/>
+                        <div class="glass-panel rounded-xl p-md text-center border-glass-border peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary transition-all duration-300 flex flex-col items-center gap-sm">
+                            <span aria-hidden="true" class="material-symbols-outlined text-2xl" data-icon="person">person</span>
+                            <span class="font-label-lg text-label-lg">Patient</span>
+                        </div>
+                    </label>
+                    <label class="cursor-pointer relative">
+                        <input class="peer sr-only" name="role" type="radio" value="provider" x-model="form.role"/>
+                        <div class="glass-panel rounded-xl p-md text-center border-glass-border peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary transition-all duration-300 flex flex-col items-center gap-sm">
+                            <span aria-hidden="true" class="material-symbols-outlined text-2xl" data-icon="medical_services">medical_services</span>
+                            <span class="font-label-lg text-label-lg">Provider</span>
+                        </div>
+                    </label>
+                </div>
+            </fieldset>
+            
+            <div class="flex flex-col gap-md">
+                <div class="flex flex-col gap-xs">
+                    <label class="font-label-lg text-label-lg text-on-surface-variant" for="fullName">Full Name</label>
+                    <div class="relative">
+                        <span aria-hidden="true" class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant" data-icon="badge">badge</span>
+                        <input class="input-glass w-full rounded-lg py-sm pl-3xl pr-md font-body-md text-body-md h-12" id="fullName" name="fullName" placeholder="Jane Doe" required="" type="text" x-model="form.full_name" :disabled="loading"/>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-xs">
+                    <label class="font-label-lg text-label-lg text-on-surface-variant" for="email">Email Address</label>
+                    <div class="relative">
+                        <span aria-hidden="true" class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant" data-icon="mail">mail</span>
+                        <input class="input-glass w-full rounded-lg py-sm pl-3xl pr-md font-body-md text-body-md h-12" id="email" name="email" placeholder="jane@example.com" required="" type="email" x-model="form.email" :disabled="loading"/>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-xs">
+                    <label class="font-label-lg text-label-lg text-on-surface-variant" for="password">Password</label>
+                    <div class="relative">
+                        <span aria-hidden="true" class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant" data-icon="lock">lock</span>
+                        <input class="input-glass w-full rounded-lg py-sm pl-3xl pr-md font-body-md text-body-md h-12" id="password" name="password" placeholder="••••••••" required="" type="password" x-model="form.password" :disabled="loading"/>
+                    </div>
+                </div>
+                
+                <div id="specialization-section" class="hidden" :class="{ 'hidden': form.role !== 'provider' }">
+                    <label class="block text-sm font-medium mb-1">Specialization</label>
+                    <select id="specialization" name="specialization" x-model="form.specialization"
+                        class="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer">
+                        <option value="" disabled selected>Select specialization</option>
+                        <option value="Cardiology">Cardiology</option>
+                        <option value="Dermatology">Dermatology</option>
+                        <option value="Endocrinology">Endocrinology</option>
+                        <option value="Gastroenterology">Gastroenterology</option>
+                        <option value="General Medicine">General Medicine</option>
+                        <option value="Neurology">Neurology</option>
+                        <option value="Oncology">Oncology</option>
+                        <option value="Pediatrics">Pediatrics</option>
+                        <option value="Psychiatry">Psychiatry</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="flex items-start gap-sm mt-sm">
+                <div class="flex items-center h-5 mt-1">
+                    <input class="w-5 h-5 rounded border-glass-border bg-glass-surface text-primary focus:ring-primary focus:ring-offset-background cursor-pointer" id="terms" name="terms" required="" type="checkbox" x-model="disclaimer" :disabled="loading"/>
+                </div>
+                <label class="font-body-md text-label-sm text-on-surface-variant cursor-pointer" for="terms">
+                    I acknowledge the mandatory <a class="text-primary hover:text-primary-fixed underline decoration-primary/30 underline-offset-2 transition-colors" href="#">Legal Disclaimer</a> and agree to the terms of service and privacy policy for secure medical data handling.
+                </label>
+            </div>
+            <div x-show="error" x-cloak class="text-red-400 text-sm" x-text="error"></div>
+            <button class="w-full bg-primary text-on-primary-fixed font-label-lg text-label-lg py-md px-lg rounded-xl flex justify-center items-center gap-sm hover:bg-primary-fixed transition-colors duration-300 shadow-lg shadow-primary/20 mt-md" type="submit" :disabled="loading">
+                <span x-text="loading ? 'Registering...' : 'Complete Registration'"></span>
+                <span aria-hidden="true" class="material-symbols-outlined" data-icon="arrow_forward">arrow_forward</span>
+            </button>
+        </form>
+        <div class="text-center mt-md">
+            <p class="font-body-md text-label-sm text-on-surface-variant">
+                Already have an account? 
+                <a class="text-primary font-label-lg hover:text-primary-fixed transition-colors" href="/index.html">Sign in here</a>
+            </p>
+        </div>
+    </div>
+</main>
+<script>
+    document.querySelectorAll('.input-glass').forEach(input => {
+        input.addEventListener('focus', function() {
+            const icon = this.previousElementSibling;
+            if(icon && icon.classList.contains('material-symbols-outlined')) {
+                icon.classList.remove('text-on-surface-variant');
+                icon.classList.add('text-primary');
+                icon.style.fontVariationSettings = "'FILL' 1";
+            }
+        });
+        
+        input.addEventListener('blur', function() {
+            const icon = this.previousElementSibling;
+            if(icon && icon.classList.contains('material-symbols-outlined')) {
+                icon.classList.add('text-on-surface-variant');
+                icon.classList.remove('text-primary');
+                icon.style.fontVariationSettings = "'FILL' 0";
+            }
+        });
+    });
+</script>
+</body>
+</html>

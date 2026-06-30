@@ -168,7 +168,7 @@
                         await this.fetchHistory();
                     } catch(e){} finally { this.loading = false; }
                 },
-                logout() { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
+                async logout() { await window.adheraLogout(); }
             }
         }
     </script>

@@ -70,7 +70,7 @@
                     if(wc){ if(globalCharts.w) globalCharts.w.destroy(); globalCharts.w=new Chart(wc,{type:'bar',data:{labels:w.labels,datasets:[{data:w.data,backgroundColor:'#00dbe7',borderRadius:4}]},options:co}); }
                     if(mc){ if(globalCharts.m) globalCharts.m.destroy(); globalCharts.m=new Chart(mc,{type:'line',data:{labels:m.labels,datasets:[{data:m.data,borderColor:'#0566d9',backgroundColor:'rgba(5,102,217,0.1)',borderWidth:3,tension:0.4,fill:true,pointRadius:2}]},options:co}); }
                 },
-                logout() { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
+                async logout() { await window.adheraLogout(); }
             }
         }
     </script>

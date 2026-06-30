@@ -269,10 +269,9 @@
                     return d.toLocaleDateString();
                 },
 
-                logout() { 
+                async logout() { 
                     if(this.presenceChannel) this.presenceChannel.untrack();
-                    sessionStorage.removeItem('adhera_token'); 
-                    window.location.href = 'index.html'; 
+                    await window.adheraLogout(); 
                 }
             }
         }
