@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from datetime import datetime, timezone, timedelta
 from collections import defaultdict
@@ -6,6 +7,7 @@ from app.auth.dependencies import require_role, get_current_user
 from app.core.responses import SuccessResponse
 from app.core.rate_limit import limiter
 
+logger = logging.getLogger("adhera.provider")
 router = APIRouter()
 
 @router.get("/dashboard", response_model=SuccessResponse[dict])
@@ -78,7 +80,8 @@ async def get_provider_dashboard(request: Request, user: dict = Depends(require_
             "alerts": alerts_list
         })
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Provider dashboard error for %s: %s", user.get("user_id"), str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"DB error: {str(e)}")
 
 @router.get("/patients", response_model=SuccessResponse[list])
 @limiter.limit("60/minute")

@@ -10,6 +10,7 @@ try:
 except ImportError:
     _QR_AVAILABLE = False
 from fastapi import APIRouter, HTTPException, status, Depends, Request
+from fastapi.responses import JSONResponse
 from app.auth.schemas import UserRegister, UserLogin, ForgotPassword, ResetPassword, Token, MfaCode, MfaConfirm, RefreshRequest
 from app.db.supabase import supabase, supabase_auth
 from app.core.responses import SuccessResponse
@@ -62,8 +63,17 @@ async def register(request: Request, user_data: UserRegister):
             })
             if not res.user:
                 raise Exception("Registration failed: user profile not created.")
+        except AuthApiError as e:
+            err_str = str(e).lower()
+            if "already registered" in err_str or "user already registered" in err_str or "already exists" in err_str:
+                return JSONResponse(
+                    status_code=409,
+                    content={"success": False, "error": {"code": "USER_EXISTS", "message": "An account with this email already exists. Please log in instead."}}
+                )
+            logger.error("Supabase sign_up AuthApiError: %s", str(e))
+            raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
-            logger.error(f"Supabase sign_up failed: {str(e)}")
+            logger.error("Supabase sign_up failed: %s", str(e))
             raise HTTPException(status_code=400, detail=str(e))
 
         # Patient: auto-approved. Provider: pending approval.
@@ -85,7 +95,10 @@ async def register(request: Request, user_data: UserRegister):
             except Exception as ex:
                 logger.error(f"Failed to create profile: {repr(ex)}")
 
-        log_audit_action("USER_REGISTERED", res.user.id, {"role": user_data.role, "is_active": is_active})
+        try:
+            log_audit_action("USER_REGISTERED", res.user.id, {"role": user_data.role, "is_active": is_active})
+        except Exception as audit_err:
+            logger.warning("Audit log failed for USER_REGISTERED: %s", audit_err)
 
         email_confirm_required = False
         if user_data.role == "patient" and (not hasattr(res, "session") or res.session is None):
@@ -96,7 +109,15 @@ async def register(request: Request, user_data: UserRegister):
         if email_confirm_required:
             return SuccessResponse(data={"message": "Check your inbox to confirm your email.", "pending": False, "email_confirm_required": True})
         return SuccessResponse(data={"message": "Registration successful.", "pending": False})
+    except HTTPException:
+        raise
     except AuthApiError as e:
+        err_str = str(e).lower()
+        if "already registered" in err_str or "user already registered" in err_str or "already exists" in err_str:
+            return JSONResponse(
+                status_code=409,
+                content={"success": False, "error": {"code": "USER_EXISTS", "message": "An account with this email already exists. Please log in instead."}}
+            )
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/login", response_model=SuccessResponse[Token])
