@@ -335,8 +335,9 @@ adhera/
 
 ## License
 
-This project is developed as an academic software engineering project.  
-© 2025 Mehtab Shaikh, Ashwith Shetty. All rights reserved.
+This project is licensed under the [MIT License](LICENSE).
+
+Copyright (c) 2026 24co35-ops
 
 ---
 
