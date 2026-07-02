@@ -63,6 +63,7 @@
         button.bg-slate-700 { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 12px !important; }
         select option { background-color: #1a1d24 !important; color: #e2e2e8 !important; }
         [x-cloak] { display: none !important; }
+        :focus-visible { outline: 2px solid #00dbe7 !important; outline-offset: 2px !important; border-radius: 6px !important; }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4" x-data="registerData()">
@@ -140,12 +141,12 @@
                 <label for="disclaimer" class="text-sm text-slate-300">I accept the terms, conditions, and medical disclaimer.</label>
             </div>
             <div x-show="error" x-cloak class="text-red-400 text-sm" x-text="error"></div>
-            <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded flex justify-center items-center" :disabled="loading">
+            <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded flex justify-center items-center min-h-[44px]" :disabled="loading">
                 <span x-show="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white">⭮</span>
                 <span x-text="loading ? 'Registering...' : 'Register'"></span>
             </button>
             <div class="text-center text-sm mt-4">
-                <a href="index.html" class=" hover:underline">Back to Login</a>
+                <a href="index.html" class="inline-block py-2 text-cyan-400 hover:text-cyan-300 hover:underline">Back to Login</a>
             </div>
         </form>
     </div>

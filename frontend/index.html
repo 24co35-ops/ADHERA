@@ -127,6 +127,7 @@
         a.text-indigo-600 { color: #00dbe7 !important; }
         a.text-indigo-600:hover { color: #00c4cf !important; }
         [x-cloak] { display: none !important; }
+        :focus-visible { outline: 2px solid #00dbe7 !important; outline-offset: 2px !important; border-radius: 6px !important; }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center" x-data="loginData()">
@@ -169,18 +170,18 @@
                         <input id="password" type="password" x-model="password" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
                         <div class="text-right mt-1 mb-4">
                             <a href="/forgot-password.html"
-                                class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline transition-colors">
+                                class="inline-block py-2 text-sm text-indigo-600 hover:text-indigo-800 hover:underline transition-colors">
                                 Forgot your password?
                             </a>
                         </div>
                     </div>
                     <div x-show="error" x-cloak class="text-red-400 text-sm" x-text="error"></div>
-                    <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center" :disabled="loading" aria-label="Login">
+                    <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center min-h-[44px]" :disabled="loading" aria-label="Login">
                         <svg x-show="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         <span x-text="loading ? 'Logging in...' : 'Login'"></span>
                     </button>
                     <div class="text-center text-sm mt-4">
-                        <a href="register.html" class="text-cyan-400 hover:text-cyan-300 hover:underline">Create an account</a>
+                        <a href="register.html" class="inline-block py-2 text-cyan-400 hover:text-cyan-300 hover:underline">Create an account</a>
                     </div>
                 </form>
             </div>
@@ -195,12 +196,12 @@
                         <input id="mfa-code" type="text" x-model="mfaCode" placeholder="000000" class="w-full p-2 rounded bg-transparent border border-transparent text-white text-center font-mono text-2xl tracking-widest" required maxlength="6" :disabled="loading">
                     </div>
                     <div x-show="error" x-cloak class="text-red-400 text-sm text-center" x-text="error"></div>
-                    <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center" :disabled="loading" aria-label="Verify">
+                    <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center min-h-[44px]" :disabled="loading" aria-label="Verify">
                         <svg x-show="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         <span x-text="loading ? 'Verifying...' : 'Verify'"></span>
                     </button>
                     <div class="text-center text-sm mt-4">
-                        <button type="button" @click="mfaRequired = false; error = null;" class="hover:underline text-slate-400 bg-transparent border-0 cursor-pointer">Back to Login</button>
+                        <button type="button" @click="mfaRequired = false; error = null;" class="min-h-[44px] hover:underline text-slate-400 bg-transparent border-0 cursor-pointer">Back to Login</button>
                     </div>
                 </form>
             </div>

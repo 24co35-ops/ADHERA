@@ -149,7 +149,7 @@
                 <div><label for="med-timing" class="block text-sm mb-1" x-text="t('form.timing')"></label><select id="med-timing" x-model="form.timing" class="w-full p-2 rounded"><option value="" x-text="t('timing.none')"></option><option value="Morning" x-text="t('timing.morning')"></option><option value="Afternoon" x-text="t('timing.afternoon')"></option><option value="Evening" x-text="t('timing.evening')"></option><option value="Night" x-text="t('timing.night')"></option></select></div>
                 <div><label for="med-time" class="block text-sm mb-1" x-text="t('form.scheduled_time')"></label><input id="med-time" type="time" x-model="form.scheduled_time" class="w-full p-2 rounded"></div>
                 <div class="md:col-span-2"><label for="med-instr" class="block text-sm mb-1" x-text="t('form.instructions')"></label><input id="med-instr" type="text" x-model="form.instructions" class="w-full p-2 rounded"></div>
-                <div class="md:col-span-2 flex justify-end"><button type="submit" class="bg-cyan-700 hover:bg-cyan-600 text-white font-bold py-2 px-6 rounded-lg disabled:opacity-50" :disabled="actionLoading" x-text="t('form.add_submit')"></button></div>
+                <div class="md:col-span-2 flex justify-end"><button type="submit" class="bg-cyan-700 hover:bg-cyan-600 text-white font-bold py-2 px-6 rounded-lg disabled:opacity-50 min-h-[44px]" :disabled="actionLoading" x-text="t('form.add_submit')"></button></div>
                 <div x-show="addError" class="md:col-span-2 text-sm text-red-400 bg-red-400/10 border border-red-400/30 rounded-lg px-4 py-2" x-text="addError" x-cloak></div>
             </form>
         </div>

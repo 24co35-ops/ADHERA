@@ -113,9 +113,9 @@
                                 </div>
                             </div>
                             <div class="flex space-x-2">
-                                <button @click="action(dose.id, 'taken')" class="bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50" :disabled="actionLoading === dose.id" x-text="t('btn.taken')"></button>
-                                <button @click="action(dose.id, 'snoozed')" class="bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50" :disabled="actionLoading === dose.id || dose.snooze_count >= 3" x-text="t('btn.snooze')"></button>
-                                <button @click="action(dose.id, 'missed')" class="bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/30 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50" :disabled="actionLoading === dose.id" x-text="t('btn.missed')"></button>
+                                <button @click="action(dose.id, 'taken')" class="min-h-[44px] bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50" :disabled="actionLoading === dose.id" x-text="t('btn.taken')"></button>
+                                <button @click="action(dose.id, 'snoozed')" class="min-h-[44px] bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50" :disabled="actionLoading === dose.id || dose.snooze_count >= 3" x-text="t('btn.snooze')"></button>
+                                <button @click="action(dose.id, 'missed')" class="min-h-[44px] bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/30 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50" :disabled="actionLoading === dose.id" x-text="t('btn.missed')"></button>
                             </div>
                         </div>
                     </template>

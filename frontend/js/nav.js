@@ -39,8 +39,8 @@ function renderNav(activePage) {
     if (activePage === 'provider' || activePage === 'provider-profile') {
         const isDashboardActive = activePage === 'provider';
         const isProfileActive = activePage === 'provider-profile';
-        const dashboardClass = isDashboardActive ? 'text-cyan-400 font-bold' : 'hover:text-cyan-400 transition-colors';
-        const profileClass = isProfileActive ? 'text-cyan-400 font-bold' : 'hover:text-cyan-400 transition-colors';
+        const dashboardClass = isDashboardActive ? 'text-cyan-400 font-bold py-3 px-2 inline-block' : 'hover:text-cyan-400 transition-colors py-3 px-2 inline-block';
+        const profileClass = isProfileActive ? 'text-cyan-400 font-bold py-3 px-2 inline-block' : 'hover:text-cyan-400 transition-colors py-3 px-2 inline-block';
 
         navRoot.innerHTML = `
         <nav class="glass p-4 sticky top-0 z-50 flex justify-between items-center mb-6 rounded-none border-t-0 border-l-0 border-r-0">
@@ -82,7 +82,7 @@ function renderNav(activePage) {
 
     const linksHtml = pages.map(page => {
         const isActive = page.id === activePage;
-        const className = isActive ? 'text-cyan-400 font-bold' : 'hover:text-cyan-400 transition-colors';
+        const className = isActive ? 'text-cyan-400 font-bold py-3 px-2 inline-block' : 'hover:text-cyan-400 transition-colors py-3 px-2 inline-block';
         return `<a href="${page.href}" class="${className}" x-text="t('${page.key}')">${page.label}</a>`;
     }).join('\n            ');
 
