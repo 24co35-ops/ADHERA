@@ -147,6 +147,7 @@ VAPID_CLAIMS_EMAIL=mailto:your@email.com
 # App
 CORS_ORIGIN=http://localhost:8080        # Set to your frontend origin in production
 ENVIRONMENT=development                  # development | production
+REDIS_URL=redis://...                    # Optional connection string for Redis / Upstash serverless rate limit storage
 ```
 
 > All credentials are loaded from environment variables. Secrets are **never** stored in source code or committed to version control.

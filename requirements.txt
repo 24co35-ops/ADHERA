@@ -34,6 +34,7 @@ sentry-sdk[fastapi]==2.19.0
 pyotp==2.10.0
 qrcode==7.4.2
 pillow>=11.2.1
+redis>=5.0.0
 
 freezegun==1.5.5
 pytz==2025.2
