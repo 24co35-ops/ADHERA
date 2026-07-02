@@ -1,17 +1,19 @@
-import os
 import csv
 import io
-import httpx
+import os
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
-from collections import defaultdict, Counter
+
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
-from app.db.supabase import supabase
+
+from app.admin.schemas import AssignmentUpdate, RejectBody, UserUpdate
 from app.auth.dependencies import require_role
-from app.core.responses import SuccessResponse
-from app.admin.schemas import AssignmentCreate, AssignmentUpdate, UserUpdate, RejectBody
-from app.services.audit import log_audit_action
 from app.core.rate_limit import limiter
+from app.core.responses import SuccessResponse
+from app.db.supabase import supabase
+from app.services.audit import log_audit_action
 
 router = APIRouter()
 
@@ -182,7 +184,7 @@ async def missed_medicines(request: Request, user: dict = Depends(require_role("
 async def enrollment_trend(request: Request, user: dict = Depends(require_role("admin"))):
     try:
         result = supabase.table("profiles").select("created_at").order("created_at").execute()
-        monthly = defaultdict(int)
+        monthly: defaultdict[str, int] = defaultdict(int)
         for r in (result.data or []):
             c_at = r.get("created_at")
             if c_at:
@@ -722,22 +724,22 @@ async def get_providers_with_patients(request: Request, user: dict = Depends(req
     provider_ids = [p["id"] for p in providers]
     if not provider_ids:
         return SuccessResponse(data=[])
-        
+
     try:
         auth_users = supabase.auth.admin.list_users()
         email_map = {u.id: u.email for u in auth_users}
     except Exception:
         email_map = {}
-        
+
     assignments_res = supabase.table("assignments").select("provider_id, patient_id").eq("status", "active").in_("provider_id", provider_ids).execute().data or []
     patient_ids = list(set(a["patient_id"] for a in assignments_res if a.get("patient_id")))
-    
+
     if patient_ids:
         patient_profiles_res = supabase.table("profiles").select("id, full_name").in_("id", patient_ids).execute().data or []
         patient_profiles = {p["id"]: p for p in patient_profiles_res}
     else:
         patient_profiles = {}
-        
+
     from collections import defaultdict
     provider_assignments = defaultdict(list)
     for a in assignments_res:
@@ -746,12 +748,12 @@ async def get_providers_with_patients(request: Request, user: dict = Depends(req
         prof = dict(patient_profiles.get(pid, {"id": pid, "full_name": "Unknown"}))
         prof["email"] = email_map.get(pid, "")
         provider_assignments[prov_id].append({"patient_id": pid, "profiles": prof})
-        
+
     for p in providers:
         p["email"] = email_map.get(p["id"], "")
         p["assigned_patients"] = provider_assignments[p["id"]]
         p["patient_count"] = len(p["assigned_patients"])
-        
+
     return SuccessResponse(data=providers)
 
 @router.get("/unassigned-patients")

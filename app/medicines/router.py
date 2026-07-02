@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+
 from app.db.supabase import supabase
+
 supabase = supabase
 from app.auth.dependencies import get_current_user
-from app.core.responses import SuccessResponse
-from app.medicines.schemas import MedicineCreate, MedicineUpdate, ReminderCreate, ReminderUpdate
-from app.services.audit import log_audit_action
 from app.core.rate_limit import limiter
+from app.core.responses import SuccessResponse
+from app.medicines.schemas import MedicineCreate, MedicineUpdate
+from app.services.audit import log_audit_action
 
 router = APIRouter()
 
@@ -35,7 +37,8 @@ async def create_medicine(request: Request, medicine: MedicineCreate, user: dict
     data = medicine.model_dump()
     data["user_id"] = user["user_id"]
     data["start_date"] = data["start_date"].isoformat()
-    if data["end_date"]: data["end_date"] = data["end_date"].isoformat()
+    if data["end_date"]:
+        data["end_date"] = data["end_date"].isoformat()
     if data.get("dosage_amount") is not None:
         data["dosage_amount"] = float(data["dosage_amount"])
     res = supabase.table("medicines").insert(data).execute()
@@ -46,32 +49,33 @@ async def create_medicine(request: Request, medicine: MedicineCreate, user: dict
 async def list_medicines(request: Request, patient_id: str = Query(None), user: dict = Depends(get_current_user)):
     uid = _resolve_user_id(user, patient_id)
     res = supabase.table("medicines").select("*").eq("user_id", uid).eq("is_active", True).execute()
-    
+
     try:
         from collections import Counter
         reminders_res = supabase.table("reminders").select("id, medicine_id").eq("user_id", uid).eq("is_active", True).execute()
         adherence_res = supabase.table("adherence").select("reminder_id").eq("user_id", uid).eq("status", "missed").execute()
-        
+
         reminder_med_map = {r["id"]: r["medicine_id"] for r in (reminders_res.data or [])}
-        missed_counts = Counter()
+        missed_counts: Counter[str] = Counter()
         for a in (adherence_res.data or []):
             med_id = reminder_med_map.get(a["reminder_id"])
             if med_id:
                 missed_counts[med_id] += 1
-                
+
         for med in (res.data or []):
             med["missed_count"] = missed_counts[med["id"]]
     except Exception:
         for med in (res.data or []):
             med["missed_count"] = 0
-            
+
     return SuccessResponse(data=res.data)
 
 @router.get("/{id}", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
 async def get_medicine(request: Request, id: str, user: dict = Depends(get_current_user)):
     res = supabase.table("medicines").select("*").eq("id", id).execute()
-    if not res.data: raise HTTPException(status_code=404, detail="Medicine not found")
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Medicine not found")
     med = res.data[0]
     role = user.get("role", "patient")
     if role == "patient" and med["user_id"] != user["user_id"]:
@@ -87,7 +91,8 @@ async def update_medicine(request: Request, id: str, medicine: MedicineUpdate, u
     if data.get("dosage_amount") is not None:
         data["dosage_amount"] = float(data["dosage_amount"])
     res = supabase.table("medicines").update(data).eq("id", id).eq("user_id", user["user_id"]).execute()
-    if not res.data: raise HTTPException(status_code=404, detail="Medicine not found")
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Medicine not found")
     return SuccessResponse(data=res.data[0])
 
 @router.delete("/{id}", response_model=SuccessResponse[dict])
@@ -103,7 +108,8 @@ async def delete_medicine(request: Request, id: str, user: dict = Depends(get_cu
 async def get_reminders(request: Request, id: str, user: dict = Depends(get_current_user)):
     # First get the medicine to check ownership
     med = supabase.table("medicines").select("user_id").eq("id", id).execute()
-    if not med.data: raise HTTPException(status_code=404, detail="Medicine not found")
+    if not med.data:
+        raise HTTPException(status_code=404, detail="Medicine not found")
     med_owner = med.data[0]["user_id"]
     role = user.get("role", "patient")
     if role == "patient" and med_owner != user["user_id"]:
@@ -117,14 +123,15 @@ async def get_reminders(request: Request, id: str, user: dict = Depends(get_curr
 @limiter.limit("60/minute")
 async def create_reminder(request: Request, id: str, reminder: dict, user: dict = Depends(get_current_user)):
     med = supabase.table("medicines").select("user_id").eq("id", id).execute()
-    if not med.data: raise HTTPException(status_code=404, detail="Medicine not found")
+    if not med.data:
+        raise HTTPException(status_code=404, detail="Medicine not found")
     med_owner = med.data[0]["user_id"]
     role = user.get("role", "patient")
     if role == "patient" and med_owner != user["user_id"]:
         raise HTTPException(status_code=403, detail="Forbidden")
     if role == "provider":
         _check_assignment(user["user_id"], med_owner)
-    
+
     dose_label = reminder.get("dose_label")
     if not dose_label:
         raise HTTPException(status_code=422, detail="dose_label required")

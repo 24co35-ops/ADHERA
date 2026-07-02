@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import Optional, Any
+from datetime import date
 from decimal import Decimal
-from datetime import date, datetime, timezone
+from typing import Any, Optional
+
+from pydantic import BaseModel, Field, model_validator
 
 
 class MedicineCreate(BaseModel):

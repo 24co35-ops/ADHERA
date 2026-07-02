@@ -1,11 +1,13 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Request
-from datetime import datetime, timezone, timedelta
 from collections import defaultdict
-from app.db.supabase import supabase
-from app.auth.dependencies import require_role, get_current_user
-from app.core.responses import SuccessResponse
+from datetime import datetime, timedelta, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+
+from app.auth.dependencies import get_current_user, require_role
 from app.core.rate_limit import limiter
+from app.core.responses import SuccessResponse
+from app.db.supabase import supabase
 
 logger = logging.getLogger("adhera.provider")
 router = APIRouter()
@@ -47,7 +49,8 @@ async def get_provider_dashboard(request: Request, user: dict = Depends(require_
         critical_risk_count = 0
         for pid in patient_ids:
             p = profiles.get(pid)
-            if not p: continue
+            if not p:
+                continue
             p_copy = dict(p)
             p_copy["email"] = email_map.get(pid, "")
             p_copy["age"] = calculate_age(p_copy.get("date_of_birth"))
@@ -88,19 +91,19 @@ async def get_provider_dashboard(request: Request, user: dict = Depends(require_
 async def list_patients(request: Request, user: dict = Depends(require_role("provider"))):
     assignments = supabase.table("assignments").select("patient_id").eq("provider_id", user["user_id"]).eq("status", "active").execute().data or []
     patient_ids = [a["patient_id"] for a in assignments]
-    result = []
+    result: list[dict] = []
     if not patient_ids:
         return SuccessResponse(data=result)
-        
+
     try:
         users = supabase.auth.admin.list_users()
         email_map = {u.id: u.email for u in users}
     except Exception:
         email_map = {}
-        
+
     profiles_res = supabase.table("profiles").select("id, full_name, contact_number, date_of_birth, blood_group").in_("id", patient_ids).execute().data or []
     profiles_map = {p["id"]: p for p in profiles_res}
-    
+
     from app.core.utils import calculate_age
     for a in assignments:
         pid = a["patient_id"]
@@ -116,7 +119,8 @@ async def list_patients(request: Request, user: dict = Depends(require_role("pro
 @limiter.limit("60/minute")
 async def get_patient(request: Request, id: str, user: dict = Depends(require_role("provider"))):
     res = supabase.table("profiles").select("*").eq("id", id).execute()
-    if not res.data: raise HTTPException(status_code=404, detail="Not found")
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Not found")
     profile = res.data[0]
     from app.core.utils import calculate_age
     profile["age"] = calculate_age(profile.get("date_of_birth"))
@@ -148,18 +152,18 @@ async def get_pending_requests(request: Request, user: dict = Depends(require_ro
         for row in data:
             row["profiles"] = None
         return SuccessResponse(data=data)
-        
+
     try:
         auth_users = supabase.auth.admin.list_users()
         email_map = {u.id: u.email for u in auth_users}
     except Exception:
         email_map = {}
-        
+
     profiles_res = supabase.table("profiles").select(
         "id, full_name, contact_number, date_of_birth, blood_group"
     ).in_("id", patient_ids).execute().data or []
     profiles_map = {p["id"]: p for p in profiles_res}
-    
+
     from app.core.utils import calculate_age
     for row in data:
         pid = row.get("patient_id")

@@ -93,7 +93,7 @@
                                         <template x-if="editingReminder === rem.id">
                                             <div class="w-full space-y-2">
                                                 <div class="flex flex-wrap gap-3 items-center">
-                                                    <input type="time" x-model="editForm.scheduled_time" class="text-sm p-1.5 rounded text-white bg-transparent border border-white/10" required>
+                                                    <input type="time" aria-label="Edit scheduled time" x-model="editForm.scheduled_time" class="text-sm p-1.5 rounded text-white bg-transparent border border-white/10" required>
                                                     <label class="text-xs text-slate-300 flex items-center gap-1">
                                                         <input type="checkbox" x-model="editForm.advance_notify" class="rounded border-white/10 text-cyan-600 focus:ring-0"> <span x-text="t('timing.advance_short')"></span>
                                                     </label>
@@ -109,9 +109,9 @@
                                 <!-- Add Timing Form -->
                                 <div x-show="addingTimingFor === med.id" class="bg-white/5 rounded-lg border border-cyan-500/20 p-3 space-y-2" x-cloak>
                                     <div class="grid grid-cols-3 gap-2">
-                                        <input type="text" x-model="addTimingForm.dose_label" :placeholder="t('timing.label_placeholder')" class="text-sm p-1.5" maxlength="50">
-                                        <input type="time" x-model="addTimingForm.dose_time_utc" class="text-sm p-1.5">
-                                        <select x-model="addTimingForm.recurrence_type" class="text-sm p-1.5">
+                                        <input type="text" aria-label="Dose label" x-model="addTimingForm.dose_label" :placeholder="t('timing.label_placeholder')" class="text-sm p-1.5" maxlength="50">
+                                        <input type="time" aria-label="Scheduled time" x-model="addTimingForm.dose_time_utc" class="text-sm p-1.5">
+                                        <select aria-label="Recurrence type" x-model="addTimingForm.recurrence_type" class="text-sm p-1.5">
                                             <option value="daily" x-text="t('recurrence.daily')"></option><option value="weekday" x-text="t('recurrence.weekday')"></option><option value="alternate" x-text="t('recurrence.alternate')"></option>
                                         </select>
                                     </div>
@@ -137,18 +137,18 @@
         <div class="glass p-6 rounded-xl">
             <h2 class="text-xl font-bold mb-4" x-text="t('medicines.add_title')"></h2>
             <form @submit.prevent="addMed" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label class="block text-sm mb-1" x-text="t('form.name')"></label><input type="text" x-model="form.name" class="w-full p-2 rounded" required></div>
+                <div><label for="med-name" class="block text-sm mb-1" x-text="t('form.name')"></label><input id="med-name" type="text" x-model="form.name" class="w-full p-2 rounded" required></div>
                 <div class="grid grid-cols-2 gap-2">
-                    <div><label class="block text-sm mb-1" x-text="t('form.amount')"></label><input type="number" x-model="form.dosage_amount" class="w-full p-2 rounded" required></div>
-                    <div><label class="block text-sm mb-1" x-text="t('form.unit')"></label><select x-model="form.dosage_unit" class="w-full p-2 rounded" required><option value="mg" x-text="t('unit.mg')"></option><option value="ml" x-text="t('unit.ml')"></option><option value="units" x-text="t('unit.units')"></option></select></div>
+                    <div><label for="med-amount" class="block text-sm mb-1" x-text="t('form.amount')"></label><input id="med-amount" type="number" x-model="form.dosage_amount" class="w-full p-2 rounded" required></div>
+                    <div><label for="med-unit" class="block text-sm mb-1" x-text="t('form.unit')"></label><select id="med-unit" x-model="form.dosage_unit" class="w-full p-2 rounded" required><option value="mg" x-text="t('unit.mg')"></option><option value="ml" x-text="t('unit.ml')"></option><option value="units" x-text="t('unit.units')"></option></select></div>
                 </div>
-                <div><label class="block text-sm mb-1" x-text="t('form.route')"></label><select x-model="form.route" class="w-full p-2 rounded" required><option value="oral" x-text="t('route.oral')"></option><option value="topical" x-text="t('route.topical')"></option><option value="injection" x-text="t('route.injection')"></option><option value="inhaled" x-text="t('route.inhaled')"></option><option value="other" x-text="t('route.other')"></option></select></div>
-                <div><label class="block text-sm mb-1" x-text="t('form.frequency')"></label><select x-model="form.frequency_type" class="w-full p-2 rounded" required><option value="daily" x-text="t('recurrence.daily')"></option><option value="weekday" x-text="t('recurrence.weekday')"></option><option value="alternate" x-text="t('recurrence.alternate')"></option><option value="prn" x-text="t('recurrence.prn')"></option></select></div>
-                <div><label class="block text-sm mb-1" x-text="t('form.start_date')"></label><input type="date" x-model="form.start_date" class="w-full p-2 rounded" required></div>
-                <div><label class="block text-sm mb-1" x-text="t('form.end_date')"></label><input type="date" x-model="form.end_date" class="w-full p-2 rounded"></div>
-                <div><label class="block text-sm mb-1" x-text="t('form.timing')"></label><select x-model="form.timing" class="w-full p-2 rounded"><option value="" x-text="t('timing.none')"></option><option value="Morning" x-text="t('timing.morning')"></option><option value="Afternoon" x-text="t('timing.afternoon')"></option><option value="Evening" x-text="t('timing.evening')"></option><option value="Night" x-text="t('timing.night')"></option></select></div>
-                <div><label class="block text-sm mb-1" x-text="t('form.scheduled_time')"></label><input type="time" x-model="form.scheduled_time" class="w-full p-2 rounded"></div>
-                <div class="md:col-span-2"><label class="block text-sm mb-1" x-text="t('form.instructions')"></label><input type="text" x-model="form.instructions" class="w-full p-2 rounded"></div>
+                <div><label for="med-route" class="block text-sm mb-1" x-text="t('form.route')"></label><select id="med-route" x-model="form.route" class="w-full p-2 rounded" required><option value="oral" x-text="t('route.oral')"></option><option value="topical" x-text="t('route.topical')"></option><option value="injection" x-text="t('route.injection')"></option><option value="inhaled" x-text="t('route.inhaled')"></option><option value="other" x-text="t('route.other')"></option></select></div>
+                <div><label for="med-freq" class="block text-sm mb-1" x-text="t('form.frequency')"></label><select id="med-freq" x-model="form.frequency_type" class="w-full p-2 rounded" required><option value="daily" x-text="t('recurrence.daily')"></option><option value="weekday" x-text="t('recurrence.weekday')"></option><option value="alternate" x-text="t('recurrence.alternate')"></option><option value="prn" x-text="t('recurrence.prn')"></option></select></div>
+                <div><label for="med-start" class="block text-sm mb-1" x-text="t('form.start_date')"></label><input id="med-start" type="date" x-model="form.start_date" class="w-full p-2 rounded" required></div>
+                <div><label for="med-end" class="block text-sm mb-1" x-text="t('form.end_date')"></label><input id="med-end" type="date" x-model="form.end_date" class="w-full p-2 rounded"></div>
+                <div><label for="med-timing" class="block text-sm mb-1" x-text="t('form.timing')"></label><select id="med-timing" x-model="form.timing" class="w-full p-2 rounded"><option value="" x-text="t('timing.none')"></option><option value="Morning" x-text="t('timing.morning')"></option><option value="Afternoon" x-text="t('timing.afternoon')"></option><option value="Evening" x-text="t('timing.evening')"></option><option value="Night" x-text="t('timing.night')"></option></select></div>
+                <div><label for="med-time" class="block text-sm mb-1" x-text="t('form.scheduled_time')"></label><input id="med-time" type="time" x-model="form.scheduled_time" class="w-full p-2 rounded"></div>
+                <div class="md:col-span-2"><label for="med-instr" class="block text-sm mb-1" x-text="t('form.instructions')"></label><input id="med-instr" type="text" x-model="form.instructions" class="w-full p-2 rounded"></div>
                 <div class="md:col-span-2 flex justify-end"><button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-6 rounded-lg disabled:opacity-50" :disabled="actionLoading" x-text="t('form.add_submit')"></button></div>
                 <div x-show="addError" class="md:col-span-2 text-sm text-red-400 bg-red-400/10 border border-red-400/30 rounded-lg px-4 py-2" x-text="addError" x-cloak></div>
             </form>

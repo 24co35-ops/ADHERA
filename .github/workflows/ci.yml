@@ -30,6 +30,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Lint (ruff)
+        run: ruff check app/
+
+      - name: Type-check (mypy)
+        run: mypy app/ --ignore-missing-imports --no-strict-optional --follow-imports=skip
+
       - name: Run pytest with coverage
         run: |
           pytest --cov=app --cov-report=term-missing --cov-fail-under=50
@@ -44,4 +50,3 @@ jobs:
 
       - name: Run accessibility scan
         run: axe frontend/dashboard.html frontend/medicines.html --exit
-        continue-on-error: true

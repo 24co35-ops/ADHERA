@@ -1,6 +1,7 @@
-from datetime import datetime, date
-from zoneinfo import ZoneInfo
+from datetime import date, datetime
 from typing import Optional
+from zoneinfo import ZoneInfo
+
 
 def calculate_age(dob: date | str | None) -> Optional[int]:
     """Calculate age from date_of_birth in a birthday-aware manner."""
@@ -14,14 +15,14 @@ def calculate_age(dob: date | str | None) -> Optional[int]:
             return None
     elif isinstance(dob, datetime):
         dob = dob.date()
-    
+
     today = date.today()
     try:
         birthday_this_year = dob.replace(year=today.year)
     except ValueError:
         # Handle leap years/Feb 29
         birthday_this_year = dob.replace(year=today.year, day=dob.day - 1)
-        
+
     age = today.year - dob.year
     if today < birthday_this_year:
         age -= 1
@@ -37,11 +38,11 @@ def format_utc_to_iana(dt: datetime | str | None, iana_tz: str) -> str | None:
         try:
             dt = datetime.fromisoformat(dt.replace("Z", "+00:00"))
         except ValueError:
-            return dt
-    
+            return str(dt)
+
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=ZoneInfo("UTC"))
-        
+
     try:
         local_dt = dt.astimezone(ZoneInfo(iana_tz))
         return local_dt.isoformat()

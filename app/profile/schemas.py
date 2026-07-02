@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field, field_validator
-from typing import Optional
 from datetime import date
+from typing import Optional
+
+from pydantic import BaseModel, field_validator
+
 
 class ProfileUpdate(BaseModel):
     full_name: Optional[str] = None

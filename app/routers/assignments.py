@@ -1,7 +1,9 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
+
 from app.auth.dependencies import get_current_user
 from app.db.supabase import supabase
-from datetime import datetime, timezone
 
 router = APIRouter(tags=["assignments"])
 

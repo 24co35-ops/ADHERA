@@ -1,0 +1,9 @@
+[lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E501",  # line too long — not enforced
+]
+
+[lint.per-file-ignores]
+"app/main.py" = ["E402"]        # Sentry/middleware init must precede router imports
+"app/medicines/router.py" = ["E402"]  # supabase alias pattern before imports

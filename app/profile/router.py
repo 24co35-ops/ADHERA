@@ -1,16 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import StreamingResponse
-from app.db.supabase import supabase
-from app.auth.dependencies import get_current_user
-from app.core.responses import SuccessResponse
-from app.core.rate_limit import limiter
-from app.profile.schemas import ProfileUpdate, EmergencyContact, PushSubscriptionCreate
 import csv
 import io
 import json as json_mod
 import logging
-from datetime import datetime
 import os
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
+
+from app.auth.dependencies import get_current_user
+from app.core.rate_limit import limiter
+from app.core.responses import SuccessResponse
+from app.db.supabase import supabase
+from app.profile.schemas import EmergencyContact, ProfileUpdate
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -100,7 +102,7 @@ async def save_push_subscription(request: Request, subscription: dict, user: dic
 async def delete_push_subscription(request: Request, user=Depends(get_current_user)):
     try:
         user_id = user["user_id"]
-        result = supabase.table("push_subscriptions").delete().eq("user_id", user_id).execute()
+        supabase.table("push_subscriptions").delete().eq("user_id", user_id).execute()
         return {"success": True, "message": "Push subscription removed"}
     except Exception as e:
         logger.error(f"DELETE push-subscription error for user {user_id}: {str(e)}")
