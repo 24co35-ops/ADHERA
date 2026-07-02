@@ -1,4 +1,5 @@
 import os
+
 import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
@@ -19,34 +20,35 @@ sentry_sdk.init(
     before_send=lambda event, hint: event if event.get("level") in ("error", "fatal", None) else None,
 )
 
+import contextvars
 import logging
 import uuid
-import contextvars
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.middleware.base import BaseHTTPMiddleware
-from slowapi import Limiter
+from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from app.admin.router import router as admin_router
+from app.analytics.router import router as analytics_router
+from app.auth.router import router as auth_router
 from app.config import settings
+from app.core.exceptions import create_error_response, global_exception_handler
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
-from app.core.exceptions import create_error_response, global_exception_handler
-from app.auth.router import router as auth_router
-from app.profile.router import router as profile_router
-from app.medicines.router import router as medicines_router
+from app.db.supabase import supabase
 from app.doses.router import router as doses_router
 from app.feedback.router import router as feedback_router
-from app.analytics.router import router as analytics_router
+from app.medicines.router import router as medicines_router
+from app.profile.router import router as profile_router
 from app.provider.router import router as provider_router
-from app.admin.router import router as admin_router
 from app.reminders.router import router as reminders_router
 from app.routers.assignments import router as assignments_router
-from app.db.supabase import supabase
 
 request_id_ctx = contextvars.ContextVar("request_id", default="-")
 
@@ -165,6 +167,8 @@ async def health_check():
         "db": db_status
     })
 
+# NOTE: SUPABASE_ANON_KEY and VAPID_PUBLIC_KEY are client-safe credentials by design.
+# Row-Level Security (RLS) protects access server-side. Do not remove or swap in service role key.
 @app.get("/v1/config", response_model=SuccessResponse[dict])
 async def get_config():
     # Return configuration details dynamically from env
