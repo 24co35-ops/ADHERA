@@ -71,32 +71,32 @@
         <div x-show="successMessage" x-cloak class="bg-green-900/50 text-green-400 p-4 rounded mb-4" x-text="successMessage"></div>
         <form @submit.prevent="register" class="space-y-4" x-show="!successMessage">
             <div>
-                <label class="block text-sm font-medium mb-1">Full Name</label>
-                <input type="text" x-model="form.full_name" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
+                <label for="reg-full-name" class="block text-sm font-medium mb-1">Full Name</label>
+                <input id="reg-full-name" type="text" x-model="form.full_name" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
             </div>
             <div>
-                <label class="block text-sm font-medium mb-1">Email</label>
-                <input type="email" x-model="form.email" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
+                <label for="reg-email" class="block text-sm font-medium mb-1">Email</label>
+                <input id="reg-email" type="email" x-model="form.email" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
             </div>
             <div>
-                <label class="block text-sm font-medium mb-1">Password</label>
-                <input type="password" x-model="form.password" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
+                <label for="reg-password" class="block text-sm font-medium mb-1">Password</label>
+                <input id="reg-password" type="password" x-model="form.password" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1">Role</label>
-                    <select x-model="form.role" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
+                    <label for="reg-role" class="block text-sm font-medium mb-1">Role</label>
+                    <select id="reg-role" x-model="form.role" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
                         <option value="patient">Patient</option>
                         <option value="provider">Healthcare Provider</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Date of Birth</label>
-                    <input type="date" x-model="form.date_of_birth" class="w-full p-2 rounded bg-transparent border border-transparent text-white" :disabled="loading">
+                    <label for="reg-dob" class="block text-sm font-medium mb-1">Date of Birth</label>
+                    <input id="reg-dob" type="date" x-model="form.date_of_birth" class="w-full p-2 rounded bg-transparent border border-transparent text-white" :disabled="loading">
                 </div>
             </div>
             <div id="specialization-section" x-show="form.role === 'provider'" x-cloak class="mt-4">
-                <label class="block text-sm font-medium mb-1">Specialization</label>
+                <label for="specialization" class="block text-sm font-medium mb-1">Specialization</label>
                 <select id="specialization" name="specialization" x-model="form.specialization"
                     class="w-full p-2 rounded text-white bg-transparent border border-transparent" :required="form.role === 'provider'" :disabled="loading">
                     <option value="" disabled selected>Select specialization</option>
@@ -113,12 +113,12 @@
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium mb-1">Contact Number</label>
-                    <input type="text" x-model="form.contact_number" class="w-full p-2 rounded bg-transparent border border-transparent text-white" :disabled="loading">
+                    <label for="reg-contact" class="block text-sm font-medium mb-1">Contact Number</label>
+                    <input id="reg-contact" type="text" x-model="form.contact_number" class="w-full p-2 rounded bg-transparent border border-transparent text-white" :disabled="loading">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Timezone</label>
-                    <select x-model="form.timezone" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
+                    <label for="reg-timezone" class="block text-sm font-medium mb-1">Timezone</label>
+                    <select id="reg-timezone" x-model="form.timezone" class="w-full p-2 rounded bg-transparent border border-transparent text-white" required :disabled="loading">
                         <option value="UTC">UTC (UTC+0)</option>
                         <option value="Asia/Kolkata">Asia/Kolkata (IST, UTC+5:30)</option>
                         <option value="America/New_York">America/New_York (EST, UTC-5)</option>
