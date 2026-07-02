@@ -43,7 +43,8 @@ function startServer() {
 
 // ── Scan a single page, return violations ─────────────────────────────────────
 async function scanPage(browser, url, label) {
-  const page = await browser.newPage();
+  const context = await browser.newContext();
+  const page = await context.newPage();
   try {
     // Register API mocks BEFORE navigation — config.js fetches /v1/config
     // synchronously on script load; route intercepts must be in place first.
@@ -86,6 +87,7 @@ async function scanPage(browser, url, label) {
     return results.violations;
   } finally {
     await page.close();
+    await context.close();
   }
 }
 
