@@ -5,10 +5,8 @@ from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
 
 sentry_sdk.init(
-    dsn=os.environ.get(
-        "SENTRY_DSN",
-        "https://7fd9d1719a2c710684d1eea366210078@o4511619543465984.ingest.de.sentry.io/4511619570729040",
-    ),
+    # Empty string DSN disables Sentry SDK reporting per SDK specification
+    dsn=os.environ.get("SENTRY_DSN", ""),
     integrations=[
         StarletteIntegration(),
         FastApiIntegration(),
