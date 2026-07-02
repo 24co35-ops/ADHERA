@@ -9,7 +9,6 @@ sse-starlette==3.0.3
 supabase==2.31.0
 supabase-auth==2.31.0
 supabase-functions==2.31.0
-gotrue==2.12.4
 storage3==2.31.0
 httpx==0.28.1
 httpx-sse==0.4.0

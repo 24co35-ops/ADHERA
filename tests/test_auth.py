@@ -12,7 +12,7 @@ from app.main import app
 from app.config import settings
 
 try:
-    from gotrue.errors import AuthApiError
+    from supabase_auth.errors import AuthApiError
 except ImportError:
     AuthApiError = Exception
 

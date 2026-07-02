@@ -21,7 +21,7 @@ from jose import jwt
 import pyotp
 from cryptography.fernet import Fernet
 try:
-    from gotrue.types import AdminUserAttributes
+    from supabase_auth.types import AdminUserAttributes
 except ImportError:
     AdminUserAttributes = dict
 from app.auth.dependencies import get_current_user
@@ -30,7 +30,7 @@ logger = logging.getLogger("adhera.auth")
 router = APIRouter()
 
 try:
-    from gotrue.errors import AuthApiError
+    from supabase_auth.errors import AuthApiError
 except ImportError:
     AuthApiError = Exception
 
