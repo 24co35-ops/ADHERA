@@ -1,7 +1,7 @@
 import logging
 from supabase import create_client, Client
 from supabase._async.client import create_client as create_async_client, AsyncClient
-from app.core.config import settings
+from app.config import settings
 
 logger = logging.getLogger("adhera.db")
 
