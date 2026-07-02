@@ -66,7 +66,21 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         }
     except HTTPException:
         raise
+    except pyjwt.ExpiredSignatureError as e:
+        logger.info("JWT expired: %r", e)
+        raise HTTPException(status_code=401, detail="Token expired")
+    except pyjwt.InvalidTokenError as e:
+        logger.warning("Invalid JWT: %r", e)
+        raise HTTPException(status_code=401, detail="Invalid token")
     except Exception as e:
+        # Check for python-jose exceptions dynamically
+        err_type = type(e).__name__
+        if err_type == "ExpiredSignatureError":
+            logger.info("JWT expired (jose): %r", e)
+            raise HTTPException(status_code=401, detail="Token expired")
+        elif err_type in ("JWTError", "JWTClaimsError", "SignatureError"):
+            logger.warning("Invalid JWT (jose): %r", e)
+            raise HTTPException(status_code=401, detail="Invalid token")
         logger.warning("JWT decode failed: %r", e)
         raise HTTPException(status_code=401, detail="Invalid token")
 

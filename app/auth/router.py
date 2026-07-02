@@ -78,14 +78,15 @@ async def register(request: Request, user_data: UserRegister):
         except AuthApiError as e:
             err_str = str(e).lower()
             if "already registered" in err_str or "user already registered" in err_str or "already exists" in err_str:
+                logger.info("Supabase sign_up duplicate registration: %s", str(e))
                 return JSONResponse(
                     status_code=409,
                     content={"success": False, "error": {"code": "USER_EXISTS", "message": "An account with this email already exists. Please log in instead."}}
                 )
-            logger.warning("Supabase sign_up AuthApiError: %s", str(e))
+            logger.error("Supabase sign_up AuthApiError: %s", str(e))
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
-            logger.warning("Supabase sign_up failed: %s", str(e))
+            logger.error("Supabase sign_up failed: %s", str(e))
             raise HTTPException(status_code=400, detail=str(e))
 
         # Patient: auto-approved. Provider: pending approval.
