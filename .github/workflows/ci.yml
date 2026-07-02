@@ -52,4 +52,4 @@ jobs:
         run: npx browser-driver-manager install chrome
 
       - name: Run accessibility scan
-        run: axe frontend/dashboard.html frontend/medicines.html --exit
+        run: axe "file://$(pwd)/frontend/dashboard.html" "file://$(pwd)/frontend/medicines.html" --exit
