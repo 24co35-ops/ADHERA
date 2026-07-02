@@ -45,11 +45,10 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install axe-core CLI
-        run: npm install -g @axe-core/cli
+      - name: Install Playwright + axe dependencies
+        run: |
+          npm install --prefix tests playwright @playwright/test @axe-core/playwright
+          npx --prefix tests playwright install chromium --with-deps
 
-      - name: Install matched browser driver
-        run: npx browser-driver-manager install chrome
-
-      - name: Run accessibility scan
-        run: axe "file://$(pwd)/frontend/dashboard.html" "file://$(pwd)/frontend/medicines.html" --exit
+      - name: Run accessibility scan (Playwright + axe-core)
+        run: node tests/axe_scan.js
