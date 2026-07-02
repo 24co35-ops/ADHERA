@@ -56,5 +56,5 @@ installed.txt
 start.ps1
 README_LOCAL.md
 
-testsprite_tests\tmp\config.json
+testsprite_tests/tmp/
 frontend/config.js
