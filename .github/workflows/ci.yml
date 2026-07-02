@@ -48,5 +48,8 @@ jobs:
       - name: Install axe-core CLI
         run: npm install -g @axe-core/cli
 
+      - name: Install matched browser driver
+        run: npx browser-driver-manager install chrome
+
       - name: Run accessibility scan
         run: axe frontend/dashboard.html frontend/medicines.html --exit
