@@ -1,25 +1,37 @@
-import logging
 import base64
 import hashlib
-import json
-import time
 import io
+import json
+import logging
+import time
+
 try:
     import qrcode
     _QR_AVAILABLE = True
 except ImportError:
     _QR_AVAILABLE = False
-from fastapi import APIRouter, HTTPException, status, Depends, Request
-from fastapi.responses import JSONResponse
-from app.auth.schemas import UserRegister, UserLogin, ForgotPassword, ResetPassword, Token, MfaCode, MfaConfirm, RefreshRequest
-from app.db.supabase import supabase, supabase_auth
-from app.core.responses import SuccessResponse
-from app.core.rate_limit import limiter
-from app.services.audit import log_audit_action
-from app.config import settings
-from jose import jwt
 import pyotp
 from cryptography.fernet import Fernet
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
+from jose import jwt
+
+from app.auth.schemas import (
+    ForgotPassword,
+    MfaCode,
+    MfaConfirm,
+    RefreshRequest,
+    ResetPassword,
+    Token,
+    UserLogin,
+    UserRegister,
+)
+from app.config import settings
+from app.core.rate_limit import limiter
+from app.core.responses import SuccessResponse
+from app.db.supabase import supabase, supabase_auth
+from app.services.audit import log_audit_action
+
 try:
     from supabase_auth.types import AdminUserAttributes
 except ImportError:
@@ -215,7 +227,7 @@ async def refresh(request: Request, body: RefreshRequest):
         ))
     except AuthApiError as e:
         raise HTTPException(status_code=401, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=401, detail="Failed to refresh token.")
 
 @router.post("/logout", response_model=SuccessResponse[dict])

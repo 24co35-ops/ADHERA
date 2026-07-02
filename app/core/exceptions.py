@@ -1,6 +1,8 @@
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from app.core.responses import ErrorResponse, ErrorDetail
+
+from app.core.responses import ErrorDetail, ErrorResponse
+
 
 def create_error_response(status_code: int, code: str, message: str, field: str = None) -> JSONResponse:
     content = ErrorResponse(

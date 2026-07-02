@@ -1,9 +1,11 @@
+import logging
+
 import jwt as pyjwt
-from jwt import PyJWKClient, PyJWKClientError
-from jose import jwt as jose_jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-import logging
+from jose import jwt as jose_jwt
+from jwt import PyJWKClient, PyJWKClientError
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)

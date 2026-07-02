@@ -1,11 +1,12 @@
 import logging
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from app.db.supabase import supabase
+
 from app.auth.dependencies import get_current_user
-from app.core.responses import SuccessResponse
-from datetime import datetime, timezone, timedelta
-from collections import defaultdict
 from app.core.rate_limit import limiter
+from app.core.responses import SuccessResponse
+from app.db.supabase import supabase
 
 logger = logging.getLogger("adhera.analytics")
 router = APIRouter()
