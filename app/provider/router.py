@@ -83,8 +83,8 @@ async def get_provider_dashboard(request: Request, user: dict = Depends(require_
             "alerts": alerts_list
         })
     except Exception as e:
-        logger.error("Provider dashboard error for %s: %s", user.get("user_id"), str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=f"DB error: {str(e)}")
+        logger.warning("Provider dashboard error for %s: %s", user.get("user_id"), str(e))
+        raise HTTPException(status_code=500, detail=f"Provider dashboard error: {str(e)}")
 
 @router.get("/patients", response_model=SuccessResponse[list])
 @limiter.limit("60/minute")

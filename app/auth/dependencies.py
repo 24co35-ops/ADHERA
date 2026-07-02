@@ -67,7 +67,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"JWT DECODE ERROR: {repr(e)}")
+        logger.warning("JWT decode failed: %r", e)
         raise HTTPException(status_code=401, detail="Invalid token")
 
 

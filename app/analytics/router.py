@@ -98,7 +98,7 @@ async def get_dashboard(request: Request, patient_id: str = Query(None), user: d
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Analytics dashboard error for %s: %s", user.get("user_id"), str(e), exc_info=True)
+        logger.warning("Analytics dashboard error for %s: %s", user.get("user_id"), str(e))
         raise HTTPException(status_code=500, detail=f"Analytics error: {str(e)}")
 
 @router.get("/adherence", response_model=SuccessResponse[dict])
@@ -119,7 +119,7 @@ async def get_adherence(request: Request, patient_id: str = Query(None), user: d
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Analytics adherence error for %s: %s", user.get("user_id"), str(e), exc_info=True)
+        logger.warning("Analytics adherence error for %s: %s", user.get("user_id"), str(e))
         raise HTTPException(status_code=500, detail=f"Analytics error: {str(e)}")
 
 @router.get("/trend", response_model=SuccessResponse[list])
@@ -136,5 +136,5 @@ async def get_trend(request: Request, patient_id: str = Query(None), user: dict 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Analytics trend error for %s: %s", user.get("user_id"), str(e), exc_info=True)
+        logger.warning("Analytics trend error for %s: %s", user.get("user_id"), str(e))
         raise HTTPException(status_code=500, detail=f"Analytics error: {str(e)}")

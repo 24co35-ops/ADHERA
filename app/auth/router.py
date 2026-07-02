@@ -82,10 +82,10 @@ async def register(request: Request, user_data: UserRegister):
                     status_code=409,
                     content={"success": False, "error": {"code": "USER_EXISTS", "message": "An account with this email already exists. Please log in instead."}}
                 )
-            logger.error("Supabase sign_up AuthApiError: %s", str(e))
+            logger.warning("Supabase sign_up AuthApiError: %s", str(e))
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
-            logger.error("Supabase sign_up failed: %s", str(e))
+            logger.warning("Supabase sign_up failed: %s", str(e))
             raise HTTPException(status_code=400, detail=str(e))
 
         # Patient: auto-approved. Provider: pending approval.
@@ -105,7 +105,7 @@ async def register(request: Request, user_data: UserRegister):
                 }
                 supabase.table("profiles").insert(profile_data).execute()
             except Exception as ex:
-                logger.error(f"Failed to create profile: {repr(ex)}")
+                logger.warning("Failed to create profile: %r", ex)
 
         try:
             log_audit_action("USER_REGISTERED", res.user.id, {"role": user_data.role, "is_active": is_active})
