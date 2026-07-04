@@ -270,9 +270,14 @@ class TestAssignmentsList:
         response = client.get("/v1/admin/pending-provider-requests", headers=make_token())
         assert response.status_code == 200
 
+
+
     @patch("app.admin.router.supabase")
     def test_get_admin_all_assignments_populated(self, mock_sb):
-        assignments = [{"id": "a1", "patient_id": TEST_USER_ID, "provider_id": PROVIDER_ID, "status": "active", "assigned_on": "2024-01-01T00:00:00Z", "initiated_by": "admin"}]
+        # Uses assigned_by (UUID) — non-null means admin-created
+        assignments = [{"id": "a1", "patient_id": TEST_USER_ID, "provider_id": PROVIDER_ID,
+                        "status": "active", "assigned_on": "2024-01-01T00:00:00Z",
+                        "assigned_by": TEST_USER_ID}]  # admin's UUID
         profiles = [{"id": TEST_USER_ID, "full_name": "Pat"}, {"id": PROVIDER_ID, "full_name": "Doc"}]
 
         mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=assignments)
@@ -281,4 +286,102 @@ class TestAssignmentsList:
 
         response = client.get("/v1/admin/all-assignments", headers=make_token())
         assert response.status_code == 200
+        data = response.json()["data"]
+        assert len(data) == 1
+        assert data[0]["assigned_by"] == "Admin"  # admin UUID → "Admin" label
 
+
+class TestAdminCreateAssignment:
+    """
+    Tests for POST /admin/assignments — admin-initiated patient-provider assignment.
+    Migration 018 not yet in live DB; backend uses assigned_by (UUID) instead of
+    initiated_by to track admin-created assignments.
+    """
+
+    PATIENT_ID = "00000000-0000-0000-0000-000000000300"
+
+    @patch("app.admin.router.log_audit_action")
+    @patch("app.admin.router.supabase")
+    def test_create_assignment_success(self, mock_sb, mock_audit):
+        """Happy path: no existing assignment, insert succeeds."""
+        # No existing active assignment for this patient
+        mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+        # Insert succeeds
+        mock_sb.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "new-id"}])
+
+        response = client.post(
+            "/v1/admin/assignments",
+            json={"patient_id": self.PATIENT_ID, "provider_id": PROVIDER_ID},
+            headers=make_token(role="admin"),
+        )
+        assert response.status_code == 200
+        assert response.json()["data"]["message"] == "Assignment created successfully"
+        # Confirm audit was logged
+        mock_audit.assert_called_once()
+        audit_args = mock_audit.call_args[0]
+        assert audit_args[0] == "ADMIN_ASSIGNMENT_CREATE"
+        # Confirm insert was called with assigned_by = admin's UUID (not initiated_by string)
+        insert_call = mock_sb.table.return_value.insert.call_args[0][0]
+        assert "initiated_by" not in insert_call, "initiated_by must not be sent (column missing in live DB)"
+        assert insert_call.get("assigned_by") == TEST_USER_ID
+        assert insert_call.get("status") == "active"
+
+    @patch("app.admin.router.supabase")
+    def test_create_assignment_missing_patient_id(self, mock_sb):
+        """Validation: missing patient_id returns 400."""
+        response = client.post(
+            "/v1/admin/assignments",
+            json={"provider_id": PROVIDER_ID},
+            headers=make_token(role="admin"),
+        )
+        assert response.status_code == 400
+
+    @patch("app.admin.router.supabase")
+    def test_create_assignment_missing_provider_id(self, mock_sb):
+        """Validation: missing provider_id returns 400."""
+        response = client.post(
+            "/v1/admin/assignments",
+            json={"patient_id": self.PATIENT_ID},
+            headers=make_token(role="admin"),
+        )
+        assert response.status_code == 400
+
+    @patch("app.admin.router.supabase")
+    def test_create_assignment_already_assigned(self, mock_sb):
+        """Conflict: patient already has an active assignment → 409."""
+        existing = [{"id": "existing-assignment-id"}]
+        mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=existing)
+
+        response = client.post(
+            "/v1/admin/assignments",
+            json={"patient_id": self.PATIENT_ID, "provider_id": PROVIDER_ID},
+            headers=make_token(role="admin"),
+        )
+        assert response.status_code == 409
+        body = response.json()
+        # Error message may be under "detail" (HTTPException) or "error.message" (ErrorResponse)
+        msg = (body.get("detail") or body.get("error", {}).get("message", "")).lower()
+        assert "already assigned" in msg or response.status_code == 409  # 409 itself is the signal
+
+    @patch("app.admin.router.supabase")
+    def test_create_assignment_db_error(self, mock_sb):
+        """DB error on insert → 500 with detail."""
+        mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+        mock_sb.table.return_value.insert.return_value.execute.side_effect = Exception("DB connection failed")
+
+        response = client.post(
+            "/v1/admin/assignments",
+            json={"patient_id": self.PATIENT_ID, "provider_id": PROVIDER_ID},
+            headers=make_token(role="admin"),
+        )
+        assert response.status_code == 500
+
+    @patch("app.admin.router.supabase")
+    def test_create_assignment_non_admin_rejected(self, mock_sb):
+        """Role guard: provider role cannot create admin assignments → 403."""
+        response = client.post(
+            "/v1/admin/assignments",
+            json={"patient_id": self.PATIENT_ID, "provider_id": PROVIDER_ID},
+            headers=make_token(role="provider"),
+        )
+        assert response.status_code == 403

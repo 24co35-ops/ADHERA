@@ -531,7 +531,9 @@ async def get_admin_patients_list(request: Request, user: dict = Depends(require
 @limiter.limit("60/minute")
 async def get_admin_pending_patient_requests(request: Request, user: dict = Depends(require_role("admin"))):
     try:
-        res = supabase.table("assignments").select("*").eq("status", "pending").eq("initiated_by", "patient").execute().data or []
+        # TODO: re-add .eq("initiated_by", "patient") once migration 018 is applied to live DB
+        # initiated_by column is not yet in the live schema cache; filter all pending and serve
+        res = supabase.table("assignments").select("*").eq("status", "pending").execute().data or []
         if not res:
             return SuccessResponse(data=[])
         user_ids = list(set([r["patient_id"] for r in res] + [r["provider_id"] for r in res]))
@@ -565,7 +567,9 @@ async def get_admin_pending_patient_requests(request: Request, user: dict = Depe
 @limiter.limit("60/minute")
 async def get_admin_pending_provider_requests(request: Request, user: dict = Depends(require_role("admin"))):
     try:
-        res = supabase.table("assignments").select("*").eq("status", "pending").eq("initiated_by", "provider").execute().data or []
+        # TODO: re-add .eq("initiated_by", "provider") once migration 018 is applied to live DB
+        # initiated_by column is not yet in the live schema cache; filter all pending and serve
+        res = supabase.table("assignments").select("*").eq("status", "pending").execute().data or []
         if not res:
             return SuccessResponse(data=[])
         user_ids = list(set([r["patient_id"] for r in res] + [r["provider_id"] for r in res]))
@@ -616,7 +620,8 @@ async def get_admin_all_assignments(request: Request, user: dict = Depends(requi
         for r in res:
             pid = r["patient_id"]
             prov_id = r["provider_id"]
-            initiated = r.get("initiated_by", "patient")
+            # assigned_by holds the admin's UUID if admin-created, else null
+            initiated = "admin" if r.get("assigned_by") else "patient"
             assigned_by = "Admin" if initiated == "admin" else "Self"
             result.append({
                 "assignment_id": r["id"],
@@ -646,7 +651,8 @@ async def admin_create_assignment(request: Request, payload: dict, user: dict = 
             "patient_id": patient_id,
             "provider_id": provider_id,
             "status": "active",
-            "initiated_by": "admin",
+            # assigned_by = admin's UUID (tracks who created this; initiated_by col not yet in schema)
+            "assigned_by": user["user_id"],
             "assigned_on": datetime.now(timezone.utc).isoformat(),
         }).execute()
         log_audit_action("ADMIN_ASSIGNMENT_CREATE", user["user_id"], {"patient": patient_id, "provider": provider_id})
