@@ -175,8 +175,13 @@
                         <span class="text-xs text-slate-400">Protects your account during login using TOTP</span>
                     </div>
                     <div>
-                        <span x-show="mfaEnabled" class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold uppercase" x-cloak>Enabled</span>
-                        <span x-show="!mfaEnabled" class="bg-slate-700 text-slate-300 px-3 py-1 rounded-full text-xs font-bold uppercase" x-cloak>Disabled</span>
+                        <span x-show="mfaStatusLoaded && mfaEnabled" class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold uppercase flex items-center gap-1.5" x-cloak>
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>Enabled
+                        </span>
+                        <span x-show="mfaStatusLoaded && !mfaEnabled" class="bg-slate-700 text-slate-300 px-3 py-1 rounded-full text-xs font-bold uppercase flex items-center gap-1.5" x-cloak>
+                            <span class="w-1.5 h-1.5 rounded-full bg-slate-500 inline-block"></span>Disabled
+                        </span>
+                        <span x-show="!mfaStatusLoaded" class="bg-slate-800 text-slate-500 px-3 py-1 rounded-full text-xs font-bold uppercase" x-cloak>Checking...</span>
                     </div>
                 </div>
 
@@ -290,6 +295,12 @@
         </div>
     </main>
 
+    <!-- MFA Toast -->
+    <div x-show="mfaToast" x-cloak x-transition
+         class="fixed bottom-6 right-6 px-4 py-3 rounded-xl shadow-2xl z-50 text-sm font-semibold"
+         style="background:#00C853;color:#002200;"
+         x-text="mfaToast" role="alert" aria-live="polite"></div>
+
     <script>
         const _token = sessionStorage.getItem('adhera_token');
         if (!_token) { window.location.href = 'index.html'; throw new Error('No token'); }
@@ -321,10 +332,12 @@
 
                 // MFA variables
                 mfaEnabled: false,
+                mfaStatusLoaded: false,
                 showMfaSetup: false,
                 mfaSetupData: { secret: '', qr_code_uri: '', qr_code: null },
                 mfaCode: '',
                 mfaError: '',
+                mfaToast: '',
 
                 // Push variables
                 pushEnabled: false,
@@ -339,6 +352,7 @@
 
                 async init() {
                     await this.fetchProfile();
+                    await this.fetchMfaStatus();
                     this.checkPushSubscriptionStatus();
                 },
 
@@ -361,10 +375,17 @@
                             date_of_birth: this.profile.date_of_birth || '',
                             blood_group: this.profile.blood_group || ''
                         };
-                        this.mfaEnabled = !!this.profile.mfa_enabled;
                     } catch(e) { this.error = 'Failed to load profile details.'; }
                     finally { this.loading = false; }
                 },
+                async fetchMfaStatus() {
+                    try {
+                        const res = await this.api('/auth/mfa/status');
+                        this.mfaEnabled = !!res.mfa_enabled;
+                    } catch(e) { /* non-fatal */ }
+                    finally { this.mfaStatusLoaded = true; }
+                },
+                showMfaToast(msg) { this.mfaToast = msg; setTimeout(() => this.mfaToast = '', 4000); },
                 async updateProfile() {
                     this.error = ''; this.successMessage = ''; this.actionLoading = true;
                     try {
@@ -380,26 +401,28 @@
                 async initiateMfa() {
                     this.mfaError = ''; this.actionLoading = true;
                     try {
-                        const res = await this.api('/profile/mfa/initiate', 'POST');
+                        const res = await this.api('/auth/mfa/enable', 'POST');
                         this.mfaSetupData = res; this.showMfaSetup = true;
-                    } catch(e) { this.mfaError = e.message; }
+                    } catch(e) { this.mfaError = e.message || 'Failed to initiate 2FA setup.'; }
                     finally { this.actionLoading = false; }
                 },
                 async verifyMfa() {
                     this.mfaError = ''; this.actionLoading = true;
                     try {
-                        await this.api('/profile/mfa/verify', 'POST', { code: this.mfaCode });
+                        await this.api('/auth/mfa/verify', 'POST', { code: this.mfaCode });
                         this.mfaEnabled = true; this.showMfaSetup = false; this.mfaCode = '';
-                    } catch(e) { this.mfaError = e.message; }
+                        this.showMfaToast('Two-Factor Authentication enabled successfully.');
+                    } catch(e) { this.mfaError = e.message || 'Invalid code. Please try again.'; }
                     finally { this.actionLoading = false; }
                 },
                 async disableMfa() {
                     if (!confirm('Are you sure you want to disable 2FA? This decreases account security.')) return;
                     this.mfaError = ''; this.actionLoading = true;
                     try {
-                        await this.api('/profile/mfa/disable', 'POST');
+                        await this.api('/auth/mfa/disable', 'POST');
                         this.mfaEnabled = false;
-                    } catch(e) { this.mfaError = e.message; }
+                        this.showMfaToast('Two-Factor Authentication disabled successfully.');
+                    } catch(e) { this.mfaError = e.message || 'Failed to disable 2FA.'; }
                     finally { this.actionLoading = false; }
                 },
 

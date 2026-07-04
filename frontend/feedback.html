@@ -100,8 +100,14 @@
                     <input type="datetime-local" x-model="form.occurrence_datetime" class="w-full p-3 rounded text-white font-semibold text-lg text-center tracking-wide" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12);" required :disabled="loading">
                 </div>
 
-                <div class="flex justify-end pt-3">
-                    <button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 px-8 rounded-lg disabled:opacity-50 min-h-[44px]" :disabled="loading">Submit Report</button>
+                <div class="flex justify-center pt-4">
+                    <button type="submit"
+                        class="bg-cyan-600 hover:bg-cyan-500 font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        style="color:#002022;min-width:200px;height:50px;font-size:15px;"
+                        :disabled="loading">
+                        <svg x-show="loading" class="animate-spin w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" aria-hidden="true"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                        <span x-text="loading ? 'Submitting...' : 'Submit Feedback'"></span>
+                    </button>
                 </div>
             </form>
         </div>
