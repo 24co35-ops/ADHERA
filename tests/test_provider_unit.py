@@ -130,6 +130,55 @@ class TestProviderDashboard:
         assert alert["profiles"]["full_name"] == "Alice Patient"
         assert alert["description"] == "Nausea after meds"
 
+    @patch("app.provider.router.supabase")
+    def test_dashboard_new_patient_fields(self, mock_sb):
+        from datetime import datetime, timezone, timedelta
+        now = datetime.now(timezone.utc)
+        
+        assignments_mock = MagicMock(data=[{"patient_id": TEST_PATIENT_ID}])
+        profiles_mock = MagicMock(data=[{"id": TEST_PATIENT_ID, "full_name": "Pat", "contact_number": "1234", "date_of_birth": "1990-01-01", "blood_group": "A+"}])
+        adherence_mock = MagicMock(data=[
+            {"user_id": TEST_PATIENT_ID, "status": "taken", "scheduled_utc": (now - timedelta(hours=2)).isoformat()},
+            {"user_id": TEST_PATIENT_ID, "status": "missed", "scheduled_utc": (now - timedelta(hours=4)).isoformat()},
+        ])
+        reminders_mock = MagicMock(data=[
+            {"user_id": TEST_PATIENT_ID, "is_active": True, "dose_time_utc": "12:00:00", "recurrence_type": "daily", "medicines": {"name": "Aspirin", "is_active": True, "start_date": "2026-01-01"}}
+        ])
+        
+        def table_side_effect(table_name):
+            mock_table = MagicMock()
+            if table_name == "assignments":
+                mock_table.select.return_value.eq.return_value.eq.return_value.execute.return_value = assignments_mock
+            elif table_name == "profiles":
+                mock_table.select.return_value.in_.return_value.execute.return_value = profiles_mock
+            elif table_name == "adherence":
+                mock_select = MagicMock()
+                mock_select.in_.return_value.gte.return_value.execute.return_value = adherence_mock
+                mock_select.in_.return_value.eq.return_value.order.return_value.execute.return_value = MagicMock(data=[{"user_id": TEST_PATIENT_ID, "scheduled_utc": (now - timedelta(hours=2)).isoformat()}])
+                mock_select.in_.return_value.eq.return_value.gte.return_value.lte.return_value.execute.return_value = MagicMock(data=[{"user_id": TEST_PATIENT_ID}])
+                mock_table.select.return_value = mock_select
+            elif table_name == "reminders":
+                mock_table.select.return_value.in_.return_value.eq.return_value.execute.return_value = reminders_mock
+            else:
+                mock_table.select.return_value.in_.return_value.is_.return_value.order.return_value.limit.return_value.execute.return_value = MagicMock(data=[])
+                mock_table.select.return_value.in_.return_value.gte.return_value.order.return_value.limit.return_value.execute.return_value = MagicMock(data=[])
+            return mock_table
+
+        mock_sb.table.side_effect = table_side_effect
+        mock_sb.auth.admin.list_users.return_value = []
+
+        response = client.get("/v1/provider/dashboard", headers=make_token())
+        assert response.status_code == 200
+        data = response.json()["data"]
+        patients = data["patients"]
+        assert len(patients) == 1
+        p = patients[0]
+        assert "risk_level" in p
+        assert p["risk_level"] in ("critical", "high", "moderate", "low")
+        assert "last_dose_taken" in p
+        assert "missed_today" in p
+        assert "next_medication" in p
+
     def test_patient_role_forbidden(self):
         response = client.get("/v1/provider/dashboard", headers=make_token(role="patient", user_id=TEST_PATIENT_ID))
         assert response.status_code == 403

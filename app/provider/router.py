@@ -1,6 +1,6 @@
 import logging
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, time
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -11,6 +11,12 @@ from app.db.supabase import supabase
 
 logger = logging.getLogger("adhera.provider")
 router = APIRouter()
+
+RISK_THRESHOLDS = {
+    "CRITICAL": 50,
+    "HIGH": 70,
+    "MODERATE": 85
+}
 
 @router.get("/dashboard", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
@@ -44,6 +50,89 @@ async def get_provider_dashboard(request: Request, user: dict = Depends(require_
             t = len(data)
             tk = len([x for x in data if x['status'] == 'taken'])
             return round((tk / t * 100), 1) if t > 0 else 0.0
+
+        # Batch query 1 — last_dose_taken per patient
+        last_dose_res = supabase.table("adherence")\
+            .select("user_id, scheduled_utc")\
+            .in_("user_id", patient_ids)\
+            .eq("status", "taken")\
+            .order("scheduled_utc", desc=True).execute()
+        last_dose_map = {}
+        for r in (last_dose_res.data or []):
+            uid = r["user_id"]
+            if uid not in last_dose_map:
+                last_dose_map[uid] = r["scheduled_utc"]
+
+        # Batch query 2 — missed_today per patient
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        today_end   = now.replace(hour=23, minute=59, second=59, microsecond=0).isoformat()
+        missed_res = supabase.table("adherence")\
+            .select("user_id")\
+            .in_("user_id", patient_ids)\
+            .eq("status", "missed")\
+            .gte("scheduled_utc", today_start)\
+            .lte("scheduled_utc", today_end).execute()
+        missed_map = defaultdict(int)
+        for r in (missed_res.data or []):
+            missed_map[r["user_id"]] += 1
+
+        # Batch query 3 — next_medication per patient
+        reminders_res = supabase.table("reminders").select("*, medicines(*)").in_("user_id", patient_ids).eq("is_active", True).execute()
+        patient_reminders = defaultdict(list)
+        for r in (reminders_res.data or []):
+            patient_reminders[r["user_id"]].append(r)
+
+        next_med_map = {}
+        for pid in patient_ids:
+            rems = patient_reminders.get(pid, [])
+            upcoming_for_patient = []
+            for r in rems:
+                med = r.get("medicines")
+                if not med or not med.get("is_active", True):
+                    continue
+                time_str = r.get("dose_time_utc")
+                if not time_str:
+                    continue
+                try:
+                    parts = time_str.split(":")
+                    h = int(parts[0])
+                    m = int(parts[1])
+                    s = int(parts[2]) if len(parts) > 2 else 0
+                except Exception:
+                    continue
+
+                for day_offset in [0, 1]:
+                    d = now.date() + timedelta(days=day_offset)
+                    occurrence = datetime.combine(d, time(h, m, s), tzinfo=timezone.utc)
+                    if occurrence >= now:
+                        rec_type = r.get("recurrence_type")
+                        if rec_type == "daily":
+                            pass
+                        elif rec_type == "weekday":
+                            params = r.get("recurrence_params") or []
+                            if occurrence.isoweekday() not in params:
+                                continue
+                        elif rec_type == "alternate":
+                            med_start_str = med.get("start_date")
+                            if med_start_str:
+                                try:
+                                    med_start = datetime.strptime(med_start_str, "%Y-%m-%d").date()
+                                    days_diff = (occurrence.date() - med_start).days
+                                    if days_diff % 2 != 0:
+                                        continue
+                                except Exception:
+                                    pass
+                        else:
+                            continue
+
+                        upcoming_for_patient.append({
+                            "name": med.get("name") or "Unknown",
+                            "time": occurrence.isoformat()
+                        })
+            if upcoming_for_patient:
+                upcoming_for_patient.sort(key=lambda x: x["time"])
+                next_med_map[pid] = upcoming_for_patient[0]
+
         from app.core.utils import calculate_age
         patients_list = []
         weekly_percentages = []
@@ -59,12 +148,28 @@ async def get_provider_dashboard(request: Request, user: dict = Depends(require_
             w_data = [x for x in user_adh if x['scheduled_utc'] >= d7]
             weekly_percentage = get_rate(w_data) if w_data else (get_rate(user_adh) if user_adh else 80.0)
             weekly_percentages.append(weekly_percentage)
+
+            # Risk Level constant derivation
+            if weekly_percentage < RISK_THRESHOLDS["CRITICAL"]:
+                risk_level = "critical"
+            elif weekly_percentage < RISK_THRESHOLDS["HIGH"]:
+                risk_level = "high"
+            elif weekly_percentage < RISK_THRESHOLDS["MODERATE"]:
+                risk_level = "moderate"
+            else:
+                risk_level = "low"
+
             if weekly_percentage < 70:
                 critical_risk_count += 1
+
             patients_list.append({
                 "patient_id": pid,
                 "profiles": p_copy,
-                "adherence": {"weekly_percentage": weekly_percentage}
+                "adherence": {"weekly_percentage": weekly_percentage},
+                "risk_level": risk_level,
+                "last_dose_taken": last_dose_map.get(pid),
+                "missed_today": missed_map.get(pid, 0),
+                "next_medication": next_med_map.get(pid)
             })
         avg_adherence = round(sum(weekly_percentages) / len(weekly_percentages), 1) if weekly_percentages else 0.0
         feedback_res = supabase.table("feedback").select("*").in_("user_id", patient_ids).gte("severity", 3).order("created_at", desc=True).limit(10).execute()
