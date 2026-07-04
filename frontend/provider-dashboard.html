@@ -614,67 +614,67 @@
                 </div>
             </div>
 
-            <!-- Search + Filter Bar -->
-            <div class="flex flex-col md:flex-row gap-3 mb-5 items-stretch">
-                <!-- Search bar: 260px fixed width on desktop, flex-grow/shrink-0 -->
-                <div class="relative flex items-center w-full md:w-[260px] shrink-0">
+            <!-- Search + Filter Bar (Single Toolbar Row) -->
+            <div class="flex flex-wrap items-center gap-3 mb-5">
+                <!-- Search bar: grows/flexes -->
+                <div class="relative flex items-center flex-1 min-w-[260px] h-[40px]">
                     <span class="absolute left-3 w-5 text-slate-400 flex items-center justify-center pointer-events-none">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </span>
                     <input id="patient-search" type="search" x-model="searchQuery" placeholder="Search patients…" 
-                           class="w-full pl-10 pr-9 py-2.5 text-sm h-[40px] placeholder-slate-500 text-white font-medium" 
+                           class="w-full pl-10 pr-9 py-2.5 text-sm h-full placeholder-slate-500 text-white font-medium" 
                            style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:12px;"
                            aria-label="Search patients by name">
-                    <button x-show="searchQuery" @click="searchQuery = ''" class="absolute right-0 top-0 w-[44px] h-[44px] flex items-center justify-center text-slate-400 hover:text-white" aria-label="Clear search">
+                    <button x-show="searchQuery" @click="searchQuery = ''" 
+                            class="absolute right-0 top-1/2 -translate-y-1/2 w-[44px] h-[44px] flex items-center justify-center text-slate-400 hover:text-white bg-transparent border-0 cursor-pointer" 
+                            aria-label="Clear search">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
                 
-                <!-- Filters group -->
-                <div class="flex flex-wrap flex-1 gap-2">
-                    <select id="patient-risk-filter" x-model="filterRisk" class="py-2.5 px-3 text-sm h-[40px] min-w-[130px] rounded-xl flex-1 md:flex-initial" aria-label="Filter by risk level">
-                        <option value="">All Risks</option>
-                        <option value="Critical">🔴 Critical (&lt;50%)</option>
-                        <option value="High">🟠 High (50–70%)</option>
-                        <option value="Moderate">🔵 Moderate (70–85%)</option>
-                        <option value="Low">🟢 Low (&gt;85%)</option>
-                    </select>
-                    <!-- Additional filter controls for Adherence range, Last Active, Age, and Blood Group -->
-                    <select id="patient-adherence-filter" x-model="filterAdherenceRange" class="py-2.5 px-3 text-sm h-[40px] min-w-[130px] rounded-xl flex-1 md:flex-initial" aria-label="Filter by adherence range">
-                        <option value="">All Adherences</option>
-                        <option value="poor">Poor (&lt;60%)</option>
-                        <option value="good">Good (60-90%)</option>
-                        <option value="excellent">Excellent (&gt;90%)</option>
-                    </select>
-                    <select id="patient-active-filter" x-model="filterLastActive" class="py-2.5 px-3 text-sm h-[40px] min-w-[130px] rounded-xl flex-1 md:flex-initial" aria-label="Filter by last active duration">
-                        <option value="">Any Last Active</option>
-                        <option value="today">Today</option>
-                        <option value="3days">Within 3 days</option>
-                        <option value="week">Over a week ago</option>
-                    </select>
-                    <select id="patient-age-filter" x-model="filterAgeGroup" class="py-2.5 px-3 text-sm h-[40px] min-w-[130px] rounded-xl flex-1 md:flex-initial" aria-label="Filter by age group">
-                        <option value="">All Ages</option>
-                        <option value="under30">Under 30</option>
-                        <option value="30to60">30 - 60</option>
-                        <option value="over60">Over 60</option>
-                    </select>
-                    <select id="patient-blood-filter" x-model="filterBloodGroup" class="py-2.5 px-3 text-sm h-[40px] min-w-[130px] rounded-xl flex-1 md:flex-initial" aria-label="Filter by blood group">
-                        <option value="">All Blood Groups</option>
-                        <option value="A+">A+</option><option value="A-">A-</option>
-                        <option value="B+">B+</option><option value="B-">B-</option>
-                        <option value="AB+">AB+</option><option value="AB-">AB-</option>
-                        <option value="O+">O+</option><option value="O-">O-</option>
-                    </select>
-                    <!-- Sort dropdown -->
-                    <select id="patient-sort" x-model="sortBy" class="py-2.5 px-3 text-sm h-[40px] min-w-[140px] rounded-xl flex-1 md:flex-initial" aria-label="Sort patients">
-                        <option value="name">Sort: Name A–Z</option>
-                        <option value="adh_desc">Adherence: High → Low</option>
-                        <option value="adh_asc">Adherence: Low → High</option>
-                        <option value="last_active">Last Active</option>
-                        <option value="recently_assigned">Recently Assigned</option>
-                        <option value="risk_high">Highest Risk</option>
-                    </select>
-                </div>
+                <!-- Filters directly sibling to the search bar -->
+                <select id="patient-risk-filter" x-model="filterRisk" class="py-2.5 px-3 text-sm h-[40px] min-w-[130px] rounded-xl flex-1 md:flex-initial" aria-label="Filter by risk level">
+                    <option value="">All Risks</option>
+                    <option value="Critical">🔴 Critical (&lt;50%)</option>
+                    <option value="High">🟠 High (50–70%)</option>
+                    <option value="Moderate">🔵 Moderate (70–85%)</option>
+                    <option value="Low">🟢 Low (&gt;85%)</option>
+                </select>
+                <!-- Additional filter controls for Adherence range, Last Active, Age, and Blood Group -->
+                <select id="patient-adherence-filter" x-model="filterAdherenceRange" class="py-2.5 px-3 text-sm h-[40px] min-w-[130px] rounded-xl flex-1 md:flex-initial" aria-label="Filter by adherence range">
+                    <option value="">All Adherences</option>
+                    <option value="poor">Poor (&lt;60%)</option>
+                    <option value="good">Good (60-90%)</option>
+                    <option value="excellent">Excellent (&gt;90%)</option>
+                </select>
+                <select id="patient-active-filter" x-model="filterLastActive" class="py-2.5 px-3 text-sm h-[40px] min-w-[130px] rounded-xl flex-1 md:flex-initial" aria-label="Filter by last active duration">
+                    <option value="">Any Last Active</option>
+                    <option value="today">Today</option>
+                    <option value="3days">Within 3 days</option>
+                    <option value="week">Over a week ago</option>
+                </select>
+                <select id="patient-age-filter" x-model="filterAgeGroup" class="py-2.5 px-3 text-sm h-[40px] min-w-[130px] rounded-xl flex-1 md:flex-initial" aria-label="Filter by age group">
+                    <option value="">All Ages</option>
+                    <option value="under30">Under 30</option>
+                    <option value="30to60">30 - 60</option>
+                    <option value="over60">Over 60</option>
+                </select>
+                <select id="patient-blood-filter" x-model="filterBloodGroup" class="py-2.5 px-3 text-sm h-[40px] min-w-[130px] rounded-xl flex-1 md:flex-initial" aria-label="Filter by blood group">
+                    <option value="">All Blood Groups</option>
+                    <option value="A+">A+</option><option value="A-">A-</option>
+                    <option value="B+">B+</option><option value="B-">B-</option>
+                    <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                    <option value="O+">O+</option><option value="O-">O-</option>
+                </select>
+                <!-- Sort dropdown -->
+                <select id="patient-sort" x-model="sortBy" class="py-2.5 px-3 text-sm h-[40px] min-w-[140px] rounded-xl flex-1 md:flex-initial" aria-label="Sort patients">
+                    <option value="name">Sort: Name A–Z</option>
+                    <option value="adh_desc">Adherence: High → Low</option>
+                    <option value="adh_asc">Adherence: Low → High</option>
+                    <option value="last_active">Last Active</option>
+                    <option value="recently_assigned">Recently Assigned</option>
+                    <option value="risk_high">Highest Risk</option>
+                </select>
             </div>
 
             <!-- Limit warning -->
