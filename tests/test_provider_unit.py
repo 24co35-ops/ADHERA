@@ -71,6 +71,65 @@ class TestProviderDashboard:
         response = client.get("/v1/provider/dashboard", headers=make_token())
         assert response.status_code == 500
 
+    @patch("app.provider.router.supabase")
+    def test_dashboard_feedback_mapping_regression(self, mock_sb):
+        # Verify provider dashboard resolves feedback user full_name via separate profiles query.
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+
+        # Mock table calls
+        def table_side_effect(table_name):
+            mock_table = MagicMock()
+            if table_name == "assignments":
+                mock_table.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+                    data=[{"patient_id": TEST_PATIENT_ID}]
+                )
+            elif table_name == "profiles":
+                mock_table.select.return_value.in_.return_value.execute.side_effect = [
+                    # First profiles call: dashboard patient profiles
+                    MagicMock(data=[{
+                        "id": TEST_PATIENT_ID, "full_name": "Alice Patient",
+                        "contact_number": "1234", "date_of_birth": "1990-01-01", "blood_group": "A+"
+                    }]),
+                    # Second profiles call: feedback author profiles
+                    MagicMock(data=[{
+                        "id": TEST_PATIENT_ID, "full_name": "Alice Patient"
+                    }])
+                ]
+            elif table_name == "adherence":
+                mock_table.select.return_value.in_.return_value.gte.return_value.execute.return_value = MagicMock(
+                    data=[]
+                )
+            elif table_name == "feedback":
+                mock_table.select.return_value.in_.return_value.gte.return_value.order.return_value.limit.return_value.execute.return_value = MagicMock(
+                    data=[{
+                        "id": "fb-999",
+                        "user_id": TEST_PATIENT_ID,
+                        "severity": 3,
+                        "description": "Nausea after meds",
+                        "created_at": now.isoformat()
+                    }]
+                )
+            elif table_name == "patient_flags":
+                mock_table.select.return_value.in_.return_value.is_.return_value.order.return_value.limit.return_value.execute.return_value = MagicMock(
+                    data=[]
+                )
+            return mock_table
+
+        mock_sb.table.side_effect = table_side_effect
+        mock_sb.auth.admin.list_users.return_value = []
+
+        response = client.get("/v1/provider/dashboard", headers=make_token())
+        assert response.status_code == 200
+        data = response.json()["data"]
+        
+        # Verify alert_list profiles full_name is correctly resolved
+        assert len(data["alerts"]) == 1
+        alert = data["alerts"][0]
+        assert alert["id"] == "fb-999"
+        assert alert["profiles"]["full_name"] == "Alice Patient"
+        assert alert["description"] == "Nausea after meds"
+
     def test_patient_role_forbidden(self):
         response = client.get("/v1/provider/dashboard", headers=make_token(role="patient", user_id=TEST_PATIENT_ID))
         assert response.status_code == 403

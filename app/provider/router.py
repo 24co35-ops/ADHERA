@@ -67,13 +67,21 @@ async def get_provider_dashboard(request: Request, user: dict = Depends(require_
                 "adherence": {"weekly_percentage": weekly_percentage}
             })
         avg_adherence = round(sum(weekly_percentages) / len(weekly_percentages), 1) if weekly_percentages else 0.0
-        feedback_res = supabase.table("feedback").select("*, profiles(full_name)").in_("user_id", patient_ids).gte("severity", 3).order("created_at", desc=True).limit(10).execute()
+        feedback_res = supabase.table("feedback").select("*").in_("user_id", patient_ids).gte("severity", 3).order("created_at", desc=True).limit(10).execute()
+        feedback_rows = feedback_res.data or []
+        feedback_user_ids = list({f["user_id"] for f in feedback_rows if f.get("user_id")})
+        fb_profiles = {}
+        if feedback_user_ids:
+            fb_prof_res = supabase.table("profiles").select("id, full_name").in_("id", feedback_user_ids).execute()
+            fb_profiles = {p["id"]: p.get("full_name") for p in (fb_prof_res.data or [])}
+
         alerts_list = []
-        for f in (feedback_res.data or []):
-            prof_data = f.get("profiles") or {}
+        for f in feedback_rows:
+            user_id = f.get("user_id")
+            full_name = fb_profiles.get(user_id) or "Unknown Patient"
             alerts_list.append({
                 "id": f.get("id"),
-                "profiles": {"full_name": prof_data.get("full_name", "Unknown Patient")},
+                "profiles": {"full_name": full_name},
                 "severity": f.get("severity", 3),
                 "description": f.get("description", ""),
                 "created_at": f.get("created_at")
