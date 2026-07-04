@@ -3,7 +3,6 @@
 <head>
     <script src="config.js"></script>
     <meta charset="UTF-8">
-    <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/assets/favicons/logo.svg?v=3">
     <link rel="shortcut icon" href="/assets/favicons/favicon.ico?v=3" type="image/x-icon">
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicons/favicon-16x16.png?v=3">
@@ -11,12 +10,12 @@
     <link rel="icon" type="image/png" sizes="48x48" href="/assets/favicons/favicon-48x48.png?v=3">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/favicon-180x180.png?v=3">
     <link rel="manifest" href="/site.webmanifest">
-    <meta name="theme-color" content="#6366f1">
+    <meta name="theme-color" content="#00dbe7">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Adhera Provider</title>
+    <title>Adhera — Provider Dashboard</title>
+    <meta name="description" content="Monitor your patients' medication adherence and receive critical alerts.">
     <link rel="stylesheet" href="/css/adhera.css">
     <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-    <script src="https://unpkg.com/chart.js@4/dist/chart.umd.js"></script>
     <script src="js/nav.js"></script>
     <script>
         const _token = sessionStorage.getItem('adhera_token');
@@ -25,40 +24,148 @@
         const _role = _payload.app_metadata?.role || _payload.user_metadata?.role || _payload.role;
         if (_role !== 'provider') window.location.href = 'index.html';
 
-        // Supabase credentials fetched dynamically via CONFIG onReady
+        // RISK_THRESHOLDS — patient risk classification by weekly adherence %
+        // <CRITICAL% → Critical | <HIGH% → High | <MODERATE% → Moderate | else → Low
+        const RISK_THRESHOLDS = { CRITICAL: 50, HIGH: 70, MODERATE: 85 };
+
         const config = {};
-        // Chart instances must not be stored inside Alpine's reactive proxy to prevent 'Maximum call stack exceeded' errors.
+        // Chart instances stored outside Alpine proxy to prevent maximum call stack errors
         let globalCharts = {};
-        
+
         function providerData() {
             return {
                 token: sessionStorage.getItem('adhera_token'),
                 patients: [], loading: true, expanded: null,
-                presenceMap: {},
-                presenceChannel: null,
+                presenceMap: {}, presenceChannel: null,
                 pendingRequests: [],
-                actionLoading: {},
-                actionFeedback: {},
-                actionErrorMsg: {},
-                hasMorePatients: false,
-                totalPatientCount: 0,
-                insightFlags: [],
-                flagsLoading: false,
-                resolvingFlag: {},
-                
+                actionLoading: {}, actionFeedback: {}, actionErrorMsg: {},
+                hasMorePatients: false, totalPatientCount: 0,
+                insightFlags: [], flagsLoading: false, resolvingFlag: {},
+                dashboardStats: { avg_adherence: 0, active_patients: 0, critical_risk: 0 },
+                alertsList: [],
+                kpiAnimated: { patients: 0, critical: 0, feedback: 0, adherence: 0 },
+                searchQuery: '', filterRisk: '', sortBy: 'name',
+
                 async init() {
                     renderNav('provider');
-                    Chart.defaults.color = '#849495';
-                    Chart.defaults.font.family = 'Inter';
-                    
-                    await Promise.all([this.fetchPatients(), this.fetchPendingRequests(), this.fetchInsightFlags()]);
+                    await Promise.all([this.fetchPatients(), this.fetchPendingRequests(), this.fetchDashboard()]);
                     this.setupPresence(_payload);
                 },
-                
-                get criticalPatients() {
-                    return this.patients.filter(p => p.adherence && p.adherence.weekly_percentage < 50);
+
+                get greeting() {
+                    const h = new Date().getHours();
+                    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
                 },
- 
+
+                get providerName() {
+                    try {
+                        const p = JSON.parse(atob(this.token.split('.')[1]));
+                        const full = p.user_metadata?.full_name || p.full_name || '';
+                        if (!full) return 'Doctor';
+                        const parts = full.trim().split(' ');
+                        return 'Dr. ' + parts[parts.length - 1];
+                    } catch(e) { return 'Doctor'; }
+                },
+
+                get filteredPatients() {
+                    let pts = this.patients;
+                    if (this.searchQuery) {
+                        const q = this.searchQuery.toLowerCase();
+                        pts = pts.filter(p => (p.profiles?.full_name || '').toLowerCase().includes(q));
+                    }
+                    if (this.filterRisk) {
+                        pts = pts.filter(p => {
+                            const pct = p.adherence?.weekly_percentage ?? 0;
+                            if (this.filterRisk === 'Critical') return pct < RISK_THRESHOLDS.CRITICAL;
+                            if (this.filterRisk === 'High') return pct >= RISK_THRESHOLDS.CRITICAL && pct < RISK_THRESHOLDS.HIGH;
+                            if (this.filterRisk === 'Moderate') return pct >= RISK_THRESHOLDS.HIGH && pct < RISK_THRESHOLDS.MODERATE;
+                            if (this.filterRisk === 'Low') return pct >= RISK_THRESHOLDS.MODERATE;
+                            return true;
+                        });
+                    }
+                    const sorted = [...pts];
+                    if (this.sortBy === 'adh_asc') sorted.sort((a,b) => (a.adherence?.weekly_percentage||0) - (b.adherence?.weekly_percentage||0));
+                    else if (this.sortBy === 'adh_desc') sorted.sort((a,b) => (b.adherence?.weekly_percentage||0) - (a.adherence?.weekly_percentage||0));
+                    else sorted.sort((a,b) => (a.profiles?.full_name||'').localeCompare(b.profiles?.full_name||''));
+                    return sorted;
+                },
+
+                get allAlerts() {
+                    const fb = this.alertsList.map(a => ({
+                        id: 'fb_' + a.id,
+                        name: a.profiles?.full_name || 'Unknown Patient',
+                        desc: a.description ? (a.description.length > 90 ? a.description.slice(0,87) + '…' : a.description) : 'High-severity feedback submitted',
+                        severity: a.severity, time: a.created_at, type: 'feedback'
+                    }));
+                    const flags = this.insightFlags.map(f => ({
+                        id: 'fl_' + f.id,
+                        name: f.full_name || 'Unknown Patient',
+                        desc: this.flagSummaryShort(f),
+                        severity: f.severity, time: f.detected_at, type: 'flag', flagId: f.id
+                    }));
+                    return [...fb, ...flags].sort((a,b) => (b.severity||0) - (a.severity||0));
+                },
+
+                alertDot(severity) {
+                    if (severity >= 4) return '🔴';
+                    if (severity >= 3) return '🟠';
+                    return '🟡';
+                },
+
+                riskInfo(pct) {
+                    if (pct < RISK_THRESHOLDS.CRITICAL) return { label: 'Critical', cls: 'text-rose-400 bg-rose-500/10 border-rose-500/30' };
+                    if (pct < RISK_THRESHOLDS.HIGH)     return { label: 'High',     cls: 'text-amber-400 bg-amber-500/10 border-amber-500/30' };
+                    if (pct < RISK_THRESHOLDS.MODERATE) return { label: 'Moderate', cls: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30' };
+                    return                                      { label: 'Low',      cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' };
+                },
+
+                adherenceColor(pct) {
+                    if (pct < RISK_THRESHOLDS.CRITICAL) return '#FF5252';
+                    if (pct < RISK_THRESHOLDS.HIGH)     return '#FFB300';
+                    if (pct < RISK_THRESHOLDS.MODERATE) return '#00dbe7';
+                    return '#00C853';
+                },
+
+                flagSummaryShort(flag) {
+                    const m = {
+                        dose_drift: 'Dose timing drifting later',
+                        weekend_pattern: 'Weekend adherence gap',
+                        post_side_effect_drop: 'Adherence drop after side effect',
+                        silent_inactivity: 'No activity logged'
+                    };
+                    return m[flag.flag_type] || flag.flag_type;
+                },
+
+                // Keep full flagSummary/flagTypeLabel for backward compatibility
+                flagTypeLabel(type) {
+                    return {
+                        dose_drift: 'Dose timing drifting later', weekend_pattern: 'Weekend adherence gap',
+                        post_side_effect_drop: 'Adherence drop after side effect', silent_inactivity: 'No activity logged'
+                    }[type] || type;
+                },
+                flagSummary(flag) {
+                    const d = flag.details || {};
+                    if (flag.flag_type === 'dose_drift') return `Avg delay: ${d.early_avg_delay_min}min → ${d.late_avg_delay_min}min (worsening)`;
+                    if (flag.flag_type === 'weekend_pattern') return `${d.weekend_misses} weekend vs ${d.weekday_misses} weekday misses`;
+                    if (flag.flag_type === 'post_side_effect_drop') return `Adherence: ${d.adherence_before_pct}% → ${d.adherence_after_pct}% after side effect`;
+                    if (flag.flag_type === 'silent_inactivity') return d.days_since_last_log != null ? `${d.days_since_last_log}d since last log (${d.active_medicine_count} med${d.active_medicine_count!==1?'s':''})` : `No logs ever (${d.active_medicine_count} med${d.active_medicine_count!==1?'s':''})`;
+                    return JSON.stringify(d);
+                },
+
+                animateKPI(key, target) {
+                    const duration = 700;
+                    const start = Date.now();
+                    const step = () => {
+                        const prog = Math.min((Date.now() - start) / duration, 1);
+                        const eased = 1 - Math.pow(1 - prog, 3); // ease-out cubic
+                        this.kpiAnimated[key] = key === 'adherence'
+                            ? Math.round(eased * target * 10) / 10
+                            : Math.round(eased * target);
+                        if (prog < 1) requestAnimationFrame(step);
+                    };
+                    requestAnimationFrame(step);
+                },
+
                 async api(path, method = 'GET') {
                     const isGet = method === 'GET';
                     const res = await fetch(`${CONFIG.API_BASE}${path}`, {
@@ -68,48 +175,33 @@
                     });
                     if (res.status === 401) { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
                     const data = await res.json();
-                    if (!data.success) {
-                        console.error(`API ${method} ${path} failed:`, res.status, data);
-                        return null;
-                    }
+                    if (!data.success) { console.error(`API ${method} ${path} failed:`, res.status, data); return null; }
                     return data.data;
+                },
+
+                async fetchDashboard() {
+                    this.flagsLoading = true;
+                    try {
+                        const data = await this.api('/provider/dashboard');
+                        if (data) {
+                            this.insightFlags = data.insight_flags || [];
+                            this.alertsList   = data.alerts || [];
+                            this.dashboardStats = data.stats || { avg_adherence: 0, active_patients: 0, critical_risk: 0 };
+                            this.$nextTick(() => {
+                                this.animateKPI('patients',  this.dashboardStats.active_patients || 0);
+                                this.animateKPI('critical',  this.dashboardStats.critical_risk   || 0);
+                                this.animateKPI('feedback',  this.alertsList.length              || 0);
+                                this.animateKPI('adherence', this.dashboardStats.avg_adherence   || 0);
+                            });
+                        }
+                    } catch(e) { console.warn('fetchDashboard error', e); }
+                    finally { this.flagsLoading = false; }
                 },
 
                 async fetchPendingRequests() {
                     const data = await this.api('/provider/pending-requests') || [];
                     this.pendingRequests = data;
                     _renderPendingRequests(data);
-                },
-
-                async fetchInsightFlags() {
-                    this.flagsLoading = true;
-                    try {
-                        const data = await this.api('/provider/dashboard');
-                        this.insightFlags = (data && data.insight_flags) ? data.insight_flags : [];
-                    } catch (e) { console.warn('fetchInsightFlags error', e); }
-                    finally { this.flagsLoading = false; }
-                },
-
-                flagTypeLabel(type) {
-                    return {
-                        dose_drift: 'Dose timing drifting later',
-                        weekend_pattern: 'Weekend adherence gap',
-                        post_side_effect_drop: 'Adherence drop after side effect',
-                        silent_inactivity: 'No activity logged'
-                    }[type] || type;
-                },
-
-                flagSummary(flag) {
-                    const d = flag.details || {};
-                    if (flag.flag_type === 'dose_drift')
-                        return `Avg delay: ${d.early_avg_delay_min}min → ${d.late_avg_delay_min}min (worsening)`;
-                    if (flag.flag_type === 'weekend_pattern')
-                        return `${d.weekend_misses} weekend misses vs ${d.weekday_misses} weekday (${Math.round((d.weekend_ratio||0)*100)}% on weekends)`;
-                    if (flag.flag_type === 'post_side_effect_drop')
-                        return `Adherence: ${d.adherence_before_pct}% → ${d.adherence_after_pct}% after side effect (sev ${d.side_effect_severity})`;
-                    if (flag.flag_type === 'silent_inactivity')
-                        return d.days_since_last_log != null ? `${d.days_since_last_log} days since last log (${d.active_medicine_count} active med${d.active_medicine_count !== 1 ? 's' : ''})` : `No logs ever (${d.active_medicine_count} active med${d.active_medicine_count !== 1 ? 's' : ''})`;
-                    return JSON.stringify(d);
                 },
 
                 async resolveFlag(flagId) {
@@ -122,10 +214,8 @@
                         });
                         if (res.ok) {
                             this.insightFlags = this.insightFlags.filter(f => f.id !== flagId);
-                        } else {
-                            console.error('resolveFlag failed', res.status);
-                        }
-                    } catch (e) { console.error('resolveFlag error', e); }
+                        } else { console.error('resolveFlag failed', res.status); }
+                    } catch(e) { console.error('resolveFlag error', e); }
                     finally { this.resolvingFlag = { ...this.resolvingFlag, [flagId]: false }; }
                 },
 
@@ -143,12 +233,10 @@
                             this.actionFeedback = { ...this.actionFeedback, [patientId]: 'error' };
                             this.actionErrorMsg = { ...this.actionErrorMsg, [patientId]: 'Failed to accept request' };
                         }
-                    } catch (e) {
+                    } catch(e) {
                         this.actionFeedback = { ...this.actionFeedback, [patientId]: 'error' };
                         this.actionErrorMsg = { ...this.actionErrorMsg, [patientId]: 'Error processing request' };
-                    } finally {
-                        this.actionLoading = { ...this.actionLoading, [patientId]: false };
-                    }
+                    } finally { this.actionLoading = { ...this.actionLoading, [patientId]: false }; }
                 },
 
                 async declineRequest(patientId) {
@@ -157,33 +245,25 @@
                     this.actionErrorMsg = { ...this.actionErrorMsg, [patientId]: '' };
                     try {
                         const res = await this.api(`/provider/requests/${patientId}/decline`, 'PATCH');
-                        if (res) {
-                            await this.fetchPendingRequests();
-                        } else {
+                        if (res) { await this.fetchPendingRequests(); }
+                        else {
                             this.actionFeedback = { ...this.actionFeedback, [patientId]: 'error' };
                             this.actionErrorMsg = { ...this.actionErrorMsg, [patientId]: 'Failed to decline request' };
                         }
-                    } catch (e) {
+                    } catch(e) {
                         this.actionFeedback = { ...this.actionFeedback, [patientId]: 'error' };
                         this.actionErrorMsg = { ...this.actionErrorMsg, [patientId]: 'Error processing request' };
-                    } finally {
-                        this.actionLoading = { ...this.actionLoading, [patientId]: false };
-                    }
+                    } finally { this.actionLoading = { ...this.actionLoading, [patientId]: false }; }
                 },
-                
+
                 async fetchPatients() {
                     this.loading = true;
-                    try { 
-                        let pts = await this.api('/provider/patients') || []; 
+                    try {
+                        let pts = await this.api('/provider/patients') || [];
                         this.totalPatientCount = pts.length;
-                        if (pts.length > 15) {
-                            this.hasMorePatients = true;
-                            pts = pts.slice(0, 15);
-                        } else {
-                            this.hasMorePatients = false;
-                        }
-                        
-                        // Fetch adherence/stats concurrently for all patients
+                        if (pts.length > 15) { this.hasMorePatients = true; pts = pts.slice(0, 15); }
+                        else { this.hasMorePatients = false; }
+
                         const enriched = await Promise.all(pts.map(async p => {
                             const [ad, tr, d_stat, d_meds, fb] = await Promise.all([
                                 this.api(`/analytics/adherence?patient_id=${p.patient_id}`).catch(()=>null),
@@ -192,142 +272,73 @@
                                 this.api(`/medicines?patient_id=${p.patient_id}`).catch(()=>[]),
                                 this.api(`/feedback/?patient_id=${p.patient_id}`).catch(()=>[])
                             ]);
-                            return { ...p, adherence: ad || {weekly_percentage: 0}, trend: tr || [], stats: d_stat || {}, medicines: d_meds || [], feedback: (fb || []).slice(0,3) };
+                            return { ...p, adherence: ad||{weekly_percentage:0}, trend:tr||[], stats:d_stat||{}, medicines:d_meds||[], feedback:(fb||[]).slice(0,3) };
                         }));
-                        
                         this.patients = enriched;
-                    } catch(e) { console.error(e); } 
+                    } catch(e) { console.error(e); }
                     finally { this.loading = false; }
-                },
-
-                async toggleExpand(id) {
-                    if (this.expanded === id) { this.expanded = null; return; }
-                    this.expanded = id;
-                    
-                    // Allow DOM to update then render charts
-                    this.$nextTick(() => {
-                        const p = this.patients.find(x => x.patient_id === id);
-                        this.renderCharts(id, p.trend || []);
-                    });
-                },
-                
-                processTrendData(trend, days) {
-                    const now = new Date();
-                    const map = {};
-                    for(let i=days-1; i>=0; i--) {
-                        const d = new Date(now);
-                        d.setDate(d.getDate() - i);
-                        map[d.toISOString().split('T')[0]] = { taken: 0, total: 0 };
-                    }
-                    
-                    trend.forEach(t => {
-                        const dateStr = t.scheduled_utc.split('T')[0];
-                        if(map[dateStr]) {
-                            map[dateStr].total++;
-                            if(t.status === 'taken') map[dateStr].taken++;
-                        }
-                    });
-                    
-                    const labels = [];
-                    const data = [];
-                    for(const [date, counts] of Object.entries(map)) {
-                        const d = new Date(date);
-                        labels.push(d.toLocaleDateString(undefined, {month:'short', day:'numeric'}));
-                        data.push(counts.total > 0 ? Math.round((counts.taken / counts.total) * 100) : 0);
-                    }
-                    return { labels, data };
-                },
-
-                renderCharts(id, trend) {
-                    const wData = this.processTrendData(trend, 7);
-                    const mData = this.processTrendData(trend, 30);
-                    
-                    const commonOptions = {
-                        responsive: true, maintainAspectRatio: false,
-                        scales: { y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } },
-                        plugins: { legend: { display: false } }
-                    };
-
-                    if(globalCharts[`w_${id}`]) globalCharts[`w_${id}`].destroy();
-                    const wc = document.getElementById(`weeklyChart-${id}`);
-                    if(wc) globalCharts[`w_${id}`] = new Chart(wc, { type: 'bar', data: { labels: wData.labels, datasets: [{ data: wData.data, backgroundColor: '#00dbe7', borderRadius: 4 }] }, options: commonOptions });
-
-                    if(globalCharts[`m_${id}`]) globalCharts[`m_${id}`].destroy();
-                    const mc = document.getElementById(`monthlyChart-${id}`);
-                    if(mc) globalCharts[`m_${id}`] = new Chart(mc, { type: 'line', data: { labels: mData.labels, datasets: [{ data: mData.data, borderColor: '#0566d9', backgroundColor: 'rgba(5, 102, 217, 0.1)', borderWidth: 3, tension: 0.4, fill: true, pointRadius: 2 }] }, options: commonOptions });
                 },
 
                 async setupPresence(payload) {
                     try {
                         if (!window.supabase) return;
-                        if (!CONFIG._ready) {
-                            await new Promise(resolve => CONFIG.onReady(resolve));
-                        }
+                        if (!CONFIG._ready) { await new Promise(resolve => CONFIG.onReady(resolve)); }
                         const sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
                         this.presenceChannel = sb.channel('adhera-presence');
-                        
                         const myState = {
                             user_id: payload.sub,
                             role: payload.role || payload.app_metadata?.role || payload.user_metadata?.role || 'provider',
                             full_name: payload.user_metadata?.full_name || 'Provider',
                             last_seen: new Date().toISOString()
                         };
-                        
-                        this.presenceChannel.on('presence', { event: 'sync' }, () => {
-                            const state = this.presenceChannel.presenceState();
-                            const newMap = { ...this.presenceMap };
-                            // Mark all offline first
-                            Object.keys(newMap).forEach(k => newMap[k].online = false);
-                            
-                            for (const id in state) {
-                                if (state[id].length > 0) {
-                                    const latest = state[id][0];
-                                    newMap[latest.user_id] = { online: true, last_seen: latest.last_seen };
+                        this.presenceChannel
+                            .on('presence', { event: 'sync' }, () => {
+                                const state = this.presenceChannel.presenceState();
+                                const newMap = { ...this.presenceMap };
+                                Object.keys(newMap).forEach(k => newMap[k].online = false);
+                                for (const id in state) {
+                                    if (state[id].length > 0) {
+                                        const latest = state[id][0];
+                                        newMap[latest.user_id] = { online: true, last_seen: latest.last_seen };
+                                    }
                                 }
-                            }
-                            this.presenceMap = newMap;
-                        })
-                        .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-                            leftPresences.forEach(p => {
-                                if(this.presenceMap[p.user_id]) {
-                                    this.presenceMap[p.user_id].online = false;
-                                    this.presenceMap[p.user_id].last_seen = new Date().toISOString();
+                                this.presenceMap = newMap;
+                            })
+                            .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+                                leftPresences.forEach(p => {
+                                    if(this.presenceMap[p.user_id]) {
+                                        this.presenceMap[p.user_id].online = false;
+                                        this.presenceMap[p.user_id].last_seen = new Date().toISOString();
+                                    }
+                                });
+                            })
+                            .subscribe(async (status) => {
+                                if (status === 'SUBSCRIBED') {
+                                    await this.presenceChannel.track(myState);
+                                    setInterval(async () => { myState.last_seen = new Date().toISOString(); await this.presenceChannel.track(myState); }, 30000);
                                 }
                             });
-                        })
-                        .subscribe(async (status) => {
-                            if (status === 'SUBSCRIBED') {
-                                await this.presenceChannel.track(myState);
-                                setInterval(async () => {
-                                    myState.last_seen = new Date().toISOString();
-                                    await this.presenceChannel.track(myState);
-                                }, 30000);
-                            }
-                        });
-                        
-                        window.addEventListener('beforeunload', () => {
-                            this.presenceChannel.untrack();
-                        });
-                    } catch (e) { console.warn('Presence error:', e); }
+                        window.addEventListener('beforeunload', () => { this.presenceChannel.untrack(); });
+                    } catch(e) { console.warn('Presence error:', e); }
                 },
-                
+
                 formatRelativeTime(isoString) {
                     const d = new Date(isoString);
-                    const diffSeconds = Math.floor((new Date() - d) / 1000);
-                    if (diffSeconds < 60) return diffSeconds + ' sec ago';
-                    if (diffSeconds < 3600) return Math.floor(diffSeconds/60) + ' min ago';
-                    if (diffSeconds < 86400) return Math.floor(diffSeconds/3600) + ' hr ago';
+                    const s = Math.floor((new Date() - d) / 1000);
+                    if (s < 60)    return s + 's ago';
+                    if (s < 3600)  return Math.floor(s/60) + 'm ago';
+                    if (s < 86400) return Math.floor(s/3600) + 'h ago';
                     return d.toLocaleDateString();
                 },
 
-                async logout() { 
+                async logout() {
                     if(this.presenceChannel) this.presenceChannel.untrack();
-                    await window.adheraLogout(); 
+                    await window.adheraLogout();
                 }
             }
         }
 
-        // ── Vanilla-JS pending-requests renderer (no Alpine) ──────────────────
+        // ── Vanilla-JS pending-requests renderer ──────────────────────────────
         function _renderPendingRequests(requests) {
             const section = document.getElementById('pending-requests-section');
             const list    = document.getElementById('pending-requests-list');
@@ -337,35 +348,31 @@
             section.style.display = '';
             if (badge) badge.textContent = requests.length;
             list.innerHTML = requests.map(r => {
-                const pid  = r.patient_id || '';
-                const name = (r.profiles && r.profiles.full_name) ? r.profiles.full_name : 'Unknown Patient';
-                const init = name.charAt(0).toUpperCase();
+                const pid   = r.patient_id || '';
+                const name  = (r.profiles && r.profiles.full_name) ? r.profiles.full_name : 'Unknown Patient';
+                const init  = name.charAt(0).toUpperCase();
                 const email = (r.profiles && r.profiles.email) ? r.profiles.email : '';
                 const phone = (r.profiles && r.profiles.contact_number) ? r.profiles.contact_number : '';
-                return `<div class="bg-white/5 p-4 rounded-xl border border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                return `<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-white/5 rounded-xl border border-white/10">
   <div class="flex items-center gap-4">
     <div class="w-10 h-10 rounded-full bg-cyan-900/50 flex items-center justify-center text-cyan-400 font-bold border border-cyan-500/30 shrink-0">${init}</div>
     <div class="min-w-0">
-      <div class="font-bold text-lg text-cyan-50">${name}</div>
-      <div class="text-sm text-slate-400 mt-1 flex flex-wrap items-center gap-2">
+      <div class="font-bold text-base text-cyan-50">${name}</div>
+      <div class="text-xs text-slate-400 mt-0.5 flex flex-wrap items-center gap-2">
         ${email ? '<span>'+email+'</span>' : ''}
-        ${(email && phone) ? '<span>\u2022</span>' : ''}
+        ${(email && phone) ? '<span aria-hidden="true">•</span>' : ''}
         ${phone ? '<span>'+phone+'</span>' : ''}
       </div>
     </div>
   </div>
   <div class="flex items-center gap-3 shrink-0">
-    <span id="req-feedback-${pid}" style="display:none;" class="text-emerald-400 text-sm font-semibold flex items-center gap-1">\u2713 Patient added to your list</span>
+    <span id="req-feedback-${pid}" style="display:none;" class="text-emerald-400 text-sm font-semibold">✓ Patient added to your list</span>
     <span id="req-error-${pid}"   style="display:none;" class="text-rose-400 text-sm font-semibold"></span>
     <div id="req-btns-${pid}" class="flex gap-2">
       <button id="accept-${pid}" onclick="_adheAccept('${pid}')"
-        style="background:#00dbe7;color:#002022;border-radius:12px;font-weight:700;padding:8px 16px;font-size:0.875rem;border:none;cursor:pointer;">
-        Accept
-      </button>
+        style="background:#00dbe7;color:#002022;border-radius:10px;font-weight:700;padding:8px 18px;font-size:0.85rem;border:none;cursor:pointer;">Accept</button>
       <button id="decline-${pid}" onclick="_adheDecline('${pid}')"
-        style="background:transparent;border:1px solid rgba(255,255,255,0.2);color:#cbd5e1;border-radius:12px;font-weight:700;padding:8px 16px;font-size:0.875rem;cursor:pointer;">
-        Decline
-      </button>
+        style="background:transparent;border:1px solid rgba(255,255,255,0.2);color:#cbd5e1;border-radius:10px;font-weight:700;padding:8px 14px;font-size:0.85rem;cursor:pointer;">Decline</button>
     </div>
   </div>
 </div>`;
@@ -408,240 +415,282 @@
             }
         }
     </script>
-    
+
     <script defer src="/js/alpine-collapse.min.js"></script>
     <script defer src="/js/alpine.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; }
-        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); }
-        input, select, textarea { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.12) !important; color: #e2e2e8 !important; border-radius: 12px !important; }
+        .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; box-shadow: 0 4px 30px rgba(0,0,0,0.1); }
+        .card-hover { transition: transform 150ms ease, box-shadow 150ms ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        input, select, textarea { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.12) !important; color: #e2e2e8 !important; border-radius: 12px !important; }
         input:focus, select:focus, textarea:focus { outline: none !important; border-color: #00dbe7 !important; }
-        button[type="submit"], button.bg-cyan-600 { background: #00dbe7 !important; color: #002022 !important; border-radius: 12px !important; }
-        button.bg-slate-700 { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 12px !important; }
         select option { background-color: #1a1d24 !important; color: #e2e2e8 !important; }
         [x-cloak] { display: none !important; }
+        .kpi-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px 24px; transition: border-color 200ms; }
+        .kpi-card:hover { border-color: rgba(255,255,255,0.16); }
+        .btn-action { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 10px; font-size: 0.8125rem; font-weight: 600; transition: all 150ms; border: 1px solid rgba(255,255,255,0.15); background: transparent; color: #94a3b8; cursor: pointer; white-space: nowrap; }
+        .btn-action:hover:not(:disabled) { background: rgba(255,255,255,0.08); color: #e2e2e8; }
+        .btn-action:disabled { opacity: 0.38; cursor: not-allowed; }
+        .coming-soon-tip { position: relative; }
+        .coming-soon-tip:hover::after { content: 'Coming soon'; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #1a1d24; border: 1px solid rgba(255,255,255,0.12); color: #94a3b8; font-size: 0.7rem; padding: 4px 10px; border-radius: 6px; white-space: nowrap; z-index: 50; pointer-events: none; }
+        .skeleton { background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.05) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 12px; }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        .alert-row { transition: background 150ms; }
+        .alert-row:hover { background: rgba(255,255,255,0.05); }
     </style>
 </head>
 <body x-data="providerData()" class="min-h-screen flex flex-col">
     <div id="nav-root"></div>
 
-    <!-- Critical Alert Banner -->
-    <div x-show="criticalPatients.length > 0" class="max-w-5xl mx-auto w-full px-6 mb-6" x-cloak>
-        <div class="bg-red-900/30 border border-red-500/30 p-4 rounded-xl flex items-start gap-3">
-            <svg class="w-6 h-6 text-red-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-            <div>
-                <h3 class="text-red-400 font-bold" x-text="criticalPatients.length + ' patient(s) need immediate attention'"></h3>
-                <p class="text-sm text-red-300/80 mt-1" x-text="criticalPatients.map(p => p.profiles.full_name).join(', ')"></p>
+    <main class="flex-1 px-4 md:px-6 max-w-6xl mx-auto w-full space-y-6 pb-12 mt-4">
+
+        <!-- ── Hero: Greeting + KPI Row ───────────────────────────────────── -->
+        <div class="glass p-6 rounded-2xl">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-3 mb-6">
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-bold text-white leading-tight"
+                        x-text="greeting + ', ' + providerName + '.'"></h1>
+                    <p class="text-sm text-slate-400 mt-1">Here's your patient overview for today.</p>
+                </div>
+                <p class="text-xs text-slate-500 shrink-0"
+                   x-text="new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'})"></p>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- Active Patients -->
+                <div class="kpi-card">
+                    <div class="flex items-center gap-2 mb-3">
+                        <svg class="w-4 h-4 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Patients</span>
+                    </div>
+                    <div class="text-4xl font-bold text-white" x-text="kpiAnimated.patients" aria-label="Active patients count"></div>
+                </div>
+                <!-- Critical Risk -->
+                <div class="kpi-card" style="border-color:rgba(255,82,82,0.2);">
+                    <div class="flex items-center gap-2 mb-3">
+                        <svg class="w-4 h-4 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Critical Risk</span>
+                    </div>
+                    <div class="text-4xl font-bold text-rose-400" x-text="kpiAnimated.critical" aria-label="Critical risk patients"></div>
+                </div>
+                <!-- Pending Feedback -->
+                <div class="kpi-card" style="border-color:rgba(255,179,0,0.2);">
+                    <div class="flex items-center gap-2 mb-3">
+                        <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Pending Feedback</span>
+                    </div>
+                    <div class="text-4xl font-bold text-amber-400" x-text="kpiAnimated.feedback" aria-label="Pending feedback count"></div>
+                </div>
+                <!-- Avg Adherence -->
+                <div class="kpi-card" style="border-color:rgba(0,200,83,0.2);">
+                    <div class="flex items-center gap-2 mb-3">
+                        <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Avg Adherence</span>
+                    </div>
+                    <div class="text-4xl font-bold text-emerald-400" x-text="kpiAnimated.adherence + '%'" aria-label="Average adherence percentage"></div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <main class="flex-1 p-6 max-w-5xl mx-auto w-full space-y-6">
-        <!-- Patient Requests Section — rendered by vanilla JS _renderPendingRequests() -->
-        <div id="pending-requests-section" style="display:none;" class="glass p-6 rounded-xl relative space-y-4">
-            <div class="flex items-center gap-2 mb-4">
-                <h2 class="text-2xl font-bold">Patient Requests</h2>
+        <!-- ── Patient Requests (vanilla JS rendered) ─────────────────────── -->
+        <div id="pending-requests-section" style="display:none;" class="glass p-6 rounded-2xl space-y-4" aria-live="polite">
+            <div class="flex items-center gap-2 mb-2">
+                <h2 class="text-xl font-bold">Patient Requests</h2>
                 <span id="pending-requests-count" class="bg-cyan-500/20 text-cyan-400 text-xs font-bold px-2 py-0.5 rounded-full border border-cyan-500/30">0</span>
             </div>
-            <div id="pending-requests-list" class="space-y-4"></div>
+            <div id="pending-requests-list" class="space-y-3"></div>
         </div>
-        <!-- Insight Flags Section -->
-        <div x-show="flagsLoading || insightFlags.length > 0" class="glass p-6 rounded-xl relative space-y-4" x-cloak>
-            <div class="flex items-center gap-2 mb-4">
-                <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347A3.002 3.002 0 0112 21a3.002 3.002 0 01-2.797-2.02l-.347-.347z"></path></svg>
-                <h2 class="text-2xl font-bold">Insight Flags</h2>
-                <span class="bg-amber-500/20 text-amber-400 text-xs font-bold px-2 py-0.5 rounded-full border border-amber-500/30" x-text="insightFlags.length">0</span>
-            </div>
 
-            <!-- Loading Skeletons -->
-            <div x-show="flagsLoading" class="space-y-4" x-cloak>
-                <div class="bg-white/5 rounded-xl border border-white/10 p-4 animate-pulse h-16"></div>
+        <!-- ── Quick Actions ──────────────────────────────────────────────── -->
+        <div class="glass p-5 rounded-2xl">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Quick Actions</h2>
+            <div class="flex flex-wrap gap-2">
+                <a :href="patients.length ? 'provider-patient.html?id=' + patients[0]?.patient_id : '#'"
+                   class="btn-action !text-cyan-400 !border-cyan-500/30 hover:!bg-cyan-500/10"
+                   aria-label="Open first patient details">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    Patient Details
+                </a>
+                <button disabled class="btn-action coming-soon-tip" aria-label="Send reminder — coming soon">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                    Send Reminder
+                </button>
+                <button disabled class="btn-action coming-soon-tip" aria-label="Message patient — coming soon">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+                    Message Patient
+                </button>
+                <button disabled class="btn-action coming-soon-tip" aria-label="Download report — coming soon">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Download Report
+                </button>
+                <button disabled class="btn-action coming-soon-tip" aria-label="Schedule follow-up — coming soon">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    Schedule Follow-up
+                </button>
             </div>
+        </div>
 
-            <div x-show="!flagsLoading" class="space-y-4">
-                <template x-for="flag in insightFlags" :key="flag.id">
-                    <div class="bg-white/5 rounded-xl border border-white/10 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div class="flex items-start gap-4">
-                            <span class="px-2 py-0.5 rounded text-xs font-bold border shrink-0 mt-0.5"
-                                  :class="{
-                                      'bg-yellow-500/20 text-yellow-400 border-yellow-500/30': flag.severity <= 2,
-                                      'bg-orange-500/20 text-orange-400 border-orange-500/30': flag.severity === 3,
-                                      'bg-red-500/20 text-red-400 border-red-500/30': flag.severity === 4
-                                  }"
-                                  x-text="flag.severity === 4 ? '🔴 Critical' : (flag.severity === 3 ? '🟠 High' : '🟡 Warning')">
-                            </span>
-                            <div class="min-w-0">
-                                <div class="font-bold text-lg text-cyan-50 flex items-center gap-2 flex-wrap">
-                                    <span x-text="flag.full_name"></span>
-                                    <span class="text-sm font-normal text-slate-400" x-text="'· ' + flagTypeLabel(flag.flag_type)"></span>
-                                </div>
-                                <div class="text-sm text-slate-300 mt-1" x-text="flagSummary(flag)"></div>
-                                <div class="text-xs text-slate-500 mt-1" x-text="'Detected ' + new Date(flag.detected_at).toLocaleDateString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})"></div>
+        <!-- ── Critical Alerts (merged feedback alerts + insight flags) ───── -->
+        <div x-show="flagsLoading || allAlerts.length > 0" class="glass p-6 rounded-2xl" x-cloak aria-live="polite">
+            <div class="flex items-center gap-3 mb-4">
+                <h2 class="text-xl font-bold">Critical Alerts</h2>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full border"
+                      :class="allAlerts.length ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-white/10 text-slate-400 border-white/10'"
+                      x-text="allAlerts.length" x-show="!flagsLoading"></span>
+            </div>
+            <!-- Skeletons -->
+            <div x-show="flagsLoading" class="space-y-2" x-cloak>
+                <div class="skeleton h-11 rounded-xl"></div>
+                <div class="skeleton h-11 rounded-xl"></div>
+            </div>
+            <!-- Alert list -->
+            <div x-show="!flagsLoading" class="space-y-2">
+                <template x-for="alert in allAlerts" :key="alert.id">
+                    <div class="alert-row flex items-center justify-between gap-3 px-4 py-3 bg-white/5 rounded-xl border border-white/10">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="text-base shrink-0" x-text="alertDot(alert.severity)" :aria-label="'Severity ' + alert.severity"></span>
+                            <div class="min-w-0 text-sm">
+                                <span class="font-semibold text-cyan-50" x-text="alert.name"></span>
+                                <span class="text-slate-400" x-text="' — ' + alert.desc"></span>
                             </div>
                         </div>
-                        <div class="shrink-0">
-                            <button @click="resolveFlag(flag.id)"
-                                    :disabled="resolvingFlag[flag.id]"
-                                    class="min-h-[44px] px-4 py-2 bg-transparent border border-white/20 hover:bg-white/10 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                                <span x-text="resolvingFlag[flag.id] ? 'Resolving…' : 'Resolve'"></span>
+                        <div class="flex items-center gap-3 shrink-0">
+                            <time class="text-xs text-slate-500 hidden md:block"
+                                  :datetime="alert.time"
+                                  x-text="formatRelativeTime(alert.time)"></time>
+                            <button x-show="alert.type === 'flag'"
+                                    @click="resolveFlag(alert.flagId)"
+                                    :disabled="resolvingFlag[alert.flagId]"
+                                    class="text-xs px-3 py-1.5 border border-white/15 hover:bg-white/10 rounded-lg text-slate-300 font-medium transition-colors disabled:opacity-40 min-h-[32px]"
+                                    x-text="resolvingFlag[alert.flagId] ? 'Resolving…' : 'Resolve'">
                             </button>
                         </div>
                     </div>
                 </template>
+                <!-- Empty all-clear state -->
+                <div x-show="allAlerts.length === 0 && !flagsLoading"
+                     class="flex flex-col items-center py-8 text-center" x-cloak>
+                    <div class="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-3">
+                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <p class="text-sm font-semibold text-emerald-400">All clear</p>
+                    <p class="text-xs text-slate-500 mt-1">No critical alerts or insight flags at this time.</p>
+                </div>
             </div>
         </div>
 
-        <div class="glass p-6 rounded-xl relative">
-            <h2 class="text-2xl font-bold mb-4">Assigned Patients</h2>
-            <!-- Limit Warning Banner -->
-            <div x-show="hasMorePatients" class="bg-amber-900/30 border border-amber-500/30 p-3 rounded-xl text-amber-400 text-sm mb-4" x-cloak>
-                ⚠️ Showing first 15 of <span x-text="totalPatientCount"></span> patients. Patient search and pagination are coming soon.
-            </div>
-            <!-- Loading Skeletons -->
-            <div x-show="loading" class="space-y-4" x-cloak>
-                <div class="bg-white/5 rounded-xl border border-white/10 p-4 animate-pulse">
-                    <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-4">
-                            <div class="w-10 h-10 rounded-full bg-white/10"></div>
-                            <div class="space-y-2">
-                                <div class="h-4 bg-white/10 rounded w-24"></div>
-                                <div class="h-3 bg-white/10 rounded w-32"></div>
-                            </div>
-                        </div>
-                        <div class="h-8 bg-white/10 rounded w-16"></div>
-                    </div>
-                </div>
-                <div class="bg-white/5 rounded-xl border border-white/10 p-4 animate-pulse">
-                    <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-4">
-                            <div class="w-10 h-10 rounded-full bg-white/10"></div>
-                            <div class="space-y-2">
-                                <div class="h-4 bg-white/10 rounded w-28"></div>
-                                <div class="h-3 bg-white/10 rounded w-36"></div>
-                            </div>
-                        </div>
-                        <div class="h-8 bg-white/10 rounded w-16"></div>
-                    </div>
+        <!-- ── Assigned Patients ──────────────────────────────────────────── -->
+        <div class="glass p-6 rounded-2xl">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-xl font-bold">Assigned Patients</h2>
+                    <span class="text-slate-400 text-sm" x-show="!loading" x-text="'(' + totalPatientCount + ')'"></span>
                 </div>
             </div>
-            <div x-show="!loading && patients.length === 0" class="text-slate-400">No assigned patients.</div>
-            
-            <div class="space-y-4">
-                <template x-for="p in patients" :key="p.patient_id">
-                    <div class="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
-                        
-                        <!-- Row Header (Clickable) -->
-                        <div class="p-4 cursor-pointer hover:bg-white/5 transition-colors flex justify-between items-center" @click="toggleExpand(p.patient_id)">
-                            <div class="flex items-center gap-4">
-                                <div class="w-10 h-10 rounded-full bg-cyan-900/50 flex items-center justify-center text-cyan-400 font-bold border border-cyan-500/30">
-                                    <span x-text="p.profiles.full_name.charAt(0)"></span>
+
+            <!-- Search + Filter Bar -->
+            <div class="flex flex-col md:flex-row gap-3 mb-5">
+                <div class="relative flex-1">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input id="patient-search" type="search" x-model="searchQuery" placeholder="Search by name…" class="w-full pl-10 pr-4 py-2.5 text-sm" aria-label="Search patients by name">
+                </div>
+                <select id="patient-risk-filter" x-model="filterRisk" class="py-2.5 px-3 text-sm min-w-[150px]" aria-label="Filter by risk level">
+                    <option value="">All Risk Levels</option>
+                    <option value="Critical">🔴 Critical (&lt;50%)</option>
+                    <option value="High">🟠 High (50–70%)</option>
+                    <option value="Moderate">🔵 Moderate (70–85%)</option>
+                    <option value="Low">🟢 Low (&gt;85%)</option>
+                </select>
+                <select id="patient-sort" x-model="sortBy" class="py-2.5 px-3 text-sm min-w-[150px]" aria-label="Sort patients">
+                    <option value="name">Sort: Name A–Z</option>
+                    <option value="adh_desc">Adherence: High → Low</option>
+                    <option value="adh_asc">Adherence: Low → High</option>
+                </select>
+            </div>
+
+            <!-- Limit warning -->
+            <div x-show="hasMorePatients" class="bg-amber-900/20 border border-amber-500/20 p-3 rounded-xl text-amber-400 text-xs mb-4 flex items-center gap-2" x-cloak>
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Showing first 15 of <span class="font-bold mx-1" x-text="totalPatientCount"></span> patients.
+            </div>
+
+            <!-- Loading skeletons -->
+            <div x-show="loading" class="space-y-3" x-cloak>
+                <div class="skeleton h-20 rounded-xl"></div>
+                <div class="skeleton h-20 rounded-xl"></div>
+                <div class="skeleton h-20 rounded-xl"></div>
+            </div>
+
+            <!-- Empty: no patients -->
+            <div x-show="!loading && patients.length === 0" class="flex flex-col items-center py-14 text-center" x-cloak>
+                <div class="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-3 text-slate-400">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </div>
+                <h3 class="text-sm font-bold text-white mb-1">No patients assigned yet</h3>
+                <p class="text-xs text-slate-400 max-w-xs">When patients send assignment requests, they appear here for your review.</p>
+            </div>
+
+            <!-- No filter results -->
+            <div x-show="!loading && patients.length > 0 && filteredPatients.length === 0"
+                 class="py-10 text-center text-slate-500 text-sm" x-cloak>
+                No patients match your current search or filter — try clearing the filters.
+            </div>
+
+            <!-- Patient cards -->
+            <div class="space-y-3">
+                <template x-for="p in filteredPatients" :key="p.patient_id">
+                    <div class="bg-white/5 rounded-xl border border-white/10 p-4 card-hover flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <!-- Avatar + info -->
+                        <div class="flex items-center gap-4 min-w-0">
+                            <!-- Avatar with presence dot -->
+                            <div class="relative shrink-0">
+                                <div class="w-11 h-11 rounded-full bg-cyan-900/40 flex items-center justify-center text-cyan-400 font-bold border border-cyan-500/30 text-base"
+                                     :aria-label="(p.profiles?.full_name || 'Patient') + ' avatar'">
+                                    <span x-text="(p.profiles?.full_name || '?').charAt(0).toUpperCase()"></span>
                                 </div>
-                                <div>
-                                    <div class="font-bold text-lg text-cyan-50 flex items-center gap-2">
-                                        <span x-text="p.profiles.full_name"></span>
-                                        <!-- Presence Indicator -->
-                                        <span class="flex items-center gap-1.5 text-xs font-normal" :class="presenceMap[p.patient_id]?.online ? 'text-emerald-400' : 'text-slate-500'">
-                                            <span class="w-2 h-2 rounded-full" :class="presenceMap[p.patient_id]?.online ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-slate-600'"></span>
-                                            <span x-text="presenceMap[p.patient_id]?.online ? 'Online' : (presenceMap[p.patient_id]?.last_seen ? 'Offline — last seen ' + formatRelativeTime(presenceMap[p.patient_id].last_seen) : 'Never logged in')"></span>
-                                        </span>
-                                    </div>
-                                    <div class="text-sm text-slate-400 mt-1 flex items-center gap-3">
-                                        <span x-text="'Age: ' + (p.profiles.age !== undefined && p.profiles.age !== null ? p.profiles.age : 'N/A')"></span>
-                                        <span>•</span>
-                                        <span x-text="'Streak: ' + (p.stats?.streak || 0) + ' days'"></span>
-                                        <span>•</span>
-                                        <span x-text="'Missed this month: ' + (p.stats?.missed_this_month || 0)"></span>
-                                    </div>
-                                </div>
+                                <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#111318]"
+                                      :class="presenceMap[p.patient_id]?.online ? 'bg-emerald-400' : 'bg-slate-600'"
+                                      :title="presenceMap[p.patient_id]?.online ? 'Online' : 'Offline'">
+                                </span>
                             </div>
-                            
-                            <div class="flex items-center gap-4">
-                                <!-- Adherence Badge -->
-                                <template x-if="p.adherence">
-                                    <div class="flex items-center px-3 py-1.5 rounded-lg border font-semibold text-sm"
-                                         :class="{
-                                            'bg-emerald-500/20 text-emerald-400 border-emerald-500/30': p.adherence.weekly_percentage >= 80,
-                                            'bg-amber-500/20 text-amber-400 border-amber-500/30': p.adherence.weekly_percentage >= 50 && p.adherence.weekly_percentage < 80,
-                                            'bg-rose-500/20 text-rose-400 border-rose-500/30': p.adherence.weekly_percentage < 50
-                                         }">
-                                        <svg x-show="p.adherence.weekly_percentage < 80" class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                                        <span x-text="p.adherence.weekly_percentage >= 80 ? 'On Track' : (p.adherence.weekly_percentage >= 50 ? 'Needs Attention (Low Adherence)' : 'Critical (Low Adherence)')"></span>
-                                        <span class="ml-2 font-bold" x-text="p.adherence.weekly_percentage + '%'"></span>
-                                    </div>
-                                </template>
-                                <svg class="w-5 h-5 text-slate-400 transition-transform duration-200" :class="expanded === p.patient_id ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </div>
-                        </div>
-
-                        <!-- Expanded Panel -->
-                        <div x-show="expanded === p.patient_id" x-collapse x-cloak>
-                            <div class="p-6 border-t border-white/10 bg-black/20 space-y-6">
-                                
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div class="glass p-4 rounded-xl">
-                                        <h4 class="font-bold text-sm mb-3">Weekly Adherence</h4>
-                                        <div class="relative h-40 w-full"><canvas :id="'weeklyChart-' + p.patient_id"></canvas></div>
-                                    </div>
-                                    <div class="glass p-4 rounded-xl">
-                                        <h4 class="font-bold text-sm mb-3">Monthly Trend</h4>
-                                        <div class="relative h-40 w-full"><canvas :id="'monthlyChart-' + p.patient_id"></canvas></div>
-                                    </div>
-                                </div>
-
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div class="glass p-4 rounded-xl">
-                                        <h4 class="font-bold text-sm mb-3">Medicine Breakdown</h4>
-                                        <div class="overflow-x-auto">
-                                            <table class="w-full text-left text-sm border-collapse">
-                                                <thead>
-                                                    <tr class="text-slate-400 border-b border-white/10">
-                                                        <th class="pb-2 font-medium">Medicine</th>
-                                                        <th class="pb-2 font-medium">Schedule</th>
-                                                        <th class="pb-2 font-medium">Missed</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <template x-for="med in (p.medicines || [])" :key="med.id">
-                                                        <tr class="border-b border-white/5 last:border-0">
-                                                            <td class="py-2" x-text="med.name"></td>
-                                                            <td class="py-2 text-slate-400" x-text="med.dosage_amount + ' ' + med.dosage_unit + ' ' + med.route"></td>
-                                                            <td class="py-2 text-red-400" x-text="med.missed_count || 0"></td>
-                                                        </tr>
-                                                    </template>
-                                                    <tr x-show="!(p.medicines?.length)"><td colspan="3" class="py-4 text-center text-slate-500">No active medicines found.</td></tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-
-                                    <div class="glass p-4 rounded-xl">
-                                        <h4 class="font-bold text-sm mb-3">Recent Feedback</h4>
-                                        <div class="space-y-2">
-                                            <template x-for="fb in (p.feedback || [])" :key="fb.id">
-                                                <div class="text-xs bg-white/5 p-3 rounded-lg border border-white/5">
-                                                    <div class="flex justify-between mb-1">
-                                                        <span class="px-1.5 py-0.5 rounded font-medium" :class="fb.severity >= 3 ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'" x-text="'Sev ' + fb.severity"></span>
-                                                        <span class="text-slate-500" x-text="new Date(fb.created_at).toLocaleDateString()"></span>
-                                                    </div>
-                                                    <div class="text-slate-300 truncate" x-text="fb.description"></div>
-                                                </div>
-                                            </template>
-                                            <div x-show="!(p.feedback?.length)" class="text-center py-4 text-slate-500 text-sm">No recent feedback.</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="flex justify-end">
-                                    <a :href="'provider-patient.html?id=' + p.patient_id" class="bg-transparent hover:bg-white/5 border border-cyan-500/50 text-cyan-400 px-4 py-2 rounded-lg text-sm font-bold transition-colors">View Full Report</a>
+                            <!-- Name + metadata -->
+                            <div class="min-w-0">
+                                <div class="font-bold text-base text-cyan-50 truncate" x-text="p.profiles?.full_name || 'Unknown'"></div>
+                                <div class="text-xs text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
+                                    <span x-text="'Age ' + (p.profiles?.age ?? 'N/A')"></span>
+                                    <template x-if="p.profiles?.blood_group">
+                                        <span>· <span x-text="p.profiles.blood_group"></span></span>
+                                    </template>
+                                    <span x-text="'· ' + (presenceMap[p.patient_id]?.online ? 'Online now' : presenceMap[p.patient_id]?.last_seen ? 'Last seen ' + formatRelativeTime(presenceMap[p.patient_id].last_seen) : 'Never logged in')"></span>
                                 </div>
                             </div>
                         </div>
-
+                        <!-- Adherence + risk + action -->
+                        <div class="flex items-center gap-3 shrink-0 flex-wrap">
+                            <!-- Adherence % -->
+                            <div class="text-center min-w-[52px]">
+                                <div class="text-xl font-bold leading-none"
+                                     :style="'color:' + adherenceColor(p.adherence?.weekly_percentage ?? 0)"
+                                     x-text="(p.adherence?.weekly_percentage ?? 0) + '%'"></div>
+                                <div class="text-xs text-slate-500 mt-0.5">weekly</div>
+                            </div>
+                            <!-- Risk badge -->
+                            <span class="px-3 py-1 rounded-full text-xs font-bold border"
+                                  :class="riskInfo(p.adherence?.weekly_percentage ?? 0).cls"
+                                  x-text="riskInfo(p.adherence?.weekly_percentage ?? 0).label">
+                            </span>
+                            <!-- View Details -->
+                            <a :href="'provider-patient.html?id=' + p.patient_id"
+                               class="px-4 py-2 rounded-xl text-xs font-bold border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10 transition-colors whitespace-nowrap"
+                               :aria-label="'View details for ' + (p.profiles?.full_name || 'patient')">
+                                View Details →
+                            </a>
+                        </div>
                     </div>
                 </template>
             </div>
         </div>
-</main>
+    </main>
 </body>
 </html>

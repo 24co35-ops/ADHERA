@@ -66,18 +66,9 @@
             <div x-show="loading" class="absolute inset-0 bg-white/5 animate-pulse rounded-xl z-10"></div>
             <h3 class="text-xl font-bold mb-4 text-cyan-400 flex items-center justify-between">
                 <span>Personal Information</span>
-                <div class="flex items-center space-x-2">
-                    <button onclick="openPasswordModal()"
-                        class="flex items-center gap-2 px-3 py-1.5 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 rounded-lg text-xs font-medium transition-colors">
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-                        </svg>
-                        Change Password
-                    </button>
-                    <button @click="toggleEdit()" class="text-xs bg-slate-700 border border-white/10 text-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-600 transition-colors">
-                        <span x-text="isEditing ? 'Cancel' : 'Edit Profile'"></span>
-                    </button>
-                </div>
+                <button @click="toggleEdit()" class="text-xs bg-slate-700 border border-white/10 text-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-600 transition-colors">
+                    <span x-text="isEditing ? 'Cancel' : 'Edit Profile'"></span>
+                </button>
             </h3>
 
             <!-- View Mode -->
@@ -159,64 +150,81 @@
             </form>
         </div>
 
-        <!-- Two-Factor Authentication Section -->
-        <div class="glass p-6 rounded-xl relative">
-            <h3 class="text-xl font-bold mb-4 text-cyan-400">Two-Factor Authentication (2FA)</h3>
-            <p class="text-sm text-slate-300 mb-6">Secure your Adhera account by enabling Time-based One-Time Password (TOTP) multi-factor authentication.</p>
-
-            <div class="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl mb-6">
+        <!-- Security Settings (Grouped Password + 2FA) -->
+        <div class="glass p-6 rounded-xl relative space-y-6">
+            <h3 class="text-xl font-bold text-cyan-400">Security Settings</h3>
+            
+            <!-- Password Reset -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl gap-4">
                 <div>
-                    <span class="block text-sm font-semibold text-white">Status</span>
-                    <span class="text-xs text-slate-400">Protects your account during login</span>
+                    <span class="block text-sm font-semibold text-white">Account Password</span>
+                    <span class="text-xs text-slate-400">Update your login password regularly to keep your account secure</span>
                 </div>
-                <div>
-                    <template x-if="mfaEnabled">
-                        <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold uppercase">Enabled</span>
-                    </template>
-                    <template x-if="!mfaEnabled">
-                        <span class="bg-slate-700 text-slate-300 px-3 py-1 rounded-full text-xs font-bold uppercase">Disabled</span>
-                    </template>
-                </div>
-            </div>
-
-            <!-- MFA Setup Flow -->
-            <div x-show="!mfaEnabled && !showMfaSetup">
-                <button @click="initiateMfa" class="w-full md:w-auto bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 px-6 rounded-lg transition-colors" :disabled="actionLoading">
-                    Enable Two-Factor Authentication
+                <button onclick="openPasswordModal()"
+                    class="flex items-center gap-2 px-4 py-2 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 rounded-lg text-xs font-semibold transition-colors shrink-0">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                    </svg>
+                    Change Password
                 </button>
             </div>
 
-            <!-- MFA Setup Steps -->
-            <div x-show="showMfaSetup" class="space-y-6 bg-white/5 border border-white/10 p-5 rounded-xl" x-cloak>
-                <h4 class="font-bold text-base text-white">Configure Authenticator App</h4>
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                    <div class="flex flex-col items-center justify-center p-3 bg-white rounded-lg w-[170px] mx-auto">
-                        <img :src="mfaSetupData.qr_code || 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(mfaSetupData.qr_code_uri)" alt="QR Code" class="w-[150px] h-[150px]">
+            <!-- Two-Factor Authentication (2FA) -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl">
+                    <div>
+                        <span class="block text-sm font-semibold text-white">Two-Factor Authentication (2FA)</span>
+                        <span class="text-xs text-slate-400">Secure your Adhera account by enabling Time-based One-Time Password (TOTP) multi-factor authentication</span>
                     </div>
-                    <div class="md:col-span-2 space-y-3">
-                        <p class="text-sm text-slate-300">1. Scan the QR code with your authenticator app.</p>
-                        <p class="text-sm text-slate-300">2. If you cannot scan the QR code, manually enter this secret key into your app:</p>
-                        <code class="block bg-black/40 text-cyan-300 text-sm font-mono p-2.5 rounded select-all text-center break-all" x-text="mfaSetupData.secret"></code>
+                    <div>
+                        <template x-if="mfaEnabled">
+                            <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold uppercase">Enabled</span>
+                        </template>
+                        <template x-if="!mfaEnabled">
+                            <span class="bg-slate-700 text-slate-300 px-3 py-1 rounded-full text-xs font-bold uppercase">Disabled</span>
+                        </template>
                     </div>
                 </div>
 
-                <div class="border-t border-white/10 pt-4 space-y-3">
-                    <p class="text-sm text-slate-300">3. Enter the 6-digit verification code to complete setup:</p>
-                    <form @submit.prevent="verifyMfa" class="flex flex-col md:flex-row gap-3">
-                        <input type="text" x-model="mfaCode" placeholder="000000" class="p-2.5 rounded bg-transparent border text-white text-center font-mono tracking-widest text-lg md:w-36" required maxlength="6">
-                        <button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-6 rounded-lg transition-colors flex justify-center items-center" :disabled="actionLoading">Verify & Activate</button>
-                        <button type="button" @click="showMfaSetup = false; mfaCode = '';" class="text-slate-400 px-3 hover:underline">Cancel</button>
-                    </form>
-                    <div x-show="mfaError" class="text-red-400 text-xs" x-text="mfaError"></div>
+                <!-- MFA Setup Flow -->
+                <div x-show="!mfaEnabled && !showMfaSetup">
+                    <button @click="initiateMfa" class="w-full md:w-auto bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 px-6 rounded-lg transition-colors" :disabled="actionLoading">
+                        Enable Two-Factor Authentication
+                    </button>
                 </div>
-            </div>
 
-            <!-- MFA Deactivation -->
-            <div x-show="mfaEnabled">
-                <button @click="disableMfa" class="w-full md:w-auto bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 border border-rose-500/30 font-bold py-2.5 px-6 rounded-lg transition-colors" :disabled="actionLoading">
-                    Disable Two-Factor Authentication
-                </button>
+                <!-- MFA Setup Steps -->
+                <div x-show="showMfaSetup" class="space-y-6 bg-white/5 border border-white/10 p-5 rounded-xl" x-cloak>
+                    <h4 class="font-bold text-base text-white">Configure Authenticator App</h4>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                        <div class="flex flex-col items-center justify-center p-3 bg-white rounded-lg w-[170px] mx-auto">
+                            <img :src="mfaSetupData.qr_code || 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(mfaSetupData.qr_code_uri)" alt="QR Code" class="w-[150px] h-[150px]">
+                        </div>
+                        <div class="md:col-span-2 space-y-3">
+                            <p class="text-sm text-slate-300">1. Scan the QR code with your authenticator app.</p>
+                            <p class="text-sm text-slate-300">2. If you cannot scan the QR code, manually enter this secret key into your app:</p>
+                            <code class="block bg-black/40 text-cyan-300 text-sm font-mono p-2.5 rounded select-all text-center break-all" x-text="mfaSetupData.secret"></code>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-white/10 pt-4 space-y-3">
+                        <p class="text-sm text-slate-300">3. Enter the 6-digit verification code to complete setup:</p>
+                        <form @submit.prevent="verifyMfa" class="flex flex-col md:flex-row gap-3">
+                            <input type="text" x-model="mfaCode" placeholder="000000" class="p-2.5 rounded bg-transparent border text-white text-center font-mono tracking-widest text-lg md:w-36" required maxlength="6">
+                            <button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-6 rounded-lg transition-colors flex justify-center items-center" :disabled="actionLoading">Verify & Activate</button>
+                            <button type="button" @click="showMfaSetup = false; mfaCode = '';" class="text-slate-400 px-3 hover:underline">Cancel</button>
+                        </form>
+                        <div x-show="mfaError" class="text-red-400 text-xs" x-text="mfaError"></div>
+                    </div>
+                </div>
+
+                <!-- MFA Deactivation -->
+                <div x-show="mfaEnabled">
+                    <button @click="disableMfa" class="w-full md:w-auto bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 border border-rose-500/30 font-bold py-2.5 px-6 rounded-lg transition-colors" :disabled="actionLoading">
+                        Disable Two-Factor Authentication
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -224,6 +232,9 @@
         <div class="glass p-6 rounded-xl">
             <h3 class="text-xl font-bold mb-4 text-cyan-400">Push Notifications</h3>
             <p class="text-sm text-slate-300 mb-6">Receive real-time reminders and critical side-effect alerts on your device.</p>
+            
+            <!-- TODO: Once backend supports user preference granularity (e.g. notifications per-category or channel),
+                 split this single toggle into separate settings for Alert SMS, Feedback emails, and App Push. -->
 
             <div class="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl mb-6">
                 <div>
