@@ -11,7 +11,7 @@
     <link rel="icon" type="image/png" sizes="48x48" href="/assets/favicons/favicon-48x48.png?v=3">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/favicon-180x180.png?v=3">
     <link rel="manifest" href="/site.webmanifest">
-    <meta name="theme-color" content="#6366f1">
+    <meta name="theme-color" content="#00dbe7">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adhera Admin</title>
     <link rel="stylesheet" href="/css/adhera.css">
@@ -22,152 +22,338 @@
     <script src="js/nav.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; }
-        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; }
-        input, select, textarea { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.12) !important; color: #e2e2e8 !important; border-radius: 12px !important; }
+
+        /* ── Base ────────────────────────────────────────────────── */
+        body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; font-size: 15px; }
+
+        /* ── Glass ───────────────────────────────────────────────── */
+        .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; }
+
+        /* ── Form elements ───────────────────────────────────────── */
+        input, select, textarea { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.12) !important; color: #e2e2e8 !important; border-radius: 12px !important; }
         input:focus, select:focus, textarea:focus { outline: none !important; border-color: #00dbe7 !important; }
         select option { background-color: #1a1d24 !important; color: #e2e2e8 !important; }
         [x-cloak] { display: none !important; }
+
+        /* ── Tabs ────────────────────────────────────────────────── */
         .tab-active { color: #00dbe7; border-bottom: 2px solid #00dbe7; }
+
+        /* ── Semantic badge classes (one color, one meaning) ─────── */
+        .badge-active    { background: rgba(0,200,83,0.15);  color: #00C853; border: 1px solid rgba(0,200,83,0.3); }
+        .badge-pending   { background: rgba(255,179,0,0.15); color: #FFB300; border: 1px solid rgba(255,179,0,0.3); }
+        .badge-suspended { background: rgba(255,82,82,0.15); color: #FF5252; border: 1px solid rgba(255,82,82,0.3); }
+        .badge-provider  { background: rgba(0,219,231,0.15); color: #00dbe7; border: 1px solid rgba(0,219,231,0.3); }
+        .badge-patient   { background: rgba(167,139,250,0.15);color: #A78BFA;border: 1px solid rgba(167,139,250,0.3); }
+        .badge-admin     { background: rgba(255,179,0,0.15); color: #FFB300; border: 1px solid rgba(255,179,0,0.3); }
+
+        /* ── Stat card colored left borders ─────────────────────── */
+        .stat-cyan   { border-left: 4px solid #00dbe7; }
+        .stat-green  { border-left: 4px solid #00C853; }
+        .stat-yellow { border-left: 4px solid #FFB300; }
+        .stat-red    { border-left: 4px solid #FF5252; }
+
+        /* ── Hover transitions (150-200ms) ───────────────────────── */
+        .card-hover { transition: transform 150ms ease, box-shadow 200ms ease, background 150ms ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.35); background: rgba(255,255,255,0.08) !important; }
+        button { transition: filter 150ms ease, background 150ms ease; }
+
+        /* ── Avatar ──────────────────────────────────────────────── */
+        .avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; flex-shrink: 0; }
+
+        /* ── Overflow dropdown ───────────────────────────────────── */
+        .overflow-menu { background: #1a1d24; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); min-width: 164px; }
+
+        /* ── Skeleton loading ────────────────────────────────────── */
+        .skeleton { background: rgba(255,255,255,0.07); border-radius: 12px; }
+        @keyframes shimmer { 0%,100%{ opacity:1 } 50%{ opacity:0.4 } }
+        .skeleton { animation: shimmer 1.6s infinite; }
+
+        /* ── Table ───────────────────────────────────────────────── */
+        tbody tr:nth-child(even) { background: rgba(255,255,255,0.018); }
+        th { white-space: nowrap; }
+
+        /* ── Typography scale ────────────────────────────────────── */
+        .title-page    { font-size: 32px; font-weight: 700; }
+        .title-section { font-size: 22px; font-weight: 600; }
+        .stat-number   { font-size: 34px; font-weight: 700; line-height: 1; }
+        .stat-label    { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #718096; }
+        .meta-text     { font-size: 12px; color: #718096; }
+
+        /* ── Sticky subheader ────────────────────────────────────── */
+        .subheader { background: rgba(17,19,24,0.96); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.08); }
     </style>
 </head>
-<body x-data="adminData()" class="min-h-screen flex flex-col">
+<body x-data="adminData()" class="min-h-screen flex flex-col" @click="openMenuId=null">
     <div id="nav-root"></div>
 
-    <main class="flex-1 p-6 max-w-5xl mx-auto w-full space-y-6">
-        <!-- Platform Stats -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="glass p-4 rounded-xl text-center h-28 flex flex-col justify-center"><span class="text-xs text-slate-400 uppercase tracking-wider block mb-1">Overall Adherence</span><span class="text-3xl font-bold text-cyan-300" x-text="(platformStats.overall_adherence_percentage||0)+'%'"></span></div>
-            <div class="glass p-4 rounded-xl text-center h-28 flex flex-col justify-center"><span class="text-xs text-slate-400 uppercase tracking-wider block mb-1">Active Patients</span><span class="text-3xl font-bold text-white" x-text="platformStats.active_patients_count||0"></span></div>
-            <div class="glass p-4 rounded-xl text-center h-28 flex flex-col justify-center"><span class="text-xs text-slate-400 uppercase tracking-wider block mb-1">Taken Today</span><span class="text-3xl font-bold text-emerald-400" x-text="platformStats.doses_taken_today||0"></span></div>
-            <div class="glass p-4 rounded-xl text-center h-28 flex flex-col justify-center"><span class="text-xs text-slate-400 uppercase tracking-wider block mb-1">Missed Today</span><span class="text-3xl font-bold text-red-400" x-text="platformStats.doses_missed_today||0"></span></div>
-        </div>
-        <div class="flex justify-end -mt-2"><button @click="fetchPlatformStats" class="text-xs text-cyan-400 hover:underline">↻ Refresh</button></div>
-
-        <!-- Search Bar -->
-        <div class="glass p-6 rounded-xl">
-            <div class="relative">
-                <svg class="w-5 h-5 absolute left-3 top-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input type="text" x-model="searchQuery" @input.debounce.300ms="performSearch" class="w-full pl-10 pr-10 py-2.5" placeholder="Search doctors and patients...">
-                <button x-show="searchQuery" @click="clearSearch" class="absolute right-3 top-3 text-slate-400 hover:text-white" x-cloak><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    <!-- ── Sticky subheader: search + admin controls ───────────────── -->
+    <div class="subheader sticky top-14 z-30 px-6 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center gap-3">
+            <!-- Global search -->
+            <div class="relative flex-1 max-w-lg">
+                <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input id="admin-search" type="search" x-model="searchQuery" @input.debounce.300ms="performSearch" class="w-full pl-9 pr-8 py-2 text-sm !rounded-xl" placeholder="Search users by name or phone…" aria-label="Search users">
+                <button x-show="searchQuery" @click.stop="clearSearch" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white" x-cloak aria-label="Clear search">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
             </div>
-            <div x-show="searchQuery && !isSearching" class="mt-6 border-t border-white/10 pt-4" x-cloak>
-                <div x-show="searchResults.length===0" class="text-slate-400 text-sm italic" x-text="`No doctors or patients found for '${searchQuery}'`"></div>
-                <div x-show="searchResults.length>0" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 border-b border-white/10 pb-2">Doctors</h4>
-                        <div class="space-y-3"><template x-for="u in searchResults.filter(x=>x.role==='provider')" :key="u.id"><div class="bg-white/5 border border-white/10 p-3 rounded-xl hover:bg-white/10 cursor-pointer transition-colors" @click="openUserDetail(u)">
-                            <div class="flex justify-between items-start mb-1"><div class="font-bold text-cyan-50" x-text="u.full_name"></div><span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-cyan-900/40 text-cyan-400 border border-cyan-500/30">Provider</span></div>
-                            <div class="text-xs text-slate-400 mb-2" x-text="u.email||''"></div>
-                            <div class="flex items-center gap-3 text-xs"><span :class="u.is_active?'text-emerald-400':'text-red-400'" x-text="u.is_active?'Active':'Inactive'"></span>
-                            <span class="flex items-center gap-1" :class="presenceMap[u.id]?.online?'text-emerald-400':'text-slate-500'"><span class="w-1.5 h-1.5 rounded-full" :class="presenceMap[u.id]?.online?'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]':'bg-slate-600'"></span><span x-text="presenceMap[u.id]?.online?'Online':(presenceMap[u.id]?.last_seen?'Offline — '+formatRelativeTime(presenceMap[u.id].last_seen):'Never logged in')"></span></span></div>
-                        </div></template><div x-show="searchResults.filter(x=>x.role==='provider').length===0" class="text-slate-500 text-xs">No doctors match.</div></div>
-                    </div>
-                    <div><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 border-b border-white/10 pb-2">Patients</h4>
-                        <div class="space-y-3"><template x-for="u in searchResults.filter(x=>x.role==='patient')" :key="u.id"><div class="bg-white/5 border border-white/10 p-3 rounded-xl hover:bg-white/10 cursor-pointer transition-colors" @click="openUserDetail(u)">
-                            <div class="flex justify-between items-start mb-1"><div class="font-bold text-cyan-50" x-text="u.full_name"></div><span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-purple-900/40 text-purple-400 border border-purple-500/30">Patient</span></div>
-                            <div class="text-xs text-slate-400 mb-2" x-text="u.email||''"></div>
-                            <div class="flex items-center gap-3 text-xs"><span :class="u.is_active?'text-emerald-400':'text-red-400'" x-text="u.is_active?'Active':'Inactive'"></span>
-                            <span class="flex items-center gap-1" :class="presenceMap[u.id]?.online?'text-emerald-400':'text-slate-500'"><span class="w-1.5 h-1.5 rounded-full" :class="presenceMap[u.id]?.online?'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]':'bg-slate-600'"></span><span x-text="presenceMap[u.id]?.online?'Online':(presenceMap[u.id]?.last_seen?'Offline — '+formatRelativeTime(presenceMap[u.id].last_seen):'Never logged in')"></span></span></div>
-                        </div></template><div x-show="searchResults.filter(x=>x.role==='patient').length===0" class="text-slate-500 text-xs">No patients match.</div></div>
+            <!-- Right cluster -->
+            <div class="flex items-center gap-4 shrink-0">
+                <!-- Notification bell with pending badge -->
+                <button class="relative text-slate-400 hover:text-white" aria-label="Pending approvals">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                    <span x-show="pending.length>0" class="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center" style="background:#FF5252;" x-text="pending.length" x-cloak></span>
+                </button>
+                <!-- Profile avatar -->
+                <div class="flex items-center gap-2.5">
+                    <div class="avatar badge-provider">A</div>
+                    <div class="hidden sm:block">
+                        <div class="text-sm font-semibold leading-tight">Admin</div>
+                        <div class="meta-text leading-tight">System Administrator</div>
                     </div>
                 </div>
+                <!-- Refresh -->
+                <button @click="fetchPlatformStats" class="text-slate-400 hover:text-cyan-400 p-1.5 rounded-lg hover:bg-white/10" title="Refresh stats" aria-label="Refresh platform stats">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 px-6 pb-12 max-w-7xl mx-auto w-full space-y-6 mt-6">
+
+        <!-- ── Stats Grid ────────────────────────────────────────────── -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- Overall Adherence -->
+            <div class="glass p-5 rounded-2xl card-hover stat-cyan" aria-label="Overall adherence">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="stat-label">Overall Adherence</div>
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:rgba(0,219,231,0.15);">
+                        <svg class="w-4 h-4" style="color:#00dbe7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    </div>
+                </div>
+                <div class="stat-number mb-2" style="color:#00dbe7" x-text="(platformStats.overall_adherence_percentage||0)+'%'"></div>
+                <!-- TODO: wire ↑↓ from /analytics/trend aggregated weekly delta -->
+                <div class="meta-text">Platform-wide rate</div>
+            </div>
+            <!-- Active Patients -->
+            <div class="glass p-5 rounded-2xl card-hover stat-green" aria-label="Active patients">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="stat-label">Active Patients</div>
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:rgba(0,200,83,0.15);">
+                        <svg class="w-4 h-4" style="color:#00C853" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </div>
+                </div>
+                <div class="stat-number mb-2" style="color:#00C853" x-text="platformStats.active_patients_count||0"></div>
+                <!-- TODO: wire ↑↓ from /analytics/dashboard weekly delta -->
+                <div class="meta-text">Enrolled & active</div>
+            </div>
+            <!-- Taken Today -->
+            <div class="glass p-5 rounded-2xl card-hover stat-yellow" aria-label="Doses taken today">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="stat-label">Taken Today</div>
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:rgba(255,179,0,0.15);">
+                        <svg class="w-4 h-4" style="color:#FFB300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                </div>
+                <div class="stat-number mb-2" style="color:#FFB300" x-text="platformStats.doses_taken_today||0"></div>
+                <!-- TODO: wire ↑↓ from doses_taken_today vs yesterday -->
+                <div class="meta-text">Doses confirmed</div>
+            </div>
+            <!-- Missed Today -->
+            <div class="glass p-5 rounded-2xl card-hover stat-red" aria-label="Doses missed today">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="stat-label">Missed Today</div>
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background:rgba(255,82,82,0.15);">
+                        <svg class="w-4 h-4" style="color:#FF5252" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                </div>
+                <div class="stat-number mb-2" style="color:#FF5252" x-text="platformStats.doses_missed_today||0"></div>
+                <!-- TODO: wire ↑↓ from doses_missed_today vs yesterday -->
+                <div class="meta-text">Doses skipped</div>
             </div>
         </div>
 
-        <!-- User Detail Panel -->
-        <div x-show="selectedUser" class="glass p-6 rounded-xl" x-cloak>
-            <div class="flex justify-between items-center mb-4">
-                <div><h2 class="text-xl font-bold" x-text="selectedUser?.full_name"></h2><span class="text-sm text-slate-400" x-text="selectedUser?.email"></span></div>
-                <button @click="selectedUser=null;detailTab='analytics'" class="text-slate-400 hover:text-white"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        <!-- ── Analytics + Activity Row ─────────────────────────────── -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Trend Chart -->
+            <div class="glass p-5 rounded-2xl">
+                <h2 class="title-section mb-1">Platform Adherence Trend</h2>
+                <p class="meta-text mb-4">30-day rolling adherence across all patients</p>
+                <div style="height:200px;"><canvas id="platformTrendChart" aria-label="Platform adherence trend chart"></canvas></div>
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 mb-6 text-sm text-slate-300">
-                <div>
-                    <span class="block text-slate-400 font-medium text-xs">Role</span>
-                    <span class="capitalize" x-text="selectedUser?.role || 'Not provided'"></span>
-                </div>
-                <div>
-                    <span class="block text-slate-400 font-medium text-xs">Contact Number</span>
-                    <span x-text="selectedUser?.contact_number || 'Not provided'"></span>
-                </div>
-                <div>
-                    <span class="block text-slate-400 font-medium text-xs">Age</span>
-                    <span x-text="selectedUser?.age !== undefined && selectedUser?.age !== null ? selectedUser?.age : 'Not provided'"></span>
-                </div>
-                <div>
-                    <span class="block text-slate-400 font-medium text-xs">Blood Group</span>
-                    <span x-text="selectedUser?.blood_group || 'Not provided'"></span>
+            <!-- Recent Activity Feed -->
+            <div class="glass p-5 rounded-2xl flex flex-col">
+                <h2 class="title-section mb-4">Recent Activity</h2>
+                <div class="flex-1 space-y-2 overflow-y-auto" style="max-height:228px;">
+                    <template x-if="activityFeed.length===0">
+                        <div class="text-slate-500 text-sm py-6 text-center">No recent activity yet.</div>
+                    </template>
+                    <template x-for="(ev, i) in activityFeed" :key="i">
+                        <div class="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
+                            <span class="text-base shrink-0 mt-0.5" x-text="ev.icon" aria-hidden="true"></span>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm text-slate-200 truncate" x-text="ev.text"></div>
+                                <div class="meta-text mt-0.5" x-text="ev.time ? formatRelativeTime(ev.time) : ''"></div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </div>
-            <div class="flex gap-4 border-b border-white/10 mb-4">
-                <button @click="detailTab='analytics';fetchDetailAnalytics()" class="pb-2 text-sm font-semibold" :class="detailTab==='analytics'?'tab-active':'text-slate-400'">Analytics</button>
-                <button @click="detailTab='feedback';fetchDetailFeedback()" class="pb-2 text-sm font-semibold" :class="detailTab==='feedback'?'tab-active':'text-slate-400'">Feedback</button>
-                <button @click="detailTab='medicines';fetchDetailMeds()" class="pb-2 text-sm font-semibold" :class="detailTab==='medicines'?'tab-active':'text-slate-400'">Medicines & Timings</button>
+        </div>
+
+        <!-- ── Quick Actions ──────────────────────────────────────────── -->
+        <div class="flex flex-wrap gap-3" role="group" aria-label="Quick actions">
+            <button class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold hover:brightness-110" style="background:rgba(0,219,231,0.15);color:#00dbe7;border:1px solid rgba(0,219,231,0.3);" aria-label="Add provider">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Add Provider
+            </button>
+            <button class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold hover:brightness-110" style="background:rgba(167,139,250,0.15);color:#A78BFA;border:1px solid rgba(167,139,250,0.3);" aria-label="Add patient">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Add Patient
+            </button>
+            <button class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold hover:brightness-110" style="background:rgba(0,200,83,0.15);color:#00C853;border:1px solid rgba(0,200,83,0.3);" aria-label="Assign patient to provider">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                Assign Patient
+            </button>
+            <button @click="exportCSV" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold hover:brightness-110" style="background:rgba(255,179,0,0.15);color:#FFB300;border:1px solid rgba(255,179,0,0.3);" aria-label="Export user report as CSV">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Export Report
+            </button>
+        </div>
+
+        <!-- ── Search Results ─────────────────────────────────────────── -->
+        <div x-show="searchQuery && !isSearching" class="glass p-5 rounded-2xl" x-cloak>
+            <div x-show="searchResults.length===0" class="text-slate-400 text-sm italic" x-text="`No results for '${searchQuery}'`"></div>
+            <div x-show="searchResults.length>0" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="text-[12px] font-semibold text-slate-400 uppercase tracking-wider mb-3 border-b border-white/10 pb-2">Doctors</h4>
+                    <div class="space-y-3">
+                        <template x-for="u in searchResults.filter(x=>x.role==='provider')" :key="u.id">
+                            <div class="bg-white/5 border border-white/10 p-3 rounded-xl card-hover cursor-pointer" @click="openUserDetail(u)" role="button" :aria-label="'View '+u.full_name">
+                                <div class="flex justify-between items-start mb-1">
+                                    <div class="font-semibold text-[15px] text-cyan-50" x-text="u.full_name"></div>
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase badge-provider">Provider</span>
+                                </div>
+                                <div class="meta-text mb-2" x-text="u.email||''"></div>
+                                <div class="flex items-center gap-3 text-[12px]">
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold" :class="u.is_active?'badge-active':'badge-pending'" x-text="u.is_active?'Active':'Pending'"></span>
+                                    <span class="flex items-center gap-1" :class="presenceMap[u.id]?.online?'text-emerald-400':'text-slate-500'">
+                                        <span class="w-1.5 h-1.5 rounded-full" :class="presenceMap[u.id]?.online?'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]':'bg-slate-600'" aria-hidden="true"></span>
+                                        <span x-text="presenceMap[u.id]?.online?'Online':(presenceMap[u.id]?.last_seen?'Offline · '+formatRelativeTime(presenceMap[u.id].last_seen):'Never logged in')"></span>
+                                    </span>
+                                </div>
+                            </div>
+                        </template>
+                        <div x-show="searchResults.filter(x=>x.role==='provider').length===0" class="text-slate-500 text-[12px]">No doctors match.</div>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-[12px] font-semibold text-slate-400 uppercase tracking-wider mb-3 border-b border-white/10 pb-2">Patients</h4>
+                    <div class="space-y-3">
+                        <template x-for="u in searchResults.filter(x=>x.role==='patient')" :key="u.id">
+                            <div class="bg-white/5 border border-white/10 p-3 rounded-xl card-hover cursor-pointer" @click="openUserDetail(u)" role="button" :aria-label="'View '+u.full_name">
+                                <div class="flex justify-between items-start mb-1">
+                                    <div class="font-semibold text-[15px] text-cyan-50" x-text="u.full_name"></div>
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase badge-patient">Patient</span>
+                                </div>
+                                <div class="meta-text mb-2" x-text="u.email||''"></div>
+                                <div class="flex items-center gap-3 text-[12px]">
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold" :class="u.is_active?'badge-active':'badge-suspended'" x-text="u.is_active?'Active':'Suspended'"></span>
+                                    <span class="flex items-center gap-1" :class="presenceMap[u.id]?.online?'text-emerald-400':'text-slate-500'">
+                                        <span class="w-1.5 h-1.5 rounded-full" :class="presenceMap[u.id]?.online?'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]':'bg-slate-600'" aria-hidden="true"></span>
+                                        <span x-text="presenceMap[u.id]?.online?'Online':(presenceMap[u.id]?.last_seen?'Offline · '+formatRelativeTime(presenceMap[u.id].last_seen):'Never logged in')"></span>
+                                    </span>
+                                </div>
+                            </div>
+                        </template>
+                        <div x-show="searchResults.filter(x=>x.role==='patient').length===0" class="text-slate-500 text-[12px]">No patients match.</div>
+                    </div>
+                </div>
             </div>
-            <!-- Analytics sub-tab -->
+        </div>
+
+        <!-- ── User Detail Panel ──────────────────────────────────────── -->
+        <div x-show="selectedUser" class="glass p-6 rounded-2xl" x-cloak>
+            <div class="flex justify-between items-start mb-5">
+                <div>
+                    <h2 class="title-section" x-text="selectedUser?.full_name"></h2>
+                    <span class="meta-text" x-text="selectedUser?.email"></span>
+                </div>
+                <button @click="selectedUser=null;detailTab='analytics'" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-white/10" aria-label="Close detail panel">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div><span class="block meta-text font-semibold mb-1">Role</span><span class="text-[15px] capitalize" x-text="selectedUser?.role || 'Not provided'"></span></div>
+                <div><span class="block meta-text font-semibold mb-1">Contact</span><span class="text-[15px]" x-text="selectedUser?.contact_number || 'Not provided'"></span></div>
+                <div><span class="block meta-text font-semibold mb-1">Age</span><span class="text-[15px]" x-text="selectedUser?.age !== undefined && selectedUser?.age !== null ? selectedUser?.age : 'Not provided'"></span></div>
+                <div><span class="block meta-text font-semibold mb-1">Blood Group</span><span class="text-[15px]" x-text="selectedUser?.blood_group || 'Not provided'"></span></div>
+            </div>
+            <div class="flex gap-4 border-b border-white/10 mb-5">
+                <button @click="detailTab='analytics';fetchDetailAnalytics()" class="pb-2.5 text-sm font-semibold focus-visible:ring-2 focus-visible:ring-cyan-400 rounded" :class="detailTab==='analytics'?'tab-active':'text-slate-400'">Analytics</button>
+                <button @click="detailTab='feedback';fetchDetailFeedback()" class="pb-2.5 text-sm font-semibold focus-visible:ring-2 focus-visible:ring-cyan-400 rounded" :class="detailTab==='feedback'?'tab-active':'text-slate-400'">Feedback</button>
+                <button @click="detailTab='medicines';fetchDetailMeds()" class="pb-2.5 text-sm font-semibold focus-visible:ring-2 focus-visible:ring-cyan-400 rounded" :class="detailTab==='medicines'?'tab-active':'text-slate-400'">Medicines &amp; Timings</button>
+            </div>
+            <!-- Analytics -->
             <div x-show="detailTab==='analytics'" class="space-y-4">
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div class="bg-white/5 rounded-xl p-3 text-center"><span class="text-xs text-slate-400 block">Overall</span><span class="text-2xl font-bold text-cyan-300" x-text="(detailAdherence.overall_percentage||0)+'%'"></span></div>
-                    <div class="bg-white/5 rounded-xl p-3 text-center"><span class="text-xs text-slate-400 block">Streak</span><span class="text-2xl font-bold" x-text="detailStats.streak||0"></span></div>
-                    <div class="bg-white/5 rounded-xl p-3 text-center"><span class="text-xs text-slate-400 block">Missed/Month</span><span class="text-2xl font-bold text-red-400" x-text="detailStats.missed_this_month||0"></span></div>
-                    <div class="bg-white/5 rounded-xl p-3 text-center"><span class="text-xs text-slate-400 block">Weekly</span><span class="text-2xl font-bold" x-text="(detailStats.weekly_adherence||0)+'%'"></span></div>
+                    <div class="bg-white/5 rounded-xl p-3 text-center"><span class="meta-text block mb-1">Overall</span><span class="text-2xl font-bold" style="color:#00dbe7" x-text="(detailAdherence.overall_percentage||0)+'%'"></span></div>
+                    <div class="bg-white/5 rounded-xl p-3 text-center"><span class="meta-text block mb-1">Streak</span><span class="text-2xl font-bold" x-text="detailStats.streak||0"></span></div>
+                    <div class="bg-white/5 rounded-xl p-3 text-center"><span class="meta-text block mb-1">Missed/Month</span><span class="text-2xl font-bold" style="color:#FF5252" x-text="detailStats.missed_this_month||0"></span></div>
+                    <div class="bg-white/5 rounded-xl p-3 text-center"><span class="meta-text block mb-1">Weekly</span><span class="text-2xl font-bold" x-text="(detailStats.weekly_adherence||0)+'%'"></span></div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-white/5 rounded-xl p-4"><h4 class="text-sm font-bold mb-2">Weekly</h4><div class="h-40"><canvas id="adWeekly"></canvas></div></div>
-                    <div class="bg-white/5 rounded-xl p-4"><h4 class="text-sm font-bold mb-2">Monthly</h4><div class="h-40"><canvas id="adMonthly"></canvas></div></div>
+                    <div class="bg-white/5 rounded-xl p-4"><h4 class="text-sm font-semibold mb-3">Weekly Adherence</h4><div class="h-40"><canvas id="adWeekly"></canvas></div></div>
+                    <div class="bg-white/5 rounded-xl p-4"><h4 class="text-sm font-semibold mb-3">Monthly Trend</h4><div class="h-40"><canvas id="adMonthly"></canvas></div></div>
                 </div>
             </div>
-            <!-- Feedback sub-tab -->
+            <!-- Feedback -->
             <div x-show="detailTab==='feedback'" class="space-y-3">
-                <div x-show="detailFbLoading" class="text-slate-400 text-sm">Loading...</div>
-                <div x-show="!detailFbLoading && detailFeedback.length===0" class="text-slate-500 text-sm py-4 text-center">No feedback submitted yet.</div>
-                <div x-show="detailFeedback.some(f=>f.severity===4)" class="bg-red-900/30 border border-red-500/30 p-3 rounded-xl text-sm text-red-400 flex items-center gap-2" x-cloak>⚠ Emergency feedback on record — verify patient status.</div>
+                <div x-show="detailFbLoading" class="space-y-2">
+                    <div class="skeleton h-16 rounded-xl"></div>
+                    <div class="skeleton h-16 rounded-xl"></div>
+                </div>
+                <div x-show="!detailFbLoading && detailFeedback.length===0" class="text-slate-500 text-sm py-6 text-center">No feedback submitted yet.</div>
+                <div x-show="detailFeedback.some(f=>f.severity===4)" class="border border-red-500/30 p-3 rounded-xl text-sm text-red-400 flex items-center gap-2" style="background:rgba(255,82,82,0.08);" x-cloak>⚠ Emergency feedback on record — verify patient status.</div>
                 <template x-for="fb in detailFeedback" :key="fb.id">
                     <div class="bg-white/5 rounded-xl p-3 border border-white/5">
-                        <div class="flex justify-between mb-1"><span class="text-sm font-medium text-cyan-100">Feedback</span>
-                        <span class="text-xs px-2 py-0.5 rounded-full font-bold border" :class="{'bg-emerald-500/20 text-emerald-400 border-emerald-500/30':fb.severity===1,'bg-amber-500/20 text-amber-400 border-amber-500/30':fb.severity===2,'bg-orange-500/20 text-orange-400 border-orange-500/30':fb.severity===3,'bg-rose-500/20 text-rose-400 border-rose-500/30':fb.severity===4}" x-text="['','Mild','Moderate','Severe','Emergency'][fb.severity]+' ('+fb.severity+')'"></span></div>
+                        <div class="flex justify-between mb-1.5">
+                            <span class="text-sm font-medium text-cyan-100">Feedback</span>
+                            <span class="text-[11px] px-2 py-0.5 rounded-full font-bold border" :class="{'bg-emerald-500/20 text-emerald-400 border-emerald-500/30':fb.severity===1,'bg-amber-500/20 text-amber-400 border-amber-500/30':fb.severity===2,'bg-orange-500/20 text-orange-400 border-orange-500/30':fb.severity===3,'bg-rose-500/20 text-rose-400 border-rose-500/30':fb.severity===4}" x-text="['','Mild','Moderate','Severe','Emergency'][fb.severity]+' ('+fb.severity+')'"></span>
+                        </div>
                         <div class="text-sm text-slate-300 mb-1" x-text="fb.description"></div>
-                        <div class="text-xs text-slate-500" x-text="new Date(fb.created_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})"></div>
+                        <div class="meta-text" x-text="new Date(fb.created_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})"></div>
                     </div>
                 </template>
             </div>
-            <!-- Medicines sub-tab -->
+            <!-- Medicines -->
             <div x-show="detailTab==='medicines'" class="space-y-3">
-                <!-- Loading Skeletons for Medicines -->
                 <div x-show="detailMedsLoading" class="space-y-3" x-cloak>
-                    <div class="bg-white/5 rounded-xl p-4 border border-white/5 animate-pulse h-14">
-                        <div class="flex justify-between items-center h-full">
-                            <div class="h-4 bg-white/10 rounded w-1/3"></div>
-                            <div class="w-4 h-4 bg-white/10 rounded-full"></div>
-                        </div>
-                    </div>
-                    <div class="bg-white/5 rounded-xl p-4 border border-white/5 animate-pulse h-14">
-                        <div class="flex justify-between items-center h-full">
-                            <div class="h-4 bg-white/10 rounded w-1/4"></div>
-                            <div class="w-4 h-4 bg-white/10 rounded-full"></div>
-                        </div>
-                    </div>
+                    <div class="skeleton h-14 rounded-xl"></div>
+                    <div class="skeleton h-14 rounded-xl"></div>
                 </div>
                 <template x-for="med in detailMeds" :key="med.id">
                     <div class="bg-white/5 rounded-xl p-3 border border-white/5">
                         <div class="flex justify-between items-center cursor-pointer" @click="toggleDetailMed(med.id)">
                             <div><span class="font-bold text-cyan-50" x-text="med.name"></span><span class="text-sm text-slate-400 ml-2" x-text="med.dosage_amount+' '+med.dosage_unit"></span></div>
-                            <svg class="w-4 h-4 text-slate-400 transition-transform" :class="detailExpandedMed===med.id?'rotate-180':''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            <svg class="w-4 h-4 text-slate-400 transition-transform duration-150" :class="detailExpandedMed===med.id?'rotate-180':''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                         </div>
                         <div x-show="detailExpandedMed===med.id" class="mt-2 pt-2 border-t border-white/5 space-y-2" x-cloak>
-                            <div class="flex justify-between"><span class="text-xs text-slate-400 font-bold">TIMINGS</span><button @click="dAddFor=med.id;dAddForm={dose_label:'',dose_time_utc:'',recurrence_type:'daily',timezone:'UTC'}" class="text-xs text-cyan-400">+ Add</button></div>
+                            <div class="flex justify-between"><span class="meta-text font-bold">TIMINGS</span><button @click="dAddFor=med.id;dAddForm={dose_label:'',dose_time_utc:'',recurrence_type:'daily',timezone:'UTC'}" class="text-[12px] text-cyan-400 hover:underline">+ Add</button></div>
                             <template x-for="r in (detailTimings[med.id]||[])" :key="r.id">
-                                <div class="bg-black/20 rounded p-2 flex justify-between text-sm">
+                                <div class="bg-black/20 rounded-lg p-2 flex justify-between text-sm">
                                     <div><span class="text-cyan-100" x-text="r.dose_label"></span> <span class="text-slate-400 ml-1" x-text="r.dose_time_utc"></span></div>
-                                    <div class="flex gap-2"><button @click="dEditRem=r.id;dEditForm={dose_label:r.dose_label,dose_time_utc:r.dose_time_utc,recurrence_type:r.recurrence_type}" class="text-xs text-cyan-400">Edit</button><button @click="dDelRem(r.id,med.id)" class="text-xs text-red-400">Del</button></div>
+                                    <div class="flex gap-2"><button @click="dEditRem=r.id;dEditForm={dose_label:r.dose_label,dose_time_utc:r.dose_time_utc,recurrence_type:r.recurrence_type}" class="text-[12px] text-cyan-400 hover:underline">Edit</button><button @click="dDelRem(r.id,med.id)" class="text-[12px] text-red-400 hover:underline">Del</button></div>
                                 </div>
                             </template>
-                            <div x-show="dEditRem&&detailTimings[med.id]?.some(r=>r.id===dEditRem)" class="bg-black/20 rounded p-2 space-y-1" x-cloak>
+                            <div x-show="dEditRem&&detailTimings[med.id]?.some(r=>r.id===dEditRem)" class="bg-black/20 rounded-lg p-2 space-y-2" x-cloak>
                                 <div class="grid grid-cols-3 gap-1"><input type="text" x-model="dEditForm.dose_label" class="text-sm p-1"><input type="time" x-model="dEditForm.dose_time_utc" class="text-sm p-1"><select x-model="dEditForm.recurrence_type" class="text-sm p-1"><option value="daily">Daily</option><option value="weekday">Weekday</option><option value="alternate">Alternate</option></select></div>
-                                <div class="flex gap-2 justify-end"><button @click="dSaveEdit(med.id)" class="text-xs bg-emerald-600 text-white px-2 py-1 rounded">Save</button><button @click="dEditRem=null" class="text-xs text-slate-400">Cancel</button></div>
+                                <div class="flex gap-2 justify-end"><button @click="dSaveEdit(med.id)" class="text-[12px] text-white px-3 py-1 rounded-lg" style="background:#00C853;">Save</button><button @click="dEditRem=null" class="text-[12px] text-slate-400">Cancel</button></div>
                             </div>
-                            <div x-show="dAddFor===med.id" class="bg-black/20 rounded border border-cyan-500/20 p-2 space-y-1" x-cloak>
+                            <div x-show="dAddFor===med.id" class="bg-black/20 rounded-lg border border-cyan-500/20 p-2 space-y-2" x-cloak>
                                 <div class="grid grid-cols-3 gap-1"><input type="text" x-model="dAddForm.dose_label" placeholder="Label" class="text-sm p-1" maxlength="50"><input type="time" x-model="dAddForm.dose_time_utc" class="text-sm p-1"><select x-model="dAddForm.recurrence_type" class="text-sm p-1"><option value="daily">Daily</option><option value="weekday">Weekday</option><option value="alternate">Alternate</option></select></div>
-                                <div class="flex gap-2 justify-end"><button @click="dSaveAdd(med.id)" class="text-xs bg-cyan-600 text-white px-2 py-1 rounded">Add</button><button @click="dAddFor=null" class="text-xs text-slate-400">Cancel</button></div>
+                                <div class="flex gap-2 justify-end"><button @click="dSaveAdd(med.id)" class="text-[12px] text-white px-3 py-1 rounded-lg" style="background:#00dbe7;color:#002022;">Add</button><button @click="dAddFor=null" class="text-[12px] text-slate-400">Cancel</button></div>
                             </div>
                         </div>
                     </div>
@@ -175,78 +361,217 @@
             </div>
         </div>
 
-        <!-- Toast -->
-        <div x-show="toast" x-cloak x-transition class="fixed bottom-6 right-6 bg-emerald-600 text-white px-4 py-2 rounded-xl shadow-xl z-50 text-sm font-medium" x-text="toast"></div>
-
-        <!-- Pending Approvals -->
-        <div class="glass p-6 rounded-xl">
-            <h2 class="text-2xl font-bold mb-4">Pending Approvals</h2>
-            <div x-show="pending.length===0" class="text-slate-400">No pending provider approvals.</div>
-            <div class="space-y-4"><template x-for="p in pending" :key="p.id"><div class="bg-white/5 p-4 rounded-xl border border-white/10">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <div class="font-bold text-lg flex items-center gap-2"><span x-text="p.full_name"></span><span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase bg-cyan-900/40 text-cyan-400 border border-cyan-500/30">Provider</span></div>
-                        <div class="text-xs text-slate-400 mt-1" x-text="p.email||''"></div>
-                        <div class="text-xs text-slate-500 mt-0.5" x-text="'Registered: '+new Date(p.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})"></div>
-                    </div>
-                    <div class="flex gap-2 items-start">
-                        <button @click="approveUser(p.id)" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-1.5 rounded-lg text-sm font-bold">Approve</button>
-                        <button @click="rejectingId=p.id;rejectReason=''" class="bg-rose-600 hover:bg-rose-500 px-4 py-1.5 rounded-lg text-sm font-bold">Reject</button>
-                    </div>
-                </div>
-                <div x-show="rejectingId===p.id" class="mt-3 flex gap-2" x-cloak>
-                    <input type="text" x-model="rejectReason" placeholder="Rejection reason (required)" class="flex-1 text-sm p-2">
-                    <button @click="rejectUser(p.id)" class="bg-rose-600 text-white text-sm px-3 py-1.5 rounded-lg font-bold" :disabled="!rejectReason.trim()">Confirm</button>
-                    <button @click="rejectingId=null" class="text-slate-400 text-sm px-2">Cancel</button>
-                </div>
-            </div></template></div>
-        </div>
-
-        <!-- Assignments -->
-        <div class="glass p-6 rounded-xl">
-            <h2 class="text-2xl font-bold mb-4">Assignments</h2>
-            <table class="w-full text-left border-collapse"><thead><tr class="border-b border-white/10 text-slate-400 text-sm"><th class="p-3 font-medium">Patient ID</th><th class="p-3 font-medium">Provider ID</th><th class="p-3 font-medium">Status</th></tr></thead>
-            <tbody><template x-for="a in assignments" :key="a.id"><tr class="border-b border-white/5"><td class="p-3 text-sm font-mono" x-text="a.patient_id"></td><td class="p-3 text-sm font-mono" x-text="a.provider_id"></td><td class="p-3 text-sm"><span class="px-2 py-0.5 rounded text-xs font-medium border" :class="a.status==='active'?'bg-emerald-500/20 text-emerald-400 border-emerald-500/30':'bg-slate-500/20 text-slate-400 border-slate-500/30'" x-text="a.status"></span></td></tr></template></tbody></table>
-        </div>
-
-        <!-- All Users -->
-        <div class="glass p-6 rounded-xl">
-            <h2 class="text-2xl font-bold mb-4">All Users</h2>
-            <div x-show="users.length===0" class="text-slate-400">No users found.</div>
-            <div class="space-y-3"><template x-for="u in users" :key="u.id"><div :id="'user-'+u.id" class="bg-white/5 p-4 rounded-xl border border-white/10 hover:bg-white/10 transition-colors">
-                <div class="flex justify-between items-start">
-                    <div class="cursor-pointer flex-1" @click="openUserDetail(u)">
-                        <div class="font-bold text-lg flex items-center gap-2 flex-wrap">
-                            <span x-text="u.full_name"></span>
-                            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border" :class="u.role==='provider'?'bg-cyan-900/40 text-cyan-400 border-cyan-500/30':u.role==='admin'?'bg-amber-900/40 text-amber-400 border-amber-500/30':'bg-purple-900/40 text-purple-400 border-purple-500/30'" x-text="u.role"></span>
-                            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border" :class="u.is_active?'bg-emerald-500/20 text-emerald-400 border-emerald-500/30':'bg-red-500/20 text-red-400 border-red-500/30'" x-text="u.is_active?'Active':'Pending'"></span>
-                            <span class="flex items-center gap-1 text-xs" :class="presenceMap[u.id]?.online?'text-emerald-400':'text-slate-500'"><span class="w-1.5 h-1.5 rounded-full" :class="presenceMap[u.id]?.online?'bg-emerald-400':'bg-slate-600'"></span><span x-text="presenceMap[u.id]?.online?'Online':(presenceMap[u.id]?.last_seen?'Offline':'')"></span></span>
+        <!-- ── Pending Approvals ─────────────────────────────────────── -->
+        <div class="glass p-6 rounded-2xl">
+            <h2 class="title-section mb-4">Pending Approvals</h2>
+            <!-- Empty: compact single-line -->
+            <div x-show="pending.length===0" class="flex items-center gap-2 text-sm text-slate-400 py-1">
+                <svg class="w-4 h-4 shrink-0" style="color:#00C853" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                No pending approvals — you're all caught up
+            </div>
+            <!-- Cards -->
+            <div class="space-y-4">
+                <template x-for="p in pending" :key="p.id">
+                    <div class="bg-white/5 p-5 rounded-xl border border-white/10 card-hover">
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                            <div class="flex items-center gap-3">
+                                <div class="avatar badge-provider" x-text="(p.full_name||'?').charAt(0).toUpperCase()"></div>
+                                <div>
+                                    <div class="font-bold text-[15px] flex items-center gap-2 flex-wrap">
+                                        <span x-text="p.full_name"></span>
+                                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase badge-provider">Provider</span>
+                                    </div>
+                                    <div class="meta-text mt-0.5" x-text="p.email||''"></div>
+                                    <div class="meta-text mt-0.5" x-text="'Registered: '+new Date(p.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})"></div>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 shrink-0">
+                                <button @click="approveUser(p.id)" class="min-h-[40px] px-5 py-2 rounded-xl text-sm font-bold hover:brightness-110" style="background:#00C853;color:#002200;" aria-label="Approve user">Approve</button>
+                                <button @click="rejectingId=p.id;rejectReason=''" class="min-h-[40px] px-5 py-2 rounded-xl text-sm font-bold hover:brightness-110" style="background:#FF5252;color:#fff;" aria-label="Reject user">Reject</button>
+                            </div>
                         </div>
-                        <div class="text-xs text-slate-400 mt-1" x-text="u.email||u.contact_number||''"></div>
+                        <div x-show="rejectingId===p.id" class="mt-3 flex gap-2" x-cloak>
+                            <input type="text" x-model="rejectReason" placeholder="Rejection reason (required)" class="flex-1 text-sm p-2" aria-label="Rejection reason">
+                            <button @click="rejectUser(p.id)" class="px-4 py-2 rounded-xl text-sm font-bold" style="background:#FF5252;color:#fff;" :disabled="!rejectReason.trim()">Confirm</button>
+                            <button @click="rejectingId=null" class="text-slate-400 text-sm px-2">Cancel</button>
+                        </div>
                     </div>
-                    <div class="flex gap-2 items-center ml-4">
-                        <template x-if="u.role==='provider'&&!u.is_active">
-                            <div class="flex gap-2"><button @click.stop="approveUser(u.id)" class="text-xs bg-emerald-600 text-white px-3 py-1 rounded-lg">Approve</button><button @click.stop="rejectingId=u.id;rejectReason=''" class="text-xs bg-rose-600 text-white px-3 py-1 rounded-lg">Reject</button></div>
-                        </template>
-                        <template x-if="u.role==='provider'&&u.is_active">
-                            <button @click.stop="deactivateUser(u.id)" class="text-xs bg-slate-600 text-white px-3 py-1 rounded-lg">Deactivate</button>
-                        </template>
-                        <template x-if="u.role==='patient'&&u.is_active">
-                            <button @click.stop="deactivateUser(u.id)" class="text-xs bg-slate-600 text-white px-3 py-1 rounded-lg">Deactivate</button>
-                        </template>
-                        <template x-if="u.role!=='admin'&&!u.is_active&&u.role==='patient'">
-                            <button @click.stop="approveUser(u.id)" class="text-xs bg-emerald-600 text-white px-3 py-1 rounded-lg">Activate</button>
-                        </template>
-                    </div>
-                </div>
-                <div x-show="rejectingId===u.id" class="mt-3 flex gap-2" x-cloak>
-                    <input type="text" x-model="rejectReason" placeholder="Rejection reason (required)" class="flex-1 text-sm p-2">
-                    <button @click="rejectUser(u.id)" class="bg-rose-600 text-white text-sm px-3 py-1.5 rounded-lg font-bold" :disabled="!rejectReason.trim()">Confirm</button>
-                    <button @click="rejectingId=null" class="text-slate-400 text-sm px-2">Cancel</button>
-                </div>
-            </div></template></div>
+                </template>
+            </div>
         </div>
+
+        <!-- ── Assignments Table ──────────────────────────────────────── -->
+        <div class="glass p-6 rounded-2xl">
+            <h2 class="title-section mb-4">Assignments</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse" aria-label="Patient-provider assignments">
+                    <thead>
+                        <tr class="border-b border-white/10">
+                            <th class="px-4 py-3 text-[12px] font-semibold text-slate-400 uppercase tracking-wider">Patient</th>
+                            <th class="px-4 py-3 text-[12px] font-semibold text-slate-400 uppercase tracking-wider">Provider</th>
+                            <th class="px-4 py-3 text-[12px] font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+                            <th class="px-4 py-3 text-[12px] font-semibold text-slate-400 uppercase tracking-wider">Assigned On</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="a in assignments" :key="a.id">
+                            <tr class="border-b border-white/5 hover:bg-white/5 transition-colors duration-150">
+                                <td class="px-4 py-3">
+                                    <div class="font-medium text-[14px] text-slate-100" x-text="userNameById(a.patient_id)"></div>
+                                    <div class="meta-text font-mono cursor-help" :title="a.patient_id" x-text="a.patient_id.slice(0,8)+'…'"></div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="font-medium text-[14px] text-slate-100" x-text="userNameById(a.provider_id)"></div>
+                                    <div class="meta-text font-mono cursor-help" :title="a.provider_id" x-text="a.provider_id.slice(0,8)+'…'"></div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="text-[11px] px-2.5 py-0.5 rounded-full font-bold"
+                                          :class="a.status==='active'?'badge-active':a.status==='pending'?'badge-pending':'badge-suspended'"
+                                          x-text="a.status"></span>
+                                </td>
+                                <td class="px-4 py-3 text-[13px] text-slate-300" x-text="a.assigned_on ? new Date(a.assigned_on).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : '—'"></td>
+                            </tr>
+                        </template>
+                        <tr x-show="assignments.length===0">
+                            <td colspan="4" class="px-4 py-10 text-center text-slate-500 text-sm">No assignments found.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ── User Management ────────────────────────────────────────── -->
+        <div class="glass p-6 rounded-2xl">
+            <!-- Header + Filter bar -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+                <h2 class="title-section">All Users</h2>
+                <div class="flex flex-wrap items-center gap-2">
+                    <select x-model="filterRole" class="text-sm py-2 px-3 !rounded-xl" aria-label="Filter by role" style="min-width:110px;">
+                        <option value="">All Roles</option>
+                        <option value="admin">Admin</option>
+                        <option value="provider">Provider</option>
+                        <option value="patient">Patient</option>
+                    </select>
+                    <select x-model="filterStatus" class="text-sm py-2 px-3 !rounded-xl" aria-label="Filter by status" style="min-width:120px;">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="pending">Pending</option>
+                        <option value="suspended">Suspended</option>
+                    </select>
+                    <select x-model="sortBy" class="text-sm py-2 px-3 !rounded-xl" aria-label="Sort users" style="min-width:130px;">
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="alpha">Alphabetical</option>
+                    </select>
+                    <button @click="exportCSV" class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold hover:brightness-110" style="background:rgba(255,179,0,0.15);color:#FFB300;border:1px solid rgba(255,179,0,0.3);" aria-label="Export filtered users as CSV">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Export CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Skeleton (when users not yet loaded) -->
+            <div x-show="users.length===0" class="space-y-3">
+                <div class="skeleton h-20 rounded-xl"></div>
+                <div class="skeleton h-20 rounded-xl"></div>
+                <div class="skeleton h-20 rounded-xl"></div>
+            </div>
+
+            <!-- No match message -->
+            <div x-show="users.length>0 && filteredUsers.length===0" class="text-slate-400 text-sm py-6 text-center">No users match the selected filters.</div>
+
+            <!-- User cards -->
+            <div class="space-y-3">
+                <template x-for="u in filteredUsers" :key="u.id">
+                    <div :id="'user-'+u.id" class="bg-white/5 rounded-xl border border-white/10 p-5 card-hover relative">
+                        <div class="flex items-start gap-4">
+                            <!-- Avatar -->
+                            <div class="avatar"
+                                 :style="u.role==='provider'?'background:rgba(0,219,231,0.15);color:#00dbe7;border:1px solid rgba(0,219,231,0.3);':u.role==='admin'?'background:rgba(255,179,0,0.15);color:#FFB300;border:1px solid rgba(255,179,0,0.3);':'background:rgba(167,139,250,0.15);color:#A78BFA;border:1px solid rgba(167,139,250,0.3);'"
+                                 x-text="(u.full_name||'?').charAt(0).toUpperCase()"
+                                 aria-hidden="true"></div>
+                            <!-- Info block (clickable to open detail) -->
+                            <div class="flex-1 min-w-0 cursor-pointer" @click="openUserDetail(u)" role="button" :aria-label="'View details for '+u.full_name">
+                                <div class="flex items-center gap-2 flex-wrap mb-1">
+                                    <span class="font-semibold text-[15px] text-cyan-50" x-text="u.full_name"></span>
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase"
+                                          :class="u.role==='provider'?'badge-provider':u.role==='admin'?'badge-admin':'badge-patient'"
+                                          x-text="u.role"></span>
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase"
+                                          :class="u.is_active?'badge-active':u.role==='provider'?'badge-pending':'badge-suspended'"
+                                          x-text="u.is_active?'Active':u.role==='provider'?'Pending':'Suspended'"></span>
+                                </div>
+                                <div class="text-[13px] text-slate-400 mb-1.5" x-text="u.email||u.contact_number||'—'"></div>
+                                <div class="flex items-center gap-1.5 text-[12px]" :class="presenceMap[u.id]?.online?'text-emerald-400':'text-slate-500'">
+                                    <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="presenceMap[u.id]?.online?'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]':'bg-slate-600'" aria-hidden="true"></span>
+                                    <span x-text="presenceMap[u.id]?.online?'Online':(presenceMap[u.id]?.last_seen?'Last seen '+formatRelativeTime(presenceMap[u.id].last_seen):'Never logged in')"></span>
+                                </div>
+                            </div>
+                            <!-- ⋮ Overflow Menu -->
+                            <div class="relative shrink-0">
+                                <button @click.stop="openMenuId = openMenuId===u.id ? null : u.id"
+                                        class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-cyan-400"
+                                        :aria-label="'Actions for '+u.full_name"
+                                        :aria-expanded="openMenuId===u.id">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                                </button>
+                                <div x-show="openMenuId===u.id" @click.stop x-cloak
+                                     class="overflow-menu absolute right-0 mt-1 z-50 py-1" role="menu">
+                                    <button @click="openUserDetail(u);openMenuId=null" class="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-white/10 flex items-center gap-2" role="menuitem">
+                                        <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        View Profile
+                                    </button>
+                                    <button @click="openMenuId=null" class="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-white/10 flex items-center gap-2" role="menuitem">
+                                        <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                        Edit User
+                                    </button>
+                                    <button @click="openMenuId=null" class="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-white/10 flex items-center gap-2" role="menuitem">
+                                        <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                                        Reset Password
+                                    </button>
+                                    <div class="border-t border-white/10 my-1" role="separator"></div>
+                                    <template x-if="u.role==='provider'&&!u.is_active">
+                                        <button @click.stop="approveUser(u.id);openMenuId=null" class="w-full text-left px-4 py-2 text-sm hover:bg-white/10 flex items-center gap-2" style="color:#00C853" role="menuitem">
+                                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                            Approve
+                                        </button>
+                                    </template>
+                                    <template x-if="u.role==='provider'&&!u.is_active">
+                                        <button @click.stop="rejectingId=u.id;rejectReason='';openMenuId=null" class="w-full text-left px-4 py-2 text-sm hover:bg-white/10 flex items-center gap-2" style="color:#FF5252" role="menuitem">
+                                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            Reject
+                                        </button>
+                                    </template>
+                                    <template x-if="u.is_active && u.role!=='admin'">
+                                        <button @click.stop="deactivateUser(u.id);openMenuId=null" class="w-full text-left px-4 py-2 text-sm hover:bg-white/10 flex items-center gap-2" style="color:#FF5252" role="menuitem">
+                                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                                            Suspend
+                                        </button>
+                                    </template>
+                                    <template x-if="u.role!=='admin'&&!u.is_active&&u.role==='patient'">
+                                        <button @click.stop="approveUser(u.id);openMenuId=null" class="w-full text-left px-4 py-2 text-sm hover:bg-white/10 flex items-center gap-2" style="color:#00C853" role="menuitem">
+                                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                            Activate
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Inline reject form -->
+                        <div x-show="rejectingId===u.id" class="mt-3 flex gap-2" x-cloak>
+                            <input type="text" x-model="rejectReason" placeholder="Rejection reason (required)" class="flex-1 text-sm p-2" aria-label="Rejection reason">
+                            <button @click="rejectUser(u.id)" class="px-4 py-2 rounded-xl text-sm font-bold" style="background:#FF5252;color:#fff;" :disabled="!rejectReason.trim()">Confirm</button>
+                            <button @click="rejectingId=null" class="text-slate-400 text-sm px-2">Cancel</button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
     </main>
+
+    <!-- Toast notification -->
+    <div x-show="toast" x-cloak x-transition class="fixed bottom-6 right-6 px-4 py-2.5 rounded-xl shadow-2xl z-50 text-sm font-semibold" style="background:#00C853;color:#002200;" x-text="toast" role="alert" aria-live="polite"></div>
 
     <script>
         const _token = sessionStorage.getItem('adhera_token');
@@ -256,14 +581,13 @@
         const _role = _p.role || _p.app_metadata?.role || _p.user_metadata?.role;
         if (_role !== 'admin') { window.location.href = 'index.html'; }
 
-        // Supabase credentials fetched dynamically via CONFIG onReady
-        const config = {};
-        // Chart instances must not be stored inside Alpine's reactive proxy to prevent 'Maximum call stack exceeded' errors.
-        let globalCharts = { w: null, m: null };
-        
+        // Chart instances must not be stored inside Alpine's reactive proxy.
+        let globalCharts = { w: null, m: null, platform: null };
+
         function adminData() {
             return {
                 token: sessionStorage.getItem('adhera_token'),
+                // Existing state (unchanged)
                 pending: [], assignments: [], users: [],
                 platformStats: {},
                 searchQuery: '', searchResults: [], isSearching: false,
@@ -274,12 +598,90 @@
                 detailMeds: [], detailMedsLoading: false, detailExpandedMed: null, detailTimings: {},
                 dEditRem: null, dEditForm: {}, dAddFor: null, dAddForm: {},
                 toast: '', rejectingId: null, rejectReason: '',
+                // New UI state
+                filterRole: '', filterStatus: '', sortBy: 'newest',
+                openMenuId: null, activityFeed: [],
+
+                // Computed: client-side filtered + sorted user list
+                get filteredUsers() {
+                    let list = this.users;
+                    if (this.filterRole) list = list.filter(u => u.role === this.filterRole);
+                    if (this.filterStatus === 'active')    list = list.filter(u => u.is_active);
+                    else if (this.filterStatus === 'pending')   list = list.filter(u => !u.is_active && u.role === 'provider');
+                    else if (this.filterStatus === 'suspended') list = list.filter(u => !u.is_active && u.role !== 'provider');
+                    if (this.sortBy === 'newest') list = [...list].sort((a,b) => new Date(b.created_at||0)-new Date(a.created_at||0));
+                    else if (this.sortBy === 'oldest') list = [...list].sort((a,b) => new Date(a.created_at||0)-new Date(b.created_at||0));
+                    else if (this.sortBy === 'alpha') list = [...list].sort((a,b) => (a.full_name||'').localeCompare(b.full_name||''));
+                    return list;
+                },
+
+                // Resolve UUID to full_name using already-fetched users list
+                userNameById(id) {
+                    const u = this.users.find(u => u.id === id);
+                    return u ? (u.full_name || u.email || id.slice(0,8)+'…') : id.slice(0,8)+'…';
+                },
+
+                // Export filtered list as CSV
+                exportCSV() {
+                    const rows = [['Name','Email','Role','Status','Created At']];
+                    this.filteredUsers.forEach(u => rows.push([
+                        u.full_name||'', u.email||'', u.role||'',
+                        u.is_active?'Active':u.role==='provider'?'Pending':'Suspended',
+                        u.created_at ? new Date(u.created_at).toLocaleDateString() : ''
+                    ]));
+                    const csv = rows.map(r => r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+                    const a = document.createElement('a');
+                    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+                    a.download = 'adhera-users.csv'; a.click();
+                },
+
+                // Build activity feed from already-fetched data (no new API calls)
+                buildActivityFeed() {
+                    const events = [];
+                    (this.assignments||[]).slice(0,4).forEach(a => {
+                        const pat = this.userNameById(a.patient_id);
+                        const prov = this.userNameById(a.provider_id);
+                        events.push({ text: `${pat} assigned to ${prov}`, time: a.assigned_on||a.created_at, icon: '🔗' });
+                    });
+                    (this.pending||[]).slice(0,3).forEach(p => {
+                        events.push({ text: `${p.full_name||'Provider'} awaiting approval`, time: p.created_at, icon: '⏳' });
+                    });
+                    (this.users||[]).filter(u=>u.created_at).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,5).forEach(u => {
+                        events.push({ text: `${u.full_name||'User'} registered as ${u.role}`, time: u.created_at, icon: u.role==='provider'?'🩺':u.role==='admin'?'🛡️':'👤' });
+                    });
+                    events.sort((a,b) => new Date(b.time||0)-new Date(a.time||0));
+                    this.activityFeed = events.slice(0,8);
+                },
+
                 async init() {
                     renderNav('admin');
                     Chart.defaults.color = '#849495'; Chart.defaults.font.family = 'Inter';
                     await Promise.all([this.fetchPending(), this.fetchAssignments(), this.fetchUsers(), this.fetchPlatformStats()]);
+                    this.buildActivityFeed();
                     this.setupPresence(_p);
+                    this.$nextTick(() => this.renderPlatformChart());
                 },
+
+                // Platform-wide adherence sparkline (placeholder data; TODO wire real /analytics/trend)
+                renderPlatformChart() {
+                    if (globalCharts.platform) globalCharts.platform.destroy();
+                    const canvas = document.getElementById('platformTrendChart');
+                    if (!canvas) return;
+                    const now = new Date();
+                    const labels = [], data = [];
+                    for (let i=29; i>=0; i--) {
+                        const d = new Date(now); d.setDate(d.getDate()-i);
+                        labels.push(d.toLocaleDateString(undefined,{month:'short',day:'numeric'}));
+                        // TODO: Replace with real aggregated adherence % per day from /analytics/trend
+                        data.push(Math.floor(65 + Math.random()*25));
+                    }
+                    globalCharts.platform = new Chart(canvas, {
+                        type: 'line',
+                        data: { labels, datasets: [{ data, borderColor: '#00dbe7', backgroundColor: 'rgba(0,219,231,0.07)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 0 }] },
+                        options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.04)' } }, x: { grid: { display: false }, ticks: { maxTicksLimit: 6 } } }, plugins: { legend: { display: false } } }
+                    });
+                },
+
                 showToast(msg) { this.toast=msg; setTimeout(()=>this.toast='',3000); },
                 async api(path, method='GET', body=null) {
                     const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
@@ -294,13 +696,23 @@
                 async fetchPending() { try { this.pending = await this.api('/admin/users?role=provider&status=pending'); } catch(e){} },
                 async fetchAssignments() { try { this.assignments = await this.api('/admin/assignments'); } catch(e){} },
                 async fetchUsers() { try { this.users = await this.api('/admin/users'); } catch(e){ this.users = []; } },
-                async approveUser(id) { try { await this.api(`/admin/users/${id}/approve`, 'POST'); this.showToast('User approved'); await Promise.all([this.fetchPending(), this.fetchUsers()]); } catch(e){} },
-                async rejectUser(id) { if(!this.rejectReason.trim())return; try { await this.api(`/admin/users/${id}/reject`, 'POST', {reason:this.rejectReason}); this.rejectingId=null; this.showToast('User rejected'); await Promise.all([this.fetchPending(), this.fetchUsers()]); } catch(e){} },
-                async deactivateUser(id) { try { await this.api(`/admin/users/${id}`, 'PATCH', {is_active:false}); this.showToast('User deactivated'); await this.fetchUsers(); } catch(e){} },
-                performSearch() { const q = this.searchQuery.toLowerCase().trim(); if(!q){this.searchResults=[];return;} this.searchResults = this.users.filter(u=>(u.full_name&&u.full_name.toLowerCase().includes(q))||(u.contact_number&&u.contact_number.includes(q))); },
+                async approveUser(id) {
+                    try { await this.api(`/admin/users/${id}/approve`, 'POST'); this.showToast('User approved');
+                    await Promise.all([this.fetchPending(), this.fetchUsers()]); this.buildActivityFeed(); } catch(e){}
+                },
+                async rejectUser(id) {
+                    if (!this.rejectReason.trim()) return;
+                    try { await this.api(`/admin/users/${id}/reject`, 'POST', {reason:this.rejectReason}); this.rejectingId=null; this.showToast('User rejected');
+                    await Promise.all([this.fetchPending(), this.fetchUsers()]); this.buildActivityFeed(); } catch(e){}
+                },
+                async deactivateUser(id) {
+                    try { await this.api(`/admin/users/${id}`, 'PATCH', {is_active:false}); this.showToast('User deactivated');
+                    await this.fetchUsers(); this.buildActivityFeed(); } catch(e){}
+                },
+                performSearch() { const q=this.searchQuery.toLowerCase().trim(); if(!q){this.searchResults=[];return;} this.searchResults=this.users.filter(u=>(u.full_name&&u.full_name.toLowerCase().includes(q))||(u.contact_number&&u.contact_number.includes(q))); },
                 clearSearch() { this.searchQuery=''; this.searchResults=[]; },
                 scrollToUser(id) { const el=document.getElementById('user-'+id); if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('bg-white/20');setTimeout(()=>el.classList.remove('bg-white/20'),1500);} },
-                openUserDetail(u) { this.selectedUser = u; this.detailTab = 'analytics'; this.fetchDetailAnalytics(); },
+                openUserDetail(u) { this.selectedUser=u; this.detailTab='analytics'; this.fetchDetailAnalytics(); },
                 async fetchDetailAnalytics() {
                     if (!this.selectedUser) return;
                     const pid = this.selectedUser.id;
@@ -329,9 +741,7 @@
                 async setupPresence(payload) {
                     try {
                         if (!window.supabase) return;
-                        if (!CONFIG._ready) {
-                            await new Promise(resolve => CONFIG.onReady(resolve));
-                        }
+                        if (!CONFIG._ready) { await new Promise(resolve => CONFIG.onReady(resolve)); }
                         const sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
                         this.presenceChannel = sb.channel('adhera-presence');
                         const myState = { user_id: payload.sub, role: 'admin', full_name: 'Admin', last_seen: new Date().toISOString() };
@@ -354,5 +764,6 @@
             }
         }
     </script>
+
 </body>
 </html>
