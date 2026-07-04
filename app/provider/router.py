@@ -191,18 +191,22 @@ async def get_provider_dashboard(request: Request, user: dict = Depends(require_
                 "description": f.get("description", ""),
                 "created_at": f.get("created_at")
             })
-        flags_res = supabase.table("patient_flags").select("*, profiles!patient_flags_user_id_fkey(full_name)").in_("user_id", patient_ids).is_("resolved_at", "null").order("severity", desc=True).limit(20).execute()
-        insight_flags = []
-        for fl in (flags_res.data or []):
-            prof_data = fl.get("profiles") or {}
-            insight_flags.append({
-                "id": fl.get("id"),
-                "flag_type": fl.get("flag_type"),
-                "severity": fl.get("severity"),
-                "details": fl.get("details", {}),
-                "detected_at": fl.get("detected_at"),
-                "full_name": prof_data.get("full_name", "Unknown Patient")
-            })
+        try:
+            flags_res = supabase.table("patient_flags").select("*, profiles!patient_flags_user_id_fkey(full_name)").in_("user_id", patient_ids).is_("resolved_at", "null").order("severity", desc=True).limit(20).execute()
+            insight_flags = []
+            for fl in (flags_res.data or []):
+                prof_data = fl.get("profiles") or {}
+                insight_flags.append({
+                    "id": fl.get("id"),
+                    "flag_type": fl.get("flag_type"),
+                    "severity": fl.get("severity"),
+                    "details": fl.get("details", {}),
+                    "detected_at": fl.get("detected_at"),
+                    "full_name": prof_data.get("full_name", "Unknown Patient")
+                })
+        except Exception as flags_err:
+            logger.warning("patient_flags query failed (table may not exist): %s", str(flags_err))
+            insight_flags = []
         return SuccessResponse(data={
             "stats": {"avg_adherence": avg_adherence, "active_patients": len(patients_list), "critical_risk": critical_risk_count},
             "patients": patients_list,

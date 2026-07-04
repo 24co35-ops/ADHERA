@@ -370,3 +370,83 @@ class TestCancelProviderRequest:
         response = client.delete("/v1/provider/request-provider", headers=make_token(role="patient", user_id=TEST_PATIENT_ID))
         assert response.status_code == 200
         assert response.json()["data"]["cancelled"] is True
+
+
+# ── Regression: dashboard returns all assigned patients ────────────────────────
+
+TEST_PATIENT_ID_2 = "00000000-0000-0000-0000-000000000124"
+
+class TestDashboardPatientCount:
+    """
+    Regression for: provider dashboard returning 0 patients when patient_flags
+    table is missing (PGRST205 → APIError previously crashed entire endpoint).
+    """
+
+    @patch("app.provider.router.supabase")
+    def test_two_assigned_patients_all_returned(self, mock_sb):
+        """Both assigned patients must appear in the response regardless of patient_flags state."""
+        from postgrest.exceptions import APIError
+        from datetime import datetime, timezone, timedelta
+
+        now = datetime.now(timezone.utc)
+
+        assignments_mock = MagicMock(data=[
+            {"patient_id": TEST_PATIENT_ID},
+            {"patient_id": TEST_PATIENT_ID_2},
+        ])
+        profiles_mock = MagicMock(data=[
+            {"id": TEST_PATIENT_ID,   "full_name": "Patient Alpha", "contact_number": "111", "date_of_birth": "1990-01-01", "blood_group": "A+"},
+            {"id": TEST_PATIENT_ID_2, "full_name": "Patient Beta",  "contact_number": "222", "date_of_birth": "1985-06-15", "blood_group": "O-"},
+        ])
+        adherence_mock = MagicMock(data=[
+            {"user_id": TEST_PATIENT_ID,   "status": "taken",  "scheduled_utc": (now - timedelta(hours=2)).isoformat()},
+            {"user_id": TEST_PATIENT_ID_2, "status": "missed", "scheduled_utc": (now - timedelta(hours=3)).isoformat()},
+        ])
+        last_dose_mock = MagicMock(data=[
+            {"user_id": TEST_PATIENT_ID, "scheduled_utc": (now - timedelta(hours=2)).isoformat()},
+        ])
+        missed_mock  = MagicMock(data=[])
+        feedback_mock = MagicMock(data=[])
+        reminders_mock = MagicMock(data=[])
+
+        def table_side_effect(table_name):
+            mock_table = MagicMock()
+            if table_name == "assignments":
+                mock_table.select.return_value.eq.return_value.eq.return_value.execute.return_value = assignments_mock
+            elif table_name == "profiles":
+                mock_table.select.return_value.in_.return_value.execute.return_value = profiles_mock
+            elif table_name == "adherence":
+                mock_select = MagicMock()
+                # 30-day batch
+                mock_select.in_.return_value.gte.return_value.execute.return_value = adherence_mock
+                # last_dose batch (taken + order)
+                mock_select.in_.return_value.eq.return_value.order.return_value.execute.return_value = last_dose_mock
+                # missed_today batch
+                mock_select.in_.return_value.eq.return_value.gte.return_value.lte.return_value.execute.return_value = missed_mock
+                mock_table.select.return_value = mock_select
+            elif table_name == "reminders":
+                mock_table.select.return_value.in_.return_value.eq.return_value.execute.return_value = reminders_mock
+            elif table_name == "feedback":
+                mock_table.select.return_value.in_.return_value.gte.return_value.order.return_value.limit.return_value.execute.return_value = feedback_mock
+            elif table_name == "patient_flags":
+                # Simulate missing table: raise APIError (PGRST205)
+                mock_table.select.return_value.in_.return_value.is_.return_value.order.return_value.limit.return_value.execute.side_effect = APIError(
+                    {"message": "Could not find the table 'public.patient_flags' in the schema cache", "code": "PGRST205", "hint": None, "details": None}
+                )
+            return mock_table
+
+        mock_sb.table.side_effect = table_side_effect
+        mock_sb.auth.admin.list_users.return_value = []
+
+        response = client.get("/v1/provider/dashboard", headers=make_token())
+        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+        data = response.json()["data"]
+
+        # Both patients must be present
+        assert len(data["patients"]) == 2, f"Expected 2 patients, got {len(data['patients'])}"
+        patient_ids = {p["patient_id"] for p in data["patients"]}
+        assert TEST_PATIENT_ID   in patient_ids
+        assert TEST_PATIENT_ID_2 in patient_ids
+
+        # Flags degrade gracefully to empty list
+        assert data["insight_flags"] == []
