@@ -712,68 +712,102 @@
             <!-- Patient cards (Scrollable max-height list) -->
             <div class="space-y-3 overflow-y-auto" style="max-height: 680px;">
                 <template x-for="p in filteredPatients" :key="p.patient_id">
-                    <div class="bg-white/5 rounded-xl border p-3.5 card-hover flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    <div class="bg-white/5 rounded-xl border p-4 card-hover flex flex-col md:flex-row md:items-start justify-between gap-4"
                          style="border-color: rgba(255,255,255,0.14);">
+
                         <!-- Left: Avatar + Details Stack -->
-                        <div class="flex items-center gap-4 min-w-0">
-                            <!-- 46px Avatar with bottom-right presence dot overlap -->
-                            <div class="relative shrink-0">
+                        <div class="flex items-start gap-4 min-w-0">
+                            <!-- Avatar + presence dot -->
+                            <div class="relative shrink-0 mt-0.5">
                                 <div class="w-12 h-12 rounded-full bg-cyan-900/40 flex items-center justify-center text-cyan-400 font-bold border border-cyan-500/30 text-lg"
                                      :aria-label="(p.profiles?.full_name || 'Patient') + ' avatar'">
                                     <span x-text="(p.profiles?.full_name || '?').charAt(0).toUpperCase()"></span>
                                 </div>
                                 <span class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#111318]"
-                                      :class="presenceMap[p.patient_id]?.online ? 'bg-[#00C853]' : 'bg-[#FF5252]'"></span>
+                                      :class="presenceMap[p.patient_id]?.online ? 'bg-[#00C853]' : 'bg-[#64748b]'"></span>
                             </div>
-                            
+
                             <!-- Info stack -->
-                            <div class="min-w-0 space-y-1">
-                                <div class="flex items-center gap-2">
-                                    <span class="font-bold text-base text-cyan-50 truncate" x-text="p.profiles?.full_name || 'Unknown'"></span>
-                                    <!-- Dynamic risk badge based on backend risk_level -->
-                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold border uppercase tracking-wider"
+                            <div class="min-w-0 flex-1 space-y-1.5">
+
+                                <!-- Row 1: Name + solid risk badge (primary clinical signal) -->
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="font-bold text-base text-white truncate" x-text="p.profiles?.full_name || 'Unknown'"></span>
+                                    <span class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-wide shrink-0"
                                           :class="{
-                                              'bg-[#FF5252]/10 text-[#FF5252] border-[#FF5252]/30': p.risk_level === 'critical',
-                                              'bg-[#FFB300]/10 text-[#FFB300] border-[#FFB300]/30': p.risk_level === 'high',
-                                              'bg-[#00dbe7]/10 text-[#00dbe7] border-[#00dbe7]/30': p.risk_level === 'moderate',
-                                              'bg-[#00C853]/10 text-[#00C853] border-[#00C853]/30': p.risk_level === 'low'
+                                              'bg-[#FF5252] text-white': p.risk_level === 'critical',
+                                              'bg-[#FFB300] text-[#1a1100]': p.risk_level === 'high',
+                                              'bg-[#00dbe7] text-[#002022]': p.risk_level === 'moderate',
+                                              'bg-[#00C853] text-[#002022]': p.risk_level === 'low'
                                           }" x-text="p.risk_level"></span>
                                 </div>
-                                <!-- Secondary demographics block (contrast-enhanced to slate-300 / #94a3b8) -->
-                                <div class="text-xs text-slate-300 flex items-center gap-1.5 flex-wrap">
-                                    <span class="font-medium" x-text="'Age ' + (p.profiles?.age ?? 'N/A')"></span>
-                                    <span class="text-slate-500">•</span>
-                                    <span class="font-medium" x-text="'Blood ' + (p.profiles?.blood_group || 'N/A')"></span>
-                                    <span class="text-slate-500">•</span>
-                                    <span x-text="presenceMap[p.patient_id]?.online ? 'Online now' : presenceMap[p.patient_id]?.last_seen ? 'Seen ' + formatRelativeTime(presenceMap[p.patient_id].last_seen) : 'Never logged in'"></span>
+
+                                <!-- Row 2: Demographics — de-emphasized (smaller, muted) -->
+                                <div class="text-[11px] text-slate-400 flex items-center gap-1.5 flex-wrap leading-snug">
+                                    <span x-text="'Age ' + (p.profiles?.age ?? 'N/A')"></span>
+                                    <span class="text-slate-600">•</span>
+                                    <span x-text="'Blood ' + (p.profiles?.blood_group || 'N/A')"></span>
+                                    <span class="text-slate-600">•</span>
+                                    <span :class="presenceMap[p.patient_id]?.online ? 'text-emerald-400' : 'text-slate-400'"
+                                          x-text="presenceMap[p.patient_id]?.online ? 'Online now' : presenceMap[p.patient_id]?.last_seen ? 'Seen ' + formatRelativeTime(presenceMap[p.patient_id].last_seen) : 'Never logged in'"></span>
                                 </div>
-                                <!-- Dynamic stats detail block -->
-                                <div class="text-xs text-slate-400 flex items-center gap-2 flex-wrap">
-                                    <span x-text="'Last Dose: ' + (p.last_dose_taken ? formatRelativeTime(p.last_dose_taken) : 'None')"></span>
-                                    <span class="text-slate-600">|</span>
-                                    <span class="text-rose-400 font-semibold" x-text="'Missed today: ' + p.missed_today"></span>
+
+                                <!-- Row 3: Clinical data (adherence %, last dose, missed today) -->
+                                <div class="text-xs flex items-center gap-2 flex-wrap mt-0.5">
+                                    <!-- Adherence % (secondary to risk badge but still visible) -->
+                                    <span class="font-bold tabular-nums"
+                                          :style="'color:' + adherenceColor(p.adherence?.weekly_percentage ?? 0)"
+                                          x-text="(p.adherence?.weekly_percentage ?? 0) + '%'"></span>
+                                    <span class="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">weekly</span>
+                                    <span class="text-slate-700">|</span>
+                                    <!-- Last dose -->
+                                    <span class="text-slate-400" x-text="'Last dose: ' + (p.last_dose_taken ? formatRelativeTime(p.last_dose_taken) : 'None')"></span>
+                                    <span class="text-slate-700">|</span>
+                                    <!-- Missed today: red only when > 0, neutral when 0 — colorblind-safe icon -->
+                                    <span class="flex items-center gap-1 font-semibold"
+                                          :class="p.missed_today > 0 ? 'text-rose-400' : 'text-slate-400'">
+                                        <template x-if="p.missed_today > 0">
+                                            <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                                        </template>
+                                        <span :title="p.missed_today > 0 ? p.missed_today + ' missed dose(s) earlier today' : 'No missed doses today'"
+                                              x-text="'Missed: ' + p.missed_today"></span>
+                                    </span>
+                                </div>
+
+                                <!-- Row 4: Next medication — always rendered (empty state if none) -->
+                                <div class="text-xs flex items-center gap-1.5 mt-0.5">
+                                    <!-- Clock icon — colorblind-safe icon prefix -->
+                                    <svg class="w-3.5 h-3.5 shrink-0"
+                                         :class="p.next_medication ? 'text-emerald-400' : 'text-slate-600'"
+                                         fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
                                     <template x-if="p.next_medication">
-                                        <span class="text-emerald-400 font-medium ml-1" x-text="'Next: ' + p.next_medication.name + ' (' + new Date(p.next_medication.time).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}) + ')'"></span>
+                                        <span class="text-emerald-400 font-medium truncate max-w-[200px]"
+                                              :title="'Next: ' + p.next_medication.name"
+                                              x-text="'Next: ' + p.next_medication.name + ' · ' + new Date(p.next_medication.time).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})"></span>
+                                    </template>
+                                    <template x-if="!p.next_medication">
+                                        <span class="text-slate-600 italic">No upcoming doses</span>
                                     </template>
                                 </div>
+
                             </div>
                         </div>
-                        
-                        <!-- Right: Stats & Actions -->
-                        <div class="flex items-center gap-4 shrink-0 justify-between md:justify-end">
-                            <div class="text-right min-w-[56px] mr-2">
-                                <div class="text-xl font-extrabold leading-none" :style="'color:' + adherenceColor(p.adherence?.weekly_percentage ?? 0)" x-text="(p.adherence?.weekly_percentage ?? 0) + '%'"></div>
-                                <div class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-1">weekly</div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <a :href="'provider-patient.html?id=' + p.patient_id" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#00dbe7] text-[#002022] hover:brightness-110 transition-colors whitespace-nowrap">View Details</a>
-                                <div class="relative coming-soon-tip">
-                                    <button disabled class="w-8 h-8 rounded-lg flex items-center justify-center border border-white/10 text-slate-400 hover:text-white" aria-label="More options">
-                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
-                                    </button>
-                                </div>
+
+                        <!-- Right: Actions — View Details + overflow separated via left border -->
+                        <div class="flex items-center gap-3 shrink-0 self-center">
+                            <a :href="'provider-patient.html?id=' + p.patient_id"
+                               class="px-4 py-2 rounded-xl text-xs font-bold bg-[#00dbe7] text-[#002022] hover:brightness-110 transition-colors whitespace-nowrap"
+                               :aria-label="'View details for ' + (p.profiles?.full_name || 'patient')">View Details</a>
+                            <!-- Overflow: visually separated with a left border -->
+                            <div class="relative coming-soon-tip border-l border-white/10 pl-3">
+                                <button disabled class="w-8 h-8 rounded-lg flex items-center justify-center border border-white/10 text-slate-500 hover:text-white" aria-label="More options (coming soon)">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                                </button>
                             </div>
                         </div>
+
                     </div>
                 </template>
             </div>
