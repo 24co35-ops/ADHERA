@@ -77,10 +77,10 @@
                 <div class="space-y-2">
                     <label for="feedback-severity" class="block text-sm font-semibold text-slate-300">How severe is the side effect?</label>
                     <select id="feedback-severity" x-model="form.severity" class="w-full p-2.5 rounded text-white" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12);" required :disabled="loading">
-                        <option value="1" style="background-color: #1a1d24; color: #e2e2e8;">1 - Mild</option>
-                        <option value="2" style="background-color: #1a1d24; color: #e2e2e8;">2 - Moderate</option>
-                        <option value="3" style="background-color: #1a1d24; color: #e2e2e8;">3 - Severe</option>
-                        <option value="4" style="background-color: #1a1d24; color: #e2e2e8;">4 - Emergency</option>
+                        <option value="1" style="background-color: #1a1d24; color: #e2e2e8;">Mild</option>
+                        <option value="2" style="background-color: #1a1d24; color: #e2e2e8;">Moderate</option>
+                        <option value="3" style="background-color: #1a1d24; color: #e2e2e8;">Severe</option>
+                        <option value="4" style="background-color: #1a1d24; color: #e2e2e8;">Emergency</option>
                     </select>
                 </div>
 
@@ -173,7 +173,7 @@
             return {
                 token: sessionStorage.getItem('adhera_token'),
                 medicines: [], history: [], loading: false, showModal: false,
-                form: { medicine_id: '', description: '', severity: '1', occurrence_datetime: new Date().toISOString().slice(0, 16) },
+                form: { medicine_id: '', description: '', severity: '1', occurrence_datetime: (() => { const n = new Date(); return new Date(n.getTime() - n.getTimezoneOffset() * 60000).toISOString().slice(0, 16); })() },
                 async init() {
                     await Promise.all([this.fetchMedicines(), this.fetchHistory()]);
                 },
@@ -194,7 +194,7 @@
                 },
                 getMedicineName(id) {
                     const med = this.medicines.find(m => m.id === id);
-                    return med ? med.name : 'Unknown Medicine';
+                    return med ? med.name : 'General';
                 },
                 attemptSubmit() {
                     if (this.form.severity == '4') { this.showModal = true; } else { this.submit(); }
@@ -211,7 +211,7 @@
                         await this.api('/feedback/', 'POST', payload);
                         this.form.description = '';
                         this.form.severity = '1';
-                        this.form.occurrence_datetime = new Date().toISOString().slice(0, 16);
+                        const _n = new Date(); this.form.occurrence_datetime = new Date(_n.getTime() - _n.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
                         await this.fetchHistory();
                     } catch(e) { alert(e.message || "Failed to submit feedback"); }
                     finally { this.loading = false; }

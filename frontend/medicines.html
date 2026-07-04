@@ -183,7 +183,7 @@
         <div class="glass p-6 rounded-2xl">
             <h2 class="title-page mb-6" x-text="t('medicines.add_title')"></h2>
             
-            <form @submit.prevent="addMed" class="space-y-6">
+            <form @submit.prevent="addMed" class="space-y-8">
                 
                 <!-- Section 1: Basic Information -->
                 <div class="space-y-3">
@@ -208,7 +208,7 @@
 
                 <!-- Section 2: Dosage -->
                 <div class="space-y-3">
-                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 border-b border-white/10 pb-1.5">2. Dosage</h3>
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 border-b border-white/10 pb-1.5 mb-3">2. Dosage</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="grid grid-cols-2 gap-2">
                             <div>
@@ -233,7 +233,7 @@
 
                 <!-- Section 3: Schedule & Frequency -->
                 <div class="space-y-3">
-                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 border-b border-white/10 pb-1.5">3. Schedule</h3>
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 border-b border-white/10 pb-1.5 mb-3">3. Schedule</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="med-freq" class="block text-xs font-semibold text-slate-300 mb-1" x-text="t('form.frequency')"></label>
@@ -268,7 +268,7 @@
 
                 <!-- Section 4: Initial Reminder -->
                 <div class="space-y-3">
-                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 border-b border-white/10 pb-1.5">4. First Reminder (Optional)</h3>
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 border-b border-white/10 pb-1.5 mb-3">4. First Reminder (Optional)</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="med-timing" class="block text-xs font-semibold text-slate-300 mb-1" x-text="t('form.timing')"></label>

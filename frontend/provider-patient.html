@@ -144,6 +144,16 @@
                     return { diff, sign: diff >= 0 ? '+' : '', cls: diff >= 0 ? 'text-emerald-400' : 'text-rose-400' };
                 },
 
+                get patientMeta() {
+                    const p = this.patient || {};
+                    const parts = [];
+                    if (p.age != null) parts.push('Age ' + p.age);
+                    if (p.gender) parts.push(p.gender);
+                    if (p.blood_group) parts.push(p.blood_group);
+                    if (p.contact_number) parts.push(p.contact_number);
+                    if (p.timezone) parts.push(p.timezone);
+                    return parts.join(' \u00b7 ');
+                },
                 get urgentFeedback() {
                     return this.feedbackList.filter(f => f.severity >= 3).slice(0, 3);
                 },
@@ -241,15 +251,35 @@
                         });
                     }
 
-                    const mc = document.getElementById('ppMonthly');
-                    if (mc) {
-                        if (globalCharts.m) globalCharts.m.destroy();
-                        globalCharts.m = new Chart(mc, {
+                    // Render into BOTH overview and adherence-tab Monthly canvases
+                    ['ppMonthlyOverview', 'ppMonthly'].forEach((cid, ci) => {
+                        const mc2 = document.getElementById(cid);
+                        if (mc2) {
+                            const key = 'm' + ci;
+                            if (globalCharts[key]) globalCharts[key].destroy();
+                            globalCharts[key] = new Chart(mc2, {
+                                data: {
+                                    labels: m.labels,
+                                    datasets: [
+                                        { type: 'line', label: 'Adherence', data: m.data, borderColor: '#0566d9', backgroundColor: 'rgba(5,102,217,0.1)', borderWidth: 3, tension: 0.4, fill: true, pointRadius: 2, order: 2 },
+                                        { type: 'line', label: 'Average', data: Array(m.data.length).fill(mAvg), borderColor: 'rgba(255,179,0,0.7)', borderWidth: 2, borderDash: [5,4], pointRadius: 0, fill: false, order: 1 }
+                                    ]
+                                },
+                                options: baseOpts
+                            });
+                        }
+                    });
+
+                    // Adherence tab weekly chart
+                    const wc2 = document.getElementById('ppWeeklyAdherence');
+                    if (wc2) {
+                        if (globalCharts.w2) globalCharts.w2.destroy();
+                        globalCharts.w2 = new Chart(wc2, {
                             data: {
-                                labels: m.labels,
+                                labels: w.labels,
                                 datasets: [
-                                    { type: 'line', label: 'Adherence', data: m.data, borderColor: '#0566d9', backgroundColor: 'rgba(5,102,217,0.1)', borderWidth: 3, tension: 0.4, fill: true, pointRadius: 2, order: 2 },
-                                    { type: 'line', label: 'Average', data: Array(m.data.length).fill(mAvg), borderColor: 'rgba(255,179,0,0.7)', borderWidth: 2, borderDash: [5,4], pointRadius: 0, fill: false, order: 1 }
+                                    { type: 'bar', label: 'Daily', data: w.data, backgroundColor: '#00dbe7', borderRadius: 4, order: 2 },
+                                    { type: 'line', label: 'Average', data: Array(w.data.length).fill(wAvg), borderColor: 'rgba(255,179,0,0.7)', borderWidth: 2, borderDash: [5,4], pointRadius: 0, fill: false, order: 1 }
                                 ]
                             },
                             options: baseOpts
@@ -330,23 +360,7 @@
                               :class="riskLevel.cls"
                               x-text="riskLevel.label + ' Risk'"></span>
                     </div>
-                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
-                        <template x-if="patient.age !== undefined && patient.age !== null">
-                            <span x-text="'Age ' + patient.age"></span>
-                        </template>
-                        <template x-if="patient.gender">
-                            <span x-text="'· ' + patient.gender"></span>
-                        </template>
-                        <template x-if="patient.blood_group">
-                            <span x-text="'· ' + patient.blood_group"></span>
-                        </template>
-                        <template x-if="patient.contact_number">
-                            <span x-text="'· ' + patient.contact_number"></span>
-                        </template>
-                        <template x-if="patient.timezone">
-                            <span x-text="'· ' + patient.timezone"></span>
-                        </template>
-                    </div>
+                    <p class="text-xs text-slate-400" x-text="patientMeta"></p>
                 </div>
                 <!-- Quick stat chips -->
                 <div class="flex flex-wrap gap-3 shrink-0">
@@ -468,7 +482,7 @@
                             </div>
                             <time class="text-xs text-slate-500 shrink-0 hidden md:block"
                                   :datetime="fb.created_at"
-                                  x-text="new Date(fb.created_at).toLocaleDateString()"></time>
+                                  x-text="new Date(fb.created_at).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'})"></time>
                         </div>
                     </template>
                 </div>
@@ -486,7 +500,7 @@
             <div class="card-secondary p-5 rounded-2xl">
                 <h2 class="text-base font-bold mb-3">Monthly Trend</h2>
                 <div class="relative" style="height: 204px;">
-                    <canvas id="ppMonthly" aria-label="Monthly trend chart"></canvas>
+                    <canvas id="ppMonthlyOverview" aria-label="Monthly trend chart"></canvas>
                 </div>
             </div>
 
@@ -504,7 +518,7 @@
                                       :class="{'bg-rose-500/20 text-rose-400 border-rose-500/30':fb.severity>=3,'bg-amber-500/20 text-amber-400 border-amber-500/30':fb.severity===2,'bg-emerald-500/20 text-emerald-400 border-emerald-500/30':fb.severity===1}"
                                       x-text="['','Mild','Moderate','Severe','Emergency'][fb.severity]"></span>
                                 <time class="text-xs text-slate-500" :datetime="fb.created_at"
-                                      x-text="new Date(fb.created_at).toLocaleDateString()"></time>
+                                      x-text="new Date(fb.created_at).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'})"></time>
                             </div>
                             <p class="text-sm text-slate-300 mt-1" x-text="fb.description"></p>
                         </div>
@@ -546,7 +560,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div class="card-secondary p-5 rounded-2xl">
                     <h3 class="font-bold mb-3">7-Day Adherence</h3>
-                    <div class="relative" style="height: 224px;"><canvas id="ppWeekly" aria-label="Weekly adherence chart"></canvas></div>
+                    <div class="relative" style="height: 224px;"><canvas id="ppWeeklyAdherence" aria-label="Weekly adherence chart"></canvas></div>
                 </div>
                 <div class="card-secondary p-5 rounded-2xl">
                     <h3 class="font-bold mb-3">30-Day Trend</h3>
@@ -695,7 +709,7 @@
             <template x-for="fb in feedbackList" :key="fb.id">
                 <div class="card-primary p-5 rounded-2xl">
                     <div class="flex justify-between items-start mb-2">
-                        <span class="font-medium text-cyan-100 text-base" x-text="fb.medicine_name || 'Unknown medicine'"></span>
+                        <span class="font-medium text-cyan-100 text-base" x-text="fb.medicine_name || 'General'"></span>
                         <span class="text-xs px-2.5 py-1 rounded-full font-bold border shrink-0 ml-3"
                               :class="{'bg-emerald-500/20 text-emerald-400 border-emerald-500/30':fb.severity===1,'bg-amber-500/20 text-amber-400 border-amber-500/30':fb.severity===2,'bg-orange-500/20 text-orange-400 border-orange-500/30':fb.severity===3,'bg-rose-500/20 text-rose-400 border-rose-500/30':fb.severity>=4}"
                               x-text="['','Mild','Moderate','Severe','Emergency'][fb.severity]"></span>
