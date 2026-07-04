@@ -81,44 +81,71 @@
 
         /* ── Sticky subheader ────────────────────────────────────── */
         .subheader { background: rgba(17,19,24,0.96); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.08); }
+        /* ── Modal ── */
+        .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center; }
+        .modal-bg.open { display: flex; }
+        .modal-card { background: rgba(17,19,24,0.95); border: 1px solid rgba(0,219,231,0.25); border-radius: 16px; padding: 28px; width: 100%; max-width: 440px; box-shadow: 0 0 60px rgba(0,219,231,0.08); }
     </style>
 </head>
 <body x-data="adminData()" class="min-h-screen flex flex-col" @click="openMenuId=null">
-    <div id="nav-root"></div>
 
-    <!-- ── Sticky subheader: search + admin controls ───────────────── -->
-    <div class="subheader sticky top-14 z-30 px-6 py-3">
-        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center gap-3">
-            <!-- Global search -->
-            <div class="relative flex-1 max-w-lg">
-                <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input id="admin-search" type="search" x-model="searchQuery" @input.debounce.300ms="performSearch" class="w-full pl-9 pr-8 py-2 text-sm !rounded-xl" placeholder="Search users by name or phone…" aria-label="Search users">
-                <button x-show="searchQuery" @click.stop="clearSearch" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white" x-cloak aria-label="Clear search">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
+    <!-- Unified Header Nav: Logo | Search Users... | 🔔 Avatar Refresh -->
+    <nav class="glass px-6 py-4 sticky top-0 z-50 flex items-center justify-between gap-6 mb-6 border-t-0 border-l-0 border-r-0 rounded-none bg-[#111318]/95 backdrop-blur-md">
+        <!-- Logo -->
+        <a href="admin-dashboard.html" class="flex items-center gap-2" style="height:40px;overflow:visible;">
+            <div style="transform:scale(0.25);transform-origin:left center;width:50px;">
+                <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <linearGradient id="glow-admin" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#00F2FF" />
+                      <stop offset="100%" stop-color="#3B82F6" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="100" cy="100" r="80" fill="url(#glow-admin)" fill-opacity="0.1" stroke="url(#glow-admin)" stroke-width="2" />
+                  <circle cx="100" cy="100" r="60" fill="white" fill-opacity="0.05" stroke="white" stroke-opacity="0.2" />
+                  <path d="M100 60L135 140H115L100 105L85 140H65L100 60Z" fill="url(#glow-admin)" />
+                  <rect x="92" y="110" width="16" height="4" rx="2" fill="white" fill-opacity="0.8" />
+                </svg>
             </div>
-            <!-- Right cluster -->
-            <div class="flex items-center gap-4 shrink-0">
-                <!-- Notification bell with pending badge -->
-                <button class="relative text-slate-400 hover:text-white" aria-label="Pending approvals">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-                    <span x-show="pending.length>0" class="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center" style="background:#FF5252;" x-text="pending.length" x-cloak></span>
-                </button>
-                <!-- Profile avatar -->
-                <div class="flex items-center gap-2.5">
-                    <div class="avatar badge-provider">A</div>
-                    <div class="hidden sm:block">
-                        <div class="text-sm font-semibold leading-tight">Admin</div>
-                        <div class="meta-text leading-tight">System Administrator</div>
-                    </div>
-                </div>
-                <!-- Refresh -->
-                <button @click="fetchPlatformStats" class="text-slate-400 hover:text-cyan-400 p-1.5 rounded-lg hover:bg-white/10" title="Refresh stats" aria-label="Refresh platform stats">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                </button>
-            </div>
+            <span style="color:#00dbe7;font-weight:700;font-size:1.5rem;letter-spacing:-0.02em;">Adhera</span>
+        </a>
+
+        <!-- Search input (vertically aligned, min-w to prevent truncation) -->
+        <div class="relative flex items-center flex-1 max-w-[400px] min-w-[200px]">
+            <span class="absolute left-3 w-5 text-slate-400 flex items-center justify-center pointer-events-none">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </span>
+            <input id="admin-search" type="search" x-model="searchQuery" @input.debounce.300ms="performSearch" 
+                   class="w-full pl-10 pr-8 py-2 text-sm !rounded-xl h-[40px] focus:border-[#00dbe7]" 
+                   placeholder="Search users by name or phone…" aria-label="Search users">
+            <button x-show="searchQuery" @click.stop="clearSearch" class="absolute right-3 text-slate-400 hover:text-white" x-cloak aria-label="Clear search">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
         </div>
-    </div>
+
+        <!-- Right controls (🔔 Avatar Refresh) -->
+        <div class="flex items-center gap-4 md:gap-5 shrink-0">
+            <!-- 🔔 Notification bell -->
+            <button class="relative text-slate-400 hover:text-white flex items-center justify-center h-[40px] w-[40px]" aria-label="Pending approvals">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                <span x-show="pending.length>0" class="absolute top-1.5 right-1.5 w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center bg-rose-500" x-text="pending.length" x-cloak></span>
+            </button>
+
+            <!-- Avatar -->
+            <div class="flex items-center gap-2.5 h-[40px]">
+                <div class="avatar badge-provider">A</div>
+                <div class="hidden md:block">
+                    <div class="text-sm font-semibold leading-tight">Admin</div>
+                    <div class="meta-text leading-tight">System Administrator</div>
+                </div>
+            </div>
+
+            <!-- Refresh -->
+            <button @click="fetchPlatformStats" class="text-slate-400 hover:text-cyan-400 p-2 rounded-lg hover:bg-white/10 flex items-center justify-center h-[40px] w-[40px]" title="Refresh stats" aria-label="Refresh platform stats">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
+        </div>
+    </nav>
 
     <main class="flex-1 px-6 pb-12 max-w-7xl mx-auto w-full space-y-6 mt-6">
 
@@ -204,15 +231,15 @@
 
         <!-- ── Quick Actions ──────────────────────────────────────────── -->
         <div class="flex flex-wrap gap-3" role="group" aria-label="Quick actions">
-            <button class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold hover:brightness-110" style="background:rgba(0,219,231,0.15);color:#00dbe7;border:1px solid rgba(0,219,231,0.3);" aria-label="Add provider">
+            <button disabled title="Coming soon" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold opacity-50 cursor-not-allowed" style="background:rgba(0,219,231,0.08);color:#00dbe7;border:1px solid rgba(0,219,231,0.15);" aria-label="Add provider (Coming soon)">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 Add Provider
             </button>
-            <button class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold hover:brightness-110" style="background:rgba(167,139,250,0.15);color:#A78BFA;border:1px solid rgba(167,139,250,0.3);" aria-label="Add patient">
+            <button disabled title="Coming soon" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold opacity-50 cursor-not-allowed" style="background:rgba(167,139,250,0.08);color:#A78BFA;border:1px solid rgba(167,139,250,0.15);" aria-label="Add patient (Coming soon)">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 Add Patient
             </button>
-            <button class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold hover:brightness-110" style="background:rgba(0,200,83,0.15);color:#00C853;border:1px solid rgba(0,200,83,0.3);" aria-label="Assign patient to provider">
+            <button @click="openAssignModal" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold hover:brightness-110" style="background:rgba(0,200,83,0.15);color:#00C853;border:1px solid rgba(0,200,83,0.3);" aria-label="Assign patient to provider">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
                 Assign Patient
             </button>
@@ -570,6 +597,52 @@
 
     </main>
 
+    <!-- Assign Patient Modal -->
+    <div x-show="showAssignModal" class="modal-bg open" x-cloak role="dialog" aria-modal="true" aria-labelledby="assign-modal-title">
+        <div class="modal-card space-y-4" @click.away="showAssignModal = false">
+            <div class="flex justify-between items-center pb-2 border-b border-white/10">
+                <h3 id="assign-modal-title" class="text-lg font-bold text-cyan-400">Assign Patient to Provider</h3>
+                <button @click="showAssignModal = false" class="text-slate-400 hover:text-white" aria-label="Close modal">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div x-show="assignModalLoading" class="text-center py-8 text-slate-400">
+                <div class="skeleton h-8 w-full mb-3"></div>
+                <div class="skeleton h-8 w-full"></div>
+            </div>
+            
+            <form x-show="!assignModalLoading" @submit.prevent="submitAssignment" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5" for="assign-patient-select">Unassigned Patient</label>
+                    <select id="assign-patient-select" x-model="assignForm.patient_id" class="w-full p-2.5 rounded text-white" required>
+                        <option value="">Select a patient...</option>
+                        <template x-for="p in unassignedPatients" :key="p.id">
+                            <option :value="p.id" x-text="p.full_name + ' (' + p.email + ')'"></option>
+                        </template>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5" for="assign-provider-select">Healthcare Provider</label>
+                    <select id="assign-provider-select" x-model="assignForm.provider_id" class="w-full p-2.5 rounded text-white" required>
+                        <option value="">Select a provider...</option>
+                        <template x-for="p in providersList" :key="p.id">
+                            <option :value="p.id" x-text="p.full_name + (p.is_active ? '' : ' [Inactive]') + ' (' + p.email + ')'"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <div x-show="assignModalError" class="text-rose-400 text-xs mt-2" x-text="assignModalError" role="alert"></div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" @click="showAssignModal = false" class="px-4 py-2 border border-white/10 text-slate-300 rounded-lg hover:bg-white/5 transition-colors text-sm font-semibold">Cancel</button>
+                    <button type="submit" class="px-5 py-2 rounded-lg text-sm font-bold bg-cyan-500 hover:bg-cyan-400 text-[#002022] transition-colors">Assign Patient</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Toast notification -->
     <div x-show="toast" x-cloak x-transition class="fixed bottom-6 right-6 px-4 py-2.5 rounded-xl shadow-2xl z-50 text-sm font-semibold" style="background:#00C853;color:#002200;" x-text="toast" role="alert" aria-live="polite"></div>
 
@@ -601,6 +674,10 @@
                 // New UI state
                 filterRole: '', filterStatus: '', sortBy: 'newest',
                 openMenuId: null, activityFeed: [],
+                // Assign modal state
+                showAssignModal: false, assignModalLoading: false, assignModalError: '',
+                assignForm: { patient_id: '', provider_id: '' },
+                unassignedPatients: [], providersList: [],
 
                 // Computed: client-side filtered + sorted user list
                 get filteredUsers() {
@@ -654,7 +731,7 @@
                 },
 
                 async init() {
-                    renderNav('admin');
+                    // renderNav('admin');
                     Chart.defaults.color = '#849495'; Chart.defaults.font.family = 'Inter';
                     await Promise.all([this.fetchPending(), this.fetchAssignments(), this.fetchUsers(), this.fetchPlatformStats()]);
                     this.buildActivityFeed();
@@ -696,6 +773,40 @@
                 async fetchPending() { try { this.pending = await this.api('/admin/users?role=provider&status=pending'); } catch(e){} },
                 async fetchAssignments() { try { this.assignments = await this.api('/admin/assignments'); } catch(e){} },
                 async fetchUsers() { try { this.users = await this.api('/admin/users'); } catch(e){ this.users = []; } },
+                async openAssignModal() {
+                    this.showAssignModal = true;
+                    this.assignModalLoading = true;
+                    this.assignModalError = '';
+                    this.assignForm = { patient_id: '', provider_id: '' };
+                    try {
+                        const [providers, patients] = await Promise.all([
+                            this.api('/admin/providers-list'),
+                            this.api('/admin/unassigned-patients')
+                        ]);
+                        this.providersList = providers || [];
+                        this.unassignedPatients = patients || [];
+                    } catch(e) {
+                        this.assignModalError = 'Failed to load data. Please try again.';
+                    } finally {
+                        this.assignModalLoading = false;
+                    }
+                },
+                async submitAssignment() {
+                    if (!this.assignForm.patient_id || !this.assignForm.provider_id) return;
+                    this.assignModalError = '';
+                    try {
+                        await this.api('/admin/assignments', 'POST', {
+                            patient_id: this.assignForm.patient_id,
+                            provider_id: this.assignForm.provider_id
+                        });
+                        this.showAssignModal = false;
+                        this.showToast('Patient assigned successfully');
+                        await Promise.all([this.fetchAssignments(), this.fetchUsers()]);
+                        this.buildActivityFeed();
+                    } catch(e) {
+                        this.assignModalError = e.message || 'Assignment failed. Please try again.';
+                    }
+                },
                 async approveUser(id) {
                     try { await this.api(`/admin/users/${id}/approve`, 'POST'); this.showToast('User approved');
                     await Promise.all([this.fetchPending(), this.fetchUsers()]); this.buildActivityFeed(); } catch(e){}
