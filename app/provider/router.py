@@ -72,7 +72,7 @@ async def get_provider_dashboard(request: Request, user: dict = Depends(require_
             .eq("status", "missed")\
             .gte("scheduled_utc", today_start)\
             .lte("scheduled_utc", today_end).execute()
-        missed_map = defaultdict(int)
+        missed_map: defaultdict[str, int] = defaultdict(int)
         for r in (missed_res.data or []):
             missed_map[r["user_id"]] += 1
 
