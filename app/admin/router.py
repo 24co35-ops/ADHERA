@@ -8,7 +8,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
-from app.admin.schemas import AssignmentUpdate, RejectBody, UserUpdate, InviteUser
+from app.admin.schemas import AssignmentUpdate, InviteUser, RejectBody, UserUpdate
 from app.auth.dependencies import require_role
 from app.config import settings
 from app.core.rate_limit import limiter
@@ -792,7 +792,7 @@ async def admin_invite_user(request: Request, payload: InviteUser, user: dict = 
         role = payload.role
         if role not in ("provider", "patient"):
             raise HTTPException(status_code=400, detail="Invalid role specified. Must be provider or patient.")
-        
+
         # Check if user already exists in profiles
         existing_profile = supabase.table("profiles").select("id").eq("email", email).execute().data
         if existing_profile:
@@ -816,7 +816,7 @@ async def admin_invite_user(request: Request, payload: InviteUser, user: dict = 
             if ("already" in msg and "registered" in msg) or "already exists" in msg:
                 raise HTTPException(status_code=409, detail="A user with this email is already registered.")
             raise HTTPException(status_code=400, detail=getattr(e, "message", str(e)))
-        
+
         log_audit_action("ADMIN_USER_INVITE", user["user_id"], {"email": email, "role": role})
         return SuccessResponse(data={"message": f"Invite sent successfully to {email}"})
     except HTTPException:
