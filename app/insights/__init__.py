@@ -4,3 +4,4 @@ from .detectors import (
     detect_post_side_effect_drop,
     detect_silent_inactivity,
 )
+from .engine import run_insights_for_patient
