@@ -82,7 +82,7 @@ function renderNav(activePage) {
 
     const linksHtml = pages.map(page => {
         const isActive = page.id === activePage;
-        const className = isActive ? 'text-cyan-400 font-bold py-3 px-2 inline-block' : 'hover:text-cyan-400 transition-colors py-3 px-2 inline-block';
+        const className = isActive ? 'bg-cyan-500/20 text-cyan-400 font-bold px-3 py-1.5 rounded-full border border-cyan-500/30 inline-block' : 'text-slate-300 hover:text-cyan-400 hover:bg-white/5 transition-colors px-3 py-1.5 rounded-full inline-block';
         return `<a href="${page.href}" class="${className}" x-text="t('${page.key}')">${page.label}</a>`;
     }).join('\n            ');
 

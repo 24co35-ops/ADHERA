@@ -11,10 +11,10 @@
     <link rel="icon" type="image/png" sizes="48x48" href="/assets/favicons/favicon-48x48.png?v=3">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/favicon-180x180.png?v=3">
     <link rel="manifest" href="/site.webmanifest">
-    <meta name="theme-color" content="#6366f1">
+    <meta name="theme-color" content="#00dbe7">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Adhera - Profile & Settings</title>
-    <link rel="stylesheet" href="/css/adhera.css">
+    <title>Adhera - Profile &amp; Settings</title>
+    <link class="adhera-css" rel="stylesheet" href="/css/adhera.css">
     <script type="module" src="js/i18n.js"></script>
     <script src="js/nav.js"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -23,15 +23,28 @@
     <script defer src="/js/alpine.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; }
-        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; }
+        body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; font-size: 15px; }
+        
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 20px; }
+        .glass-secondary { background: #1B1F24; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; }
+        
         input, select, textarea { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.12) !important; color: #e2e2e8 !important; border-radius: 12px !important; }
         input:focus, select:focus, textarea:focus { outline: none !important; border-color: #00dbe7 !important; }
         button.bg-cyan-600 { background: #00dbe7 !important; color: #002022 !important; border-radius: 12px !important; }
         button.bg-slate-700 { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 12px !important; }
         select option { background-color: #1a1d24 !important; color: #e2e2e8 !important; }
         [x-cloak] { display: none !important; }
+        :focus-visible { outline: 2px solid #00dbe7 !important; outline-offset: 2px !important; border-radius: 6px !important; }
 
+        .card-hover { transition: transform 150ms ease, box-shadow 200ms ease, background 150ms ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+
+        /* Typography scale */
+        .title-page { font-size: 30px; font-weight: 700; }
+        .title-card { font-size: 18px; font-weight: 600; }
+        .caption-text { font-size: 12px; color: #718096; }
+        
+        .avatar-lg { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.5rem; background: rgba(0,219,231,0.15); color: #00dbe7; border: 1.5px solid rgba(0,219,231,0.3); }
     </style>
 </head>
 <body x-data="profileData()" class="min-h-screen flex flex-col">
@@ -41,53 +54,53 @@
         renderNav('profile');
     </script>
 
-    <main class="flex-1 px-4 md:px-8 max-w-4xl mx-auto w-full space-y-6 pb-12">
-        <h2 class="text-3xl font-bold text-white tracking-tight">Profile & Settings</h2>
+    <main class="flex-1 px-4 md:px-8 max-w-4xl mx-auto w-full space-y-6 pb-12 mt-6">
+        <h2 class="title-page text-white tracking-tight">Profile &amp; Settings</h2>
 
-        <!-- Profile Detail Section -->
-        <div class="glass p-6 rounded-xl relative">
-            <div x-show="loading" class="absolute inset-0 bg-white/5 animate-pulse rounded-xl z-10"></div>
-            <h3 class="text-xl font-bold mb-4 text-cyan-400 flex items-center justify-between">
-                <span>Personal Information</span>
-                <div class="flex items-center space-x-2">
-                    <button onclick="openPasswordModal()"
-                        class="flex items-center gap-2 px-3 py-1.5 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 rounded-lg text-xs font-medium transition-colors">
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-                        </svg>
-                        Change Password
-                    </button>
-                    <button @click="isEditing = !isEditing" class="text-xs bg-slate-700 border border-white/10 text-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-600 transition-colors">
-                        <span x-text="isEditing ? 'Cancel' : 'Edit Profile'"></span>
-                    </button>
+        <!-- Profile Details -->
+        <div class="glass p-6 rounded-2xl relative">
+            <div x-show="loading" class="absolute inset-0 bg-white/5 animate-pulse rounded-2xl z-10"></div>
+            
+            <div class="flex justify-between items-start mb-6">
+                <!-- Avatar and Name block -->
+                <div class="flex items-center gap-4">
+                    <div class="avatar-lg shrink-0" x-text="(profile.full_name || '?').charAt(0).toUpperCase()"></div>
+                    <div>
+                        <h3 class="font-bold text-xl text-white" x-text="profile.full_name || 'Patient'"></h3>
+                        <span class="text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider" style="background: rgba(167,139,250,0.15); color: #A78BFA; border: 1px solid rgba(167,139,250,0.3)">Patient</span>
+                    </div>
                 </div>
-            </h3>
+                
+                <button @click="isEditing = !isEditing" class="text-xs bg-slate-700 border border-white/10 text-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-600 transition-colors">
+                    <span x-text="isEditing ? 'Cancel' : 'Edit Profile'"></span>
+                </button>
+            </div>
 
             <!-- View Mode -->
             <div x-show="!isEditing" class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-                <div>
+                <div class="p-3 bg-white/5 rounded-xl border border-white/5">
                     <span class="block text-slate-400 font-medium mb-1">Full Name</span>
-                    <span class="text-white text-base" x-text="profile.full_name || 'Not provided'"></span>
+                    <span class="text-white text-base font-semibold" x-text="profile.full_name || 'Not provided'"></span>
                 </div>
-                <div>
+                <div class="p-3 bg-white/5 rounded-xl border border-white/5">
                     <span class="block text-slate-400 font-medium mb-1">Email Address</span>
-                    <span class="text-white text-base" x-text="profile.email || 'Not provided'"></span>
+                    <span class="text-white text-base font-semibold" x-text="profile.email || 'Not provided'"></span>
                 </div>
-                <div>
+                <div class="p-3 bg-white/5 rounded-xl border border-white/5">
                     <span class="block text-slate-400 font-medium mb-1">Contact Number</span>
-                    <span class="text-white text-base" x-text="profile.contact_number || 'Not provided'"></span>
+                    <span class="text-white text-base font-semibold" x-text="profile.contact_number || 'Not provided'"></span>
                 </div>
-                <div>
+                <div class="p-3 bg-white/5 rounded-xl border border-white/5">
                     <span class="block text-slate-400 font-medium mb-1">Timezone</span>
-                    <span class="text-white text-base" x-text="profile.timezone || 'Not provided'"></span>
+                    <span class="text-white text-base font-semibold" x-text="profile.timezone || 'Not provided'"></span>
                 </div>
-                <div>
+                <div class="p-3 bg-white/5 rounded-xl border border-white/5">
                     <span class="block text-slate-400 font-medium mb-1">Age</span>
-                    <span class="text-white text-base" x-text="profile.age !== undefined && profile.age !== null ? profile.age : 'Not provided'"></span>
+                    <span class="text-white text-base font-semibold" x-text="profile.age !== undefined && profile.age !== null ? profile.age : 'Not provided'"></span>
                 </div>
-                <div>
+                <div class="p-3 bg-white/5 rounded-xl border border-white/5">
                     <span class="block text-slate-400 font-medium mb-1">Blood Group</span>
-                    <span class="text-white text-base" x-text="profile.blood_group || 'Not provided'"></span>
+                    <span class="text-white text-base font-semibold" x-text="profile.blood_group || 'Not provided'"></span>
                 </div>
             </div>
 
@@ -95,19 +108,19 @@
             <form x-show="isEditing" @submit.prevent="updateProfile" class="space-y-4" x-cloak>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm text-slate-400 mb-1">Full Name</label>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Full Name</label>
                         <input type="text" x-model="editForm.full_name" class="w-full p-2.5 rounded text-white" required>
                     </div>
                     <div>
-                        <label class="block text-sm text-slate-400 mb-1">Contact Number</label>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Contact Number</label>
                         <input type="text" x-model="editForm.contact_number" class="w-full p-2.5 rounded text-white">
                     </div>
                     <div>
-                        <label class="block text-sm text-slate-400 mb-1">Date of Birth <span class="text-xs text-slate-500">(optional)</span></label>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Date of Birth <span class="text-xs text-slate-500">(optional)</span></label>
                         <input type="date" x-model="editForm.date_of_birth" class="w-full p-2.5 rounded text-white">
                     </div>
                     <div>
-                        <label class="block text-sm text-slate-400 mb-1">Blood Group <span class="text-xs text-slate-500">(optional)</span></label>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Blood Group <span class="text-xs text-slate-500">(optional)</span></label>
                         <select x-model="editForm.blood_group" class="w-full p-2.5 rounded text-white">
                             <option value="">Not provided</option>
                             <option value="A+">A+</option>
@@ -121,7 +134,7 @@
                         </select>
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-sm text-slate-400 mb-1">Timezone</label>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Timezone</label>
                         <select x-model="editForm.timezone" class="w-full p-2.5 rounded text-white">
                             <option value="UTC">UTC</option>
                             <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
@@ -130,105 +143,111 @@
                         </select>
                     </div>
                 </div>
-                <div x-show="error" class="text-red-400 text-xs" x-text="error"></div>
-                <div x-show="successMessage" class="text-emerald-400 text-xs" x-text="successMessage"></div>
-                <div class="flex justify-end space-x-2">
+                <div x-show="error" class="text-red-400 text-xs animate-pulse" x-text="error"></div>
+                <div x-show="successMessage" class="text-emerald-400 text-xs font-bold" x-text="successMessage"></div>
+                <div class="flex justify-end">
                     <button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-6 rounded-lg transition-colors" :disabled="actionLoading">Save Changes</button>
                 </div>
             </form>
         </div>
 
-
-
-        <!-- Multi-Factor Authentication Section -->
-        <div class="glass p-6 rounded-xl relative">
-            <h3 class="text-xl font-bold mb-4 text-cyan-400">Two-Factor Authentication (2FA)</h3>
-            <p class="text-sm text-slate-300 mb-6">Secure your Adhera account by enabling Time-based One-Time Password (TOTP) multi-factor authentication.</p>
-
-            <div class="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl mb-6">
+        <!-- Security Section (Grouping Password and MFA) -->
+        <div class="glass p-6 rounded-2xl space-y-6">
+            <h3 class="text-xl font-bold text-cyan-400 border-b border-white/10 pb-2">Security &amp; Privacy</h3>
+            
+            <!-- Password row -->
+            <div class="flex justify-between items-center p-4 bg-white/5 border border-white/10 rounded-xl">
                 <div>
-                    <span class="block text-sm font-semibold text-white">Status</span>
-                    <span class="text-xs text-slate-400">Protects your account during login</span>
+                    <span class="block text-sm font-semibold text-white">Account Password</span>
+                    <span class="text-xs text-slate-400">Update your security credentials</span>
                 </div>
-                <div>
-                    <template x-if="mfaEnabled">
-                        <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold uppercase">Enabled</span>
-                    </template>
-                    <template x-if="!mfaEnabled">
-                        <span class="bg-slate-700 text-slate-300 px-3 py-1 rounded-full text-xs font-bold uppercase">Disabled</span>
-                    </template>
-                </div>
-            </div>
-
-            <!-- MFA Setup Flow -->
-            <div x-show="!mfaEnabled && !showMfaSetup">
-                <button @click="initiateMfa" class="w-full md:w-auto bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 px-6 rounded-lg transition-colors" :disabled="actionLoading">
-                    Enable Two-Factor Authentication
+                <button onclick="openPasswordModal()"
+                    class="flex items-center gap-2 px-4 py-2 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 rounded-xl text-xs font-bold transition-colors">
+                    Change Password
                 </button>
             </div>
 
-            <!-- MFA Setup Steps -->
-            <div x-show="showMfaSetup" class="space-y-6 bg-white/5 border border-white/10 p-5 rounded-xl" x-cloak>
-                <h4 class="font-bold text-base text-white">Configure Authenticator App</h4>
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                    <div class="flex flex-col items-center justify-center p-3 bg-white rounded-lg w-[170px] mx-auto">
-                        <!-- QR Code -->
-                        <img :src="mfaSetupData.qr_code || 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(mfaSetupData.qr_code_uri)" alt="QR Code" class="w-[150px] h-[150px]">
+            <!-- Two-Factor Authentication -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl">
+                    <div>
+                        <span class="block text-sm font-semibold text-white">Two-Factor Authentication (2FA)</span>
+                        <span class="text-xs text-slate-400">Protects your account during login using TOTP</span>
                     </div>
-                    <div class="md:col-span-2 space-y-3">
-                        <p class="text-sm text-slate-300">1. Scan the QR code with your authenticator app (e.g. Google Authenticator, Authy).</p>
-                        <p class="text-sm text-slate-300">2. If you cannot scan the QR code, manually enter this secret key into your app:</p>
-                        <code class="block bg-black/40 text-cyan-300 text-sm font-mono p-2.5 rounded select-all text-center break-all" x-text="mfaSetupData.secret"></code>
+                    <div>
+                        <span x-show="mfaEnabled" class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold uppercase" x-cloak>Enabled</span>
+                        <span x-show="!mfaEnabled" class="bg-slate-700 text-slate-300 px-3 py-1 rounded-full text-xs font-bold uppercase" x-cloak>Disabled</span>
                     </div>
                 </div>
 
-                <div class="border-t border-white/10 pt-4 space-y-3">
-                    <p class="text-sm text-slate-300">3. Enter the 6-digit verification code from your authenticator app to complete setup:</p>
-                    <form @submit.prevent="verifyMfa" class="flex flex-col md:flex-row gap-3">
-                        <input type="text" x-model="mfaCode" placeholder="000000" class="p-2.5 rounded bg-transparent border text-white text-center font-mono tracking-widest text-lg md:w-36" required maxlength="6">
-                        <button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-6 rounded-lg transition-colors flex justify-center items-center" :disabled="actionLoading">Verify & Activate</button>
-                        <button type="button" @click="showMfaSetup = false; mfaCode = '';" class="text-slate-400 px-3 hover:underline">Cancel</button>
-                    </form>
-                    <div x-show="mfaError" class="text-red-400 text-xs" x-text="mfaError"></div>
+                <!-- MFA Setup Flow -->
+                <div x-show="!mfaEnabled && !showMfaSetup">
+                    <button @click="initiateMfa" class="w-full md:w-auto bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 px-6 rounded-xl transition-colors" :disabled="actionLoading">
+                        Enable Two-Factor Authentication
+                    </button>
                 </div>
-            </div>
 
-            <!-- MFA Deactivation -->
-            <div x-show="mfaEnabled">
-                <button @click="disableMfa" class="w-full md:w-auto bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 border border-rose-500/30 font-bold py-2.5 px-6 rounded-lg transition-colors" :disabled="actionLoading">
-                    Disable Two-Factor Authentication
-                </button>
+                <!-- MFA Setup Steps -->
+                <div x-show="showMfaSetup" class="space-y-6 bg-white/5 border border-white/10 p-5 rounded-xl" x-cloak>
+                    <h4 class="font-bold text-base text-white">Configure Authenticator App</h4>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                        <div class="flex flex-col items-center justify-center p-3 bg-white rounded-lg w-[170px] mx-auto">
+                            <!-- QR Code -->
+                            <img :src="mfaSetupData.qr_code || 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(mfaSetupData.qr_code_uri)" alt="QR Code" class="w-[150px] h-[150px]">
+                        </div>
+                        <div class="md:col-span-2 space-y-3">
+                            <p class="text-sm text-slate-300">1. Scan the QR code with your authenticator app (e.g. Google Authenticator, Authy).</p>
+                            <p class="text-sm text-slate-300">2. If you cannot scan the QR code, manually enter this secret key into your app:</p>
+                            <code class="block bg-black/40 text-cyan-300 text-sm font-mono p-2.5 rounded select-all text-center break-all" x-text="mfaSetupData.secret"></code>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-white/10 pt-4 space-y-3">
+                        <p class="text-sm text-slate-300">3. Enter the 6-digit verification code from your authenticator app to complete setup:</p>
+                        <form @submit.prevent="verifyMfa" class="flex flex-col md:flex-row gap-3">
+                            <input type="text" x-model="mfaCode" placeholder="000000" class="p-2.5 rounded bg-transparent border text-white text-center font-mono tracking-widest text-lg md:w-36" required maxlength="6">
+                            <button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-6 rounded-lg transition-colors flex justify-center items-center" :disabled="actionLoading">Verify &amp; Activate</button>
+                            <button type="button" @click="showMfaSetup = false; mfaCode = '';" class="text-slate-400 px-3 hover:underline">Cancel</button>
+                        </form>
+                        <div x-show="mfaError" class="text-red-400 text-xs" x-text="mfaError"></div>
+                    </div>
+                </div>
+
+                <!-- MFA Deactivation -->
+                <div x-show="mfaEnabled">
+                    <button @click="disableMfa" class="w-full md:w-auto bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 border border-rose-500/30 font-bold py-2.5 px-6 rounded-xl transition-colors" :disabled="actionLoading">
+                        Disable Two-Factor Authentication
+                    </button>
+                </div>
             </div>
         </div>
 
         <!-- Push Notifications Section -->
-        <div class="glass p-6 rounded-xl">
+        <div class="glass p-6 rounded-2xl">
             <h3 class="text-xl font-bold mb-4 text-cyan-400">Push Notifications</h3>
             <p class="text-sm text-slate-300 mb-6">Receive real-time reminders and critical side-effect alerts on your device.</p>
 
             <div class="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl mb-6">
                 <div>
-                    <span class="block text-sm font-semibold text-white">Browser Permission</span>
-                    <span class="text-xs text-slate-400" x-text="pushPermissionText"></span>
+                    <!-- Explicit Label & TODO for Future Category Granularity -->
+                    <span class="block text-sm font-semibold text-white">All Alerts &amp; Dose Reminders</span>
+                    <span class="text-xs text-slate-400" x-text="'Permission: ' + pushPermissionText"></span>
+                    <!-- TODO: Support granular toggles (reminders vs side-effects) once schema supports notification preferences -->
                 </div>
                 <div>
-                    <template x-if="pushEnabled">
-                        <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold uppercase">Subscribed</span>
-                    </template>
-                    <template x-if="!pushEnabled">
-                        <span class="bg-slate-700 text-slate-300 px-3 py-1 rounded-full text-xs font-bold uppercase">Not Enabled</span>
-                    </template>
+                    <span x-show="pushEnabled" class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-bold uppercase" x-cloak>Subscribed</span>
+                    <span x-show="!pushEnabled" class="bg-slate-700 text-slate-300 px-3 py-1 rounded-full text-xs font-bold uppercase" x-cloak>Not Enabled</span>
                 </div>
             </div>
 
             <div class="space-y-4">
                 <div class="flex flex-wrap gap-3">
-                    <button x-show="!pushEnabled" @click="enableNotifications" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 px-6 rounded-lg transition-colors flex items-center justify-center gap-2" :disabled="actionLoading">
+                    <button x-show="!pushEnabled" @click="enableNotifications" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 px-6 rounded-xl transition-colors flex items-center justify-center gap-2" :disabled="actionLoading">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                         <span x-text="actionLoading ? 'Enabling...' : 'Enable Notifications'"></span>
                     </button>
-                    <button x-show="pushEnabled" @click="disableNotifications" class="bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 border border-rose-500/30 font-bold py-2.5 px-6 rounded-lg transition-colors flex items-center justify-center gap-2" :disabled="actionLoading">
+                    <button x-show="pushEnabled" @click="disableNotifications" class="bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 border border-rose-500/30 font-bold py-2.5 px-6 rounded-xl transition-colors flex items-center justify-center gap-2" :disabled="actionLoading">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
                         <span x-text="actionLoading ? 'Disabling...' : 'Disable Notifications'"></span>
                     </button>
@@ -238,13 +257,36 @@
             </div>
         </div>
 
-        <!-- Sign Out Section -->
-        <div class="glass p-6 rounded-xl">
-            <h3 class="text-xl font-bold mb-4 text-rose-400">Account Session</h3>
-            <p class="text-sm text-slate-300 mb-6">Sign out of your active session on this device.</p>
-            <button @click="logout()" class="w-full md:w-auto bg-rose-600 hover:bg-rose-500 text-white font-bold py-2.5 px-6 rounded-lg transition-colors flex items-center justify-center gap-2">
-                Sign Out
-            </button>
+        <!-- Export My Data (Moved from Dashboard) -->
+        <div class="glass p-6 rounded-2xl">
+            <h3 class="text-xl font-bold mb-1 text-white">Export My Data</h3>
+            <p class="text-xs text-slate-400 mb-4">Download a full record of your medicines, adherence logs, and feedback history.</p>
+            <div class="flex gap-2">
+                <button id="export-json-btn" @click="exportData('json')" :disabled="exportLoading" class="flex-1 flex items-center justify-center gap-2 bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/30 text-cyan-400 text-xs font-semibold py-2.5 px-3 rounded-lg transition-all disabled:opacity-50">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                    <span x-text="exportLoading === 'json' ? 'Generating...' : 'Export JSON'"></span>
+                </button>
+                <button id="export-csv-btn" @click="exportData('csv')" :disabled="exportLoading" class="flex-1 flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 text-emerald-400 text-xs font-semibold py-2.5 px-3 rounded-lg transition-all disabled:opacity-50">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <span x-text="exportLoading === 'csv' ? 'Generating...' : 'Export CSV'"></span>
+                </button>
+            </div>
+            <div x-show="exportError" class="mt-2 text-xs text-red-400" x-text="exportError" x-cloak></div>
+            <div x-show="exportSuccess" class="mt-2 text-xs text-emerald-400" x-cloak x-text="'Export complete!'"></div>
+        </div>
+
+        <!-- Danger Zone Section -->
+        <div class="glass p-6 rounded-2xl border border-red-500/20" style="background: rgba(255, 82, 82, 0.03);">
+            <h3 class="text-xl font-bold mb-4 text-red-400">Danger Zone</h3>
+            <p class="text-sm text-slate-300 mb-6">Irreversible account actions. Please proceed with caution.</p>
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button @click="logout()" class="flex-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/30 font-bold py-2.5 px-6 rounded-xl transition-all flex items-center justify-center gap-2">
+                    Sign Out
+                </button>
+                <button class="flex-1 bg-transparent border border-white/10 text-slate-500 cursor-not-allowed font-bold py-2.5 px-6 rounded-xl transition-all flex items-center justify-center gap-2" disabled>
+                    Delete Account (Coming Soon)
+                </button>
+            </div>
         </div>
     </main>
 
@@ -290,6 +332,11 @@
                 pushError: '',
                 pushSuccess: '',
 
+                // Export variables
+                exportLoading: null,
+                exportError: '',
+                exportSuccess: false,
+
                 async init() {
                     await this.fetchProfile();
                     this.checkPushSubscriptionStatus();
@@ -298,113 +345,62 @@
                 async api(path, method = 'GET', body = null) {
                     const opts = { method, headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } };
                     if (body) opts.body = JSON.stringify(body);
-                    const res = await fetch(`${CONFIG.API_BASE}${path}`, opts);
+                    const res = await adheraFetch(path, opts);
                     if (res.status === 401) { sessionStorage.removeItem('adhera_token'); window.location.href = 'index.html'; }
                     const data = await res.json();
                     if (!data.success) throw new Error(data.error?.message || "API Error");
                     return data.data;
                 },
-
                 async fetchProfile() {
-                    this.loading = true;
                     try {
-                        const data = await this.api('/profile/');
-                        this.profile = data;
+                        this.profile = await this.api('/profile/');
                         this.editForm = {
-                            full_name: data.full_name || '',
-                            contact_number: data.contact_number || '',
-                            timezone: data.timezone || 'UTC',
-                            date_of_birth: data.date_of_birth || '',
-                            blood_group: data.blood_group || ''
+                            full_name: this.profile.full_name || '',
+                            contact_number: this.profile.contact_number || '',
+                            timezone: this.profile.timezone || 'UTC',
+                            date_of_birth: this.profile.date_of_birth || '',
+                            blood_group: this.profile.blood_group || ''
                         };
-                        // Fetch real-time MFA status from DB
-                        const mfaStatus = await this.api('/auth/mfa/status');
-                        this.mfaEnabled = mfaStatus.mfa_enabled === true;
-                    } catch(e) {
-                        this.error = 'Failed to load profile.';
-                    } finally {
-                        this.loading = false;
-                    }
+                        this.mfaEnabled = !!this.profile.mfa_enabled;
+                    } catch(e) { this.error = 'Failed to load profile details.'; }
+                    finally { this.loading = false; }
                 },
-
-
                 async updateProfile() {
-                    this.actionLoading = true;
-                    this.error = '';
-                    this.successMessage = '';
+                    this.error = ''; this.successMessage = ''; this.actionLoading = true;
                     try {
-                        const payload = { ...this.editForm };
-                        if (!payload.date_of_birth) payload.date_of_birth = null;
-                        if (!payload.blood_group) payload.blood_group = null;
-                        const updated = await this.api('/profile/', 'PATCH', payload);
-                        this.profile = updated;
-                        this.isEditing = false;
-                        this.successMessage = 'Profile updated successfully.';
-                    } catch(e) {
-                        this.error = e.message || 'Failed to update profile.';
-                    } finally {
-                        this.actionLoading = false;
-                    }
+                        const updated = await this.api('/profile/', 'PATCH', this.editForm);
+                        this.profile = updated; this.isEditing = false;
+                        this.successMessage = 'Profile updated successfully!';
+                        setTimeout(() => this.successMessage = '', 3000);
+                    } catch(e) { this.error = e.message; }
+                    finally { this.actionLoading = false; }
                 },
 
                 // MFA Actions
                 async initiateMfa() {
-                    this.actionLoading = true;
-                    this.mfaError = '';
+                    this.mfaError = ''; this.actionLoading = true;
                     try {
-                        const data = await this.api('/auth/mfa/enable', 'POST');
-                        this.mfaSetupData = data;
-                        this.showMfaSetup = true;
-                        this.mfaCode = '';
-                    } catch(e) {
-                        this.mfaError = e.message || 'Failed to initiate MFA setup.';
-                    } finally {
-                        this.actionLoading = false;
-                    }
+                        const res = await this.api('/profile/mfa/initiate', 'POST');
+                        this.mfaSetupData = res; this.showMfaSetup = true;
+                    } catch(e) { this.mfaError = e.message; }
+                    finally { this.actionLoading = false; }
                 },
-
                 async verifyMfa() {
-                    if (this.mfaCode.length !== 6) {
-                        this.mfaError = 'Verification code must be 6 digits.';
-                        return;
-                    }
-                    this.actionLoading = true;
-                    this.mfaError = '';
+                    this.mfaError = ''; this.actionLoading = true;
                     try {
-                        await this.api('/auth/mfa/verify', 'POST', { code: this.mfaCode });
-                        this.showMfaSetup = false;
-                        this.mfaEnabled = true;
-                        this.mfaCode = '';
-                        alert('Multi-Factor Authentication enabled successfully! On your next login, you will be prompted for a verification code.');
-                        // Refresh token in session to contain updated metadata
-                        await this.refreshToken();
-                    } catch(e) {
-                        this.mfaError = e.message || 'Failed to verify code.';
-                    } finally {
-                        this.actionLoading = false;
-                    }
+                        await this.api('/profile/mfa/verify', 'POST', { code: this.mfaCode });
+                        this.mfaEnabled = true; this.showMfaSetup = false; this.mfaCode = '';
+                    } catch(e) { this.mfaError = e.message; }
+                    finally { this.actionLoading = false; }
                 },
-
                 async disableMfa() {
-                    if (!confirm('Are you sure you want to disable Multi-Factor Authentication? This makes your account less secure.')) return;
-                    this.actionLoading = true;
+                    if (!confirm('Are you sure you want to disable 2FA? This decreases account security.')) return;
+                    this.mfaError = ''; this.actionLoading = true;
                     try {
-                        await this.api('/auth/mfa/disable', 'POST');
+                        await this.api('/profile/mfa/disable', 'POST');
                         this.mfaEnabled = false;
-                        alert('Multi-Factor Authentication disabled successfully.');
-                        await this.refreshToken();
-                    } catch(e) {
-                        alert(e.message || 'Failed to disable MFA.');
-                    } finally {
-                        this.actionLoading = false;
-                    }
-                },
-
-                async refreshToken() {
-                    // Trigger a re-login/refresh if there is a refresh token or similar flow, 
-                    // for now we can fetch the user metadata or ask user to re-login to update metadata in token.
-                    // Or since Supabase token metadata will update, we can prompt or just update page state.
-                    // To update page state without actual re-login, we modify local variable.
+                    } catch(e) { this.mfaError = e.message; }
+                    finally { this.actionLoading = false; }
                 },
 
                 // Push Notifications Actions
@@ -430,100 +426,84 @@
                 },
 
                 async enableNotifications() {
-                    this.pushError = '';
-                    this.pushSuccess = '';
-                    this.actionLoading = true;
-
+                    this.pushError = ''; this.pushSuccess = ''; this.actionLoading = true;
                     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
                         this.pushError = 'Push notifications are not supported in this browser.';
-                        this.actionLoading = false;
-                        return;
+                        this.actionLoading = false; return;
                     }
-
                     try {
                         const permission = await Notification.requestPermission();
                         this.pushPermissionText = permission;
-                        if (permission !== 'granted') {
-                            throw new Error('Notification permission denied.');
-                        }
-
-                        // Register Service Worker
+                        if (permission !== 'granted') { throw new Error('Notification permission denied.'); }
                         let registration = await navigator.serviceWorker.getRegistration('/sw.js');
-                        if (!registration) {
-                            registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-                        }
+                        if (!registration) { registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' }); }
                         await navigator.serviceWorker.ready;
-                        
-                        // Subscribe with VAPID Public Key
                         const { public_key } = await this.api('/profile/vapid-public-key');
-                        if (!public_key) {
-                            throw new Error('VAPID public key not configured on server.');
-                        }
+                        if (!public_key) { throw new Error('VAPID public key not configured on server.'); }
                         const convertedVapidKey = urlBase64ToUint8Array(public_key);
-
                         const subscription = await registration.pushManager.subscribe({
-                            userVisibleOnly: true,
-                            applicationServerKey: convertedVapidKey
+                            userVisibleOnly: true, applicationServerKey: convertedVapidKey
                         });
-
-                        // Extract subscription payload
                         const subJson = subscription.toJSON();
                         const payload = {
                             endpoint: subJson.endpoint,
-                            keys: {
-                                auth: subJson.keys.auth,
-                                p256dh: subJson.keys.p256dh
-                            }
+                            keys: { auth: subJson.keys.auth, p256dh: subJson.keys.p256dh }
                         };
-
-                        // POST subscription to backend
                         await this.api('/profile/push-subscription', 'POST', payload);
-                        
-                        this.pushEnabled = true;
-                        this.pushSuccess = 'Successfully subscribed to push notifications!';
-                    } catch(e) {
-                        this.pushError = e.message || 'Subscription failed.';
-                    } finally {
-                        this.actionLoading = false;
-                    }
+                        this.pushEnabled = true; this.pushSuccess = 'Successfully subscribed to push notifications!';
+                    } catch(e) { this.pushError = e.message || 'Subscription failed.'; }
+                    finally { this.actionLoading = false; }
                 },
 
                 async disableNotifications() {
                     if (!confirm('Disable push notifications? You can re-enable at any time.')) return;
-                    this.pushError = '';
-                    this.pushSuccess = '';
-                    this.actionLoading = true;
+                    this.pushError = ''; this.pushSuccess = ''; this.actionLoading = true;
                     try {
                         if ("serviceWorker" in navigator) {
                             const registration = await navigator.serviceWorker.getRegistration("/sw.js");
                             if (registration) {
                                 const subscription = await registration.pushManager.getSubscription();
-                                if (subscription) {
-                                    await subscription.unsubscribe();
-                                }
+                                if (subscription) { await subscription.unsubscribe(); }
                             }
                         }
                         const res = await fetch(`${CONFIG.API_BASE}/profile/push-subscription`, {
                             method: "DELETE",
-                            headers: {
-                                "Authorization": "Bearer " + this.token,
-                                "Content-Type": "application/json"
-                            }
+                            headers: { "Authorization": "Bearer " + this.token, "Content-Type": "application/json" }
                         });
                         const data = await res.json();
                         if (!res.ok) {
                             this.pushError = "Error: " + (data.detail || "Server failed to remove subscription");
                             return;
                         }
-                        this.pushEnabled = false;
-                        this.pushPermissionText = Notification.permission;
+                        this.pushEnabled = false; this.pushPermissionText = Notification.permission;
                         this.pushSuccess = "Notifications disabled. You can re-enable anytime.";
                     } catch (e) {
                         this.pushError = "Failed to disable: " + e.message;
                         console.error("Disable push error:", e);
-                    } finally {
-                        this.actionLoading = false;
-                    }
+                    } finally { this.actionLoading = false; }
+                },
+
+                // Export My Data Actions
+                async exportData(fmt) {
+                    this.exportLoading = fmt; this.exportError = ''; this.exportSuccess = false;
+                    try {
+                        const res = await fetch(`${CONFIG.API_BASE}/profile/export?format=${fmt}`, {
+                            headers: { 'Authorization': `Bearer ${this.token}` }
+                        });
+                        if (!res.ok) {
+                            let msg = 'Export failed';
+                            try { const d = await res.json(); msg = d.error?.message || d.detail || msg; } catch(_) {}
+                            throw new Error(msg);
+                        }
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url; a.download = fmt === 'csv' ? 'adhera_export.csv' : 'adhera_export.json';
+                        document.body.appendChild(a); a.click(); a.remove();
+                        setTimeout(() => URL.revokeObjectURL(url), 10000);
+                        this.exportSuccess = true;
+                    } catch(e) { this.exportError = e.message; }
+                    finally { this.exportLoading = null; }
                 },
 
                 async logout() {
@@ -553,27 +533,21 @@
 
         function closePasswordModal() {
             document.getElementById('change-password-modal').classList.add('hidden');
-            // reset inputs
             ['cp-current','cp-new','cp-confirm'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
-            // reset forgot toggle
             const tog = document.getElementById('cp-forgot-toggle');
             if (tog) { tog.checked = false; toggleForgotPassword(false); }
-            // reset messages
             ['cp-error','cp-success','cp-reset-sent','cp-reset-error'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.classList.add('hidden');
             });
-            // reset strength
             const bar = document.getElementById('cp-strength-bar');
             const lbl = document.getElementById('cp-strength-label');
             if (bar) bar.style.width = '0%';
             if (lbl) lbl.textContent = '';
-            // reset requirement checks
             ['cp-check-length','cp-check-upper','cp-check-number','cp-check-match'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) { el.classList.remove('text-emerald-400'); el.classList.add('text-slate-500'); }
             });
-            // reset button
             const btn = document.getElementById('cp-submit-btn');
             if (btn) {
                 btn.disabled = false;
@@ -641,7 +615,6 @@
             const hasLen   = val.length >= 8;
             const matches  = val === confirm && val.length > 0;
 
-            // checklist
             const setCheck = (id, pass) => {
                 const el = document.getElementById(id);
                 if (!el) return;
@@ -654,7 +627,6 @@
             setCheck('cp-check-number', hasNum);
             setCheck('cp-check-match',  matches);
 
-            // bar
             const score = [hasLen, hasUpper, hasNum, val.length >= 12].filter(Boolean).length;
             const pct   = Math.min(val.length / 16 * 100, 100);
             const colors = ['#f43f5e','#f43f5e','#f59e0b','#10b981','#10b981'];
@@ -701,7 +673,6 @@
                 return;
             }
 
-            // Normal change
             const current = document.getElementById('cp-current').value;
             const newPwd  = document.getElementById('cp-new').value;
             const confirm = document.getElementById('cp-confirm').value;
@@ -749,10 +720,8 @@
         }
     </script>
 
-    <!-- Change Password Modal (vanilla JS) -->
-    <div id="change-password-modal"
-         class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-
+    <!-- Change Password Modal -->
+    <div id="change-password-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
         <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closePasswordModal()"></div>
 
@@ -782,7 +751,6 @@
 
             <!-- Fields -->
             <div class="space-y-4">
-
                 <!-- Current Password -->
                 <div id="cp-current-section">
                     <label class="block text-sm text-slate-400 mb-1.5 font-medium">Current Password</label>
@@ -794,7 +762,6 @@
                         <div class="relative flex-shrink-0">
                             <input type="checkbox" id="cp-forgot-toggle"
                                    onchange="toggleForgotPassword(this.checked)" class="sr-only peer">
-                            <!-- custom checkbox -->
                             <div class="w-4 h-4 rounded flex items-center justify-center transition-all"
                                  style="border:2px solid rgba(0,219,231,0.4);background:rgba(0,219,231,0.05);"
                                  id="cp-forgot-box">
@@ -809,7 +776,7 @@
                     </label>
                 </div>
 
-                <!-- Forgot password info box (hidden by default) -->
+                <!-- Forgot password info box -->
                 <div id="cp-forgot-section" class="hidden">
                     <div class="rounded-xl p-4 flex items-start gap-3"
                          style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);">
@@ -892,10 +859,8 @@
                         Update Password
                     </button>
                 </div>
-
             </div>
         </div>
     </div>
-
 </body>
 </html>

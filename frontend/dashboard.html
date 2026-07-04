@@ -11,7 +11,7 @@
     <link rel="icon" type="image/png" sizes="48x48" href="/assets/favicons/favicon-48x48.png?v=3">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicons/favicon-180x180.png?v=3">
     <link rel="manifest" href="/site.webmanifest">
-    <meta name="theme-color" content="#6366f1">
+    <meta name="theme-color" content="#00dbe7">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adhera - Dashboard</title>
     <link rel="stylesheet" href="/css/adhera.css">
@@ -24,15 +24,28 @@
     <script defer src="/js/alpine.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; }
-        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 24px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); }
+        body { background: #111318; color: #e2e2e8; font-family: 'Inter', sans-serif; font-size: 15px; }
+        
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 20px; box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); }
+        .glass-secondary { background: #1B1F24; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; }
+        
         input, select, textarea { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.12) !important; color: #e2e2e8 !important; border-radius: 12px !important; }
         input:focus, select:focus, textarea:focus { outline: none !important; border-color: #00dbe7 !important; }
+        
         button[type="submit"], button.bg-cyan-600 { background: #00dbe7 !important; color: #002022 !important; border-radius: 12px !important; }
         button.bg-slate-700 { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.12) !important; border-radius: 12px !important; }
         select option { background-color: #1a1d24 !important; color: #e2e2e8 !important; }
         [x-cloak] { display: none !important; }
         :focus-visible { outline: 2px solid #00dbe7 !important; outline-offset: 2px !important; border-radius: 6px !important; }
+
+        .card-hover { transition: transform 150ms ease, box-shadow 200ms ease, background 150ms ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+        
+        /* Typography scale */
+        .title-page { font-size: 30px; font-weight: 700; }
+        .title-card { font-size: 18px; font-weight: 600; }
+        .metric-number { font-size: 34px; font-weight: 700; line-height: 1; }
+        .caption-text { font-size: 12px; color: #718096; }
     </style>
 </head>
 <body x-data="dashboardData()" class="min-h-screen flex flex-col">
@@ -42,37 +55,75 @@
         renderNav('dashboard');
     </script>
 
-    <main class="flex-1 px-4 md:px-8 max-w-[1280px] mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 pb-12">
+    <main class="flex-1 px-4 md:px-8 max-w-[1280px] mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 pb-12 mt-6">
         
         <!-- Main Content Column -->
         <div class="lg:col-span-8 space-y-6">
             
-            <!-- Stat Cards -->
+            <!-- 1. Next Medication / Caught Up State at the Very Top -->
+            <div class="glass p-6 rounded-2xl relative overflow-hidden transition-all duration-200" style="background: #1B1F24; border-color: rgba(255,255,255,0.15); min-height: 140px;">
+                <div x-show="dosesLoading" class="absolute inset-0 bg-white/5 animate-pulse rounded-2xl"></div>
+                <div x-show="!dosesLoading">
+                    <template x-if="doses.length > 0">
+                        <div class="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" aria-hidden="true"></span>
+                                    <span class="text-xs font-semibold uppercase tracking-wider text-amber-400">Next Medication Due</span>
+                                </div>
+                                <h2 class="text-2xl font-bold text-white mb-1" x-text="doses[0].reminders?.medicines?.name"></h2>
+                                <div class="flex items-center gap-2 text-sm text-slate-400 flex-wrap">
+                                    <span class="bg-white/10 px-2 py-0.5 rounded text-xs text-slate-200" x-text="doses[0].reminders?.dose_label"></span>
+                                    <span x-text="doses[0].reminders?.medicines?.dosage_amount + ' ' + doses[0].reminders?.medicines?.dosage_unit"></span>
+                                    <span>•</span>
+                                    <span class="font-semibold text-cyan-400" x-text="new Date(doses[0].scheduled_utc).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})"></span>
+                                </div>
+                            </div>
+                            <div class="flex gap-2 shrink-0">
+                                <button @click="action(doses[0].id, 'taken')" :disabled="actionLoading === doses[0].id" class="min-h-[44px] px-6 py-2.5 rounded-xl font-bold text-sm hover:brightness-110 transition-all" style="background-color:#00C853;color:#000;" x-text="t('btn.taken')"></button>
+                                <button @click="action(doses[0].id, 'snoozed')" :disabled="actionLoading === doses[0].id || doses[0].snooze_count >= 3" class="min-h-[44px] px-4 py-2.5 rounded-xl font-bold text-sm bg-white/5 border border-white/20 text-slate-300 hover:bg-white/10 hover:text-white transition-all" x-text="t('btn.snooze')"></button>
+                            </div>
+                        </div>
+                    </template>
+                    <template x-if="doses.length === 0">
+                        <div class="flex flex-col items-center justify-center text-center py-2">
+                            <div class="w-12 h-12 rounded-full flex items-center justify-center mb-3 bg-emerald-500/20 text-emerald-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                            </div>
+                            <h2 class="text-lg font-bold text-white mb-1">You're caught up</h2>
+                            <p class="text-xs text-slate-400">No pending doses scheduled for today.</p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- 2. Metrics Cards Grid -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="glass p-4 rounded-xl flex flex-col justify-center items-center text-center h-28 relative overflow-hidden">
+                <div class="glass p-4 rounded-xl flex flex-col justify-center items-center text-center h-28 relative overflow-hidden card-hover">
                     <div x-show="loading" class="absolute inset-0 bg-white/5 animate-pulse"></div>
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" x-text="t('stat.overall_adherence')"></span>
                     <span class="text-3xl font-bold text-cyan-300" x-text="adherence && adherence.overall_percentage !== undefined ? adherence.overall_percentage + '%' : '--'"></span>
                 </div>
-                <div class="glass p-4 rounded-xl flex flex-col justify-center items-center text-center h-28 relative overflow-hidden">
+                <div class="glass p-4 rounded-xl flex flex-col justify-center items-center text-center h-28 relative overflow-hidden card-hover">
                     <div x-show="loading" class="absolute inset-0 bg-white/5 animate-pulse"></div>
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" x-text="t('stat.day_streak')"></span>
                     <span class="text-3xl font-bold text-white" x-text="stats.streak !== undefined ? stats.streak : '--'"></span>
                 </div>
-                <div class="glass p-4 rounded-xl flex flex-col justify-center items-center text-center h-28 relative overflow-hidden">
+                <div class="glass p-4 rounded-xl flex flex-col justify-center items-center text-center h-28 relative overflow-hidden card-hover">
                     <div x-show="loading" class="absolute inset-0 bg-white/5 animate-pulse"></div>
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" x-text="t('stat.missed_this_month')"></span>
                     <span class="text-3xl font-bold text-red-400" x-text="stats.missed_this_month !== undefined ? stats.missed_this_month : '--'"></span>
                 </div>
-                <div class="glass p-4 rounded-xl flex flex-col justify-center items-center text-center h-28 relative overflow-hidden">
+                <div class="glass p-4 rounded-xl flex flex-col justify-center items-center text-center h-28 relative overflow-hidden card-hover">
                     <div x-show="dosesLoading" class="absolute inset-0 bg-white/5 animate-pulse"></div>
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" x-text="t('stat.due_today')"></span>
                     <span class="text-3xl font-bold text-yellow-400" x-text="doses.length !== undefined ? doses.length : '--'"></span>
                 </div>
             </div>
 
-            <!-- Charts -->
+            <!-- 3. Charts -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Weekly Adherence Chart (Height increased by ~40% to h-64) -->
                 <div class="glass p-6 rounded-xl relative">
                     <div x-show="loading" class="absolute inset-0 bg-white/5 animate-pulse rounded-xl z-10"></div>
                     <h3 class="text-lg font-bold mb-4 flex items-center justify-between" x-text="t('chart.weekly_adherence')">
@@ -81,12 +132,13 @@
                             <span x-text="t('chart.low_adherence')"></span>
                         </span>
                     </h3>
-                    <div class="relative h-48 w-full"><canvas id="weeklyChart"></canvas></div>
+                    <div class="relative h-64 w-full"><canvas id="weeklyChart" aria-label="Weekly adherence chart"></canvas></div>
                 </div>
+                <!-- Monthly Trend Chart -->
                 <div class="glass p-6 rounded-xl relative">
                     <div x-show="loading" class="absolute inset-0 bg-white/5 animate-pulse rounded-xl z-10"></div>
                     <h3 class="text-lg font-bold mb-4" x-text="t('chart.monthly_adherence')"></h3>
-                    <div class="relative h-48 w-full"><canvas id="monthlyChart"></canvas></div>
+                    <div class="relative h-64 w-full"><canvas id="monthlyChart" aria-label="Monthly trend chart"></canvas></div>
                 </div>
             </div>
 
@@ -99,8 +151,15 @@
                         <div class="h-3 bg-slate-700 rounded w-1/4"></div>
                     </div>
                 </div>
-                <div x-show="!dosesLoading && doses.length === 0" class="text-slate-400 py-8 text-center bg-white/5 rounded-lg border border-white/10" x-text="t('schedule.all_done')"></div>
-                <div x-show="!dosesLoading" class="space-y-3">
+                <!-- Enhanced Empty State -->
+                <div x-show="!dosesLoading && doses.length === 0" class="flex flex-col items-center justify-center py-10 bg-white/5 rounded-lg border border-white/10 text-center" x-cloak>
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center mb-3 bg-emerald-500/20 text-emerald-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <h3 class="text-base font-bold text-white mb-1">No upcoming doses</h3>
+                    <p class="text-xs text-slate-400">You have completed all scheduled doses for today.</p>
+                </div>
+                <div x-show="!dosesLoading && doses.length > 0" class="space-y-3">
                     <template x-for="dose in doses" :key="dose.id">
                         <div class="bg-white/5 p-4 rounded-xl border border-white/10 flex justify-between items-center hover:bg-white/10 transition-colors">
                             <div>
@@ -126,15 +185,33 @@
 
         <!-- Sidebar -->
         <div class="lg:col-span-4 space-y-6">
-            <!-- My Care Team Card -->
-            <div class="glass p-6 rounded-xl relative">
+            
+            <!-- Daily Completion Progress Ring Widget -->
+            <div class="glass p-5 rounded-2xl flex items-center justify-between gap-4 card-hover">
+                <div>
+                    <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">Today's Progress</h3>
+                    <div class="text-2xl font-bold text-white">
+                        <span x-text="todayCompletion.taken">0</span> / <span x-text="todayCompletion.total">0</span> Doses
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">Completion rate today</p>
+                </div>
+                <div class="relative w-16 h-16 shrink-0">
+                    <svg class="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                        <path class="text-white/10" stroke="currentColor" stroke-width="3" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path class="text-cyan-400 transition-all duration-300" stroke="currentColor" stroke-width="3" stroke-dasharray="100" :stroke-dashoffset="100 - todayCompletion.pct" stroke-linecap="round" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white" x-text="todayCompletion.pct + '%'">0%</div>
+                </div>
+            </div>
+
+            <!-- My Care Team Card (Compact height when unassigned) -->
+            <div class="glass p-5 rounded-xl relative">
                 <h3 class="text-lg font-bold mb-4 flex items-center justify-between">
                     <span>My Care Team</span>
                 </h3>
                 <div x-show="providerLoading" class="space-y-3" x-cloak>
-                    <div class="animate-pulse bg-white/5 p-4 rounded-xl border border-white/10 h-20 flex flex-col justify-center gap-2">
-                        <div class="h-4 bg-slate-700 rounded w-1/3"></div>
-                        <div class="h-3 bg-slate-700 rounded w-1/4"></div>
+                    <div class="animate-pulse bg-white/5 p-4 rounded-xl border border-white/10 h-16 flex flex-col justify-center gap-2">
+                        <div class="h-3 bg-slate-700 rounded w-1/3"></div>
                     </div>
                 </div>
                 <div x-show="!providerLoading" x-cloak>
@@ -159,18 +236,17 @@
                             </div>
                         </div>
                     </template>
-                    <!-- No Provider Case -->
+                    <!-- No Provider Case (Compact height) -->
                     <template x-if="!providerAssigned && !providerPending">
-                        <div class="text-center py-6">
-                            <p class="text-slate-400 text-sm mb-4">No provider assigned to monitor your care.</p>
-                            <button @click="openSearchModal()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-cyan-950 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
-                                Request Provider
-                            </button>
+                        <div class="flex items-center justify-between p-3 rounded-xl border border-dashed border-white/20 bg-white/5">
+                            <span class="text-xs text-slate-400 font-medium">No provider assigned</span>
+                            <button @click="openSearchModal()" class="text-xs text-cyan-400 hover:underline font-bold">Request Provider</button>
                         </div>
                     </template>
                 </div>
             </div>
 
+            <!-- Feedback Summary Widget -->
             <div class="glass p-6 rounded-xl relative">
                 <h3 class="text-lg font-bold mb-4 flex items-center justify-between">
                     <span x-text="t('feedback.title')"></span>
@@ -182,7 +258,7 @@
                         <div class="h-3 bg-slate-700 rounded w-1/4"></div>
                     </div>
                 </div>
-                <div x-show="!fbLoading && feedback.length === 0" class="text-slate-400 text-sm italic" x-text="t('feedback.empty')"></div>
+                <div x-show="!fbLoading && feedback.length === 0" class="text-slate-400 text-sm italic py-4 text-center" x-text="t('feedback.empty')"></div>
                 <div x-show="!fbLoading" class="space-y-3">
                     <template x-for="fb in feedback" :key="fb.id">
                         <div class="text-sm bg-white/5 p-4 rounded-xl border border-white/10">
@@ -197,29 +273,12 @@
                                       :x-text="t('feedback.sev') + ' ' + fb.severity"></span>
                             </div>
                             <div class="text-slate-300 mb-2 truncate" x-text="fb.description"></div>
-                            <div class="text-slate-500 text-xs" x-text="new Date(fb.occurred_at).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'})"></div>
+                            <div class="text-slate-400 text-xs" x-text="new Date(fb.occurred_at).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'})"></div>
                         </div>
                     </template>
                 </div>
             </div>
 
-            <!-- Export My Data -->
-            <div class="glass p-6 rounded-xl">
-                <h3 class="text-lg font-bold mb-1" x-text="t('export.title')"></h3>
-                <p class="text-xs text-slate-400 mb-4" x-text="t('export.description')"></p>
-                <div class="flex gap-2">
-                    <button id="export-json-btn" @click="exportData('json')" :disabled="exportLoading" class="flex-1 flex items-center justify-center gap-2 bg-cyan-600/20 hover:bg-cyan-600/40 border border-cyan-500/30 text-cyan-400 text-xs font-semibold py-2.5 px-3 rounded-lg transition-all disabled:opacity-50">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
-                        <span x-text="exportLoading === 'json' ? t('export.generating') : t('export.json')"></span>
-                    </button>
-                    <button id="export-csv-btn" @click="exportData('csv')" :disabled="exportLoading" class="flex-1 flex items-center justify-center gap-2 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 text-emerald-400 text-xs font-semibold py-2.5 px-3 rounded-lg transition-all disabled:opacity-50">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        <span x-text="exportLoading === 'csv' ? t('export.generating') : t('export.csv')"></span>
-                    </button>
-                </div>
-                <div x-show="exportError" class="mt-2 text-xs text-red-400" x-text="exportError" x-cloak></div>
-                <div x-show="exportSuccess" class="mt-2 text-xs text-emerald-400" x-cloak x-text="t('export.success')"></div>
-            </div>
         </div>
     </main>
 
@@ -233,7 +292,6 @@
         // Supabase credentials fetched dynamically via CONFIG onReady
         const config = {};
         
-        // Chart instances must not be stored inside Alpine's reactive proxy to prevent 'Maximum call stack exceeded' errors.
         let weeklyChartInstance = null;
         let monthlyChartInstance = null;
         let chartsInitialized = false;
@@ -245,7 +303,6 @@
                 stats: {}, adherence: { weekly_percentage: 0, total_taken: 0, total_missed: 0, streak: 0 }, trend: [],
                 feedback: [], fbLoading: true, loading: true,
                 presenceChannel: null,
-                exportLoading: null, exportError: '', exportSuccess: false,
                 providerLoading: true,
                 providerAssigned: false,
                 providerPending: false,
@@ -258,6 +315,18 @@
                 searchingProviders: false,
                 requestingProvider: null,
                 cancellingRequest: false,
+
+                get todayCompletion() {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    let taken = 0, total = 0;
+                    (this.trend || []).forEach(t => {
+                        if (t.scheduled_utc && t.scheduled_utc.split('T')[0] === todayStr) {
+                            total++;
+                            if (t.status === 'taken') taken++;
+                        }
+                    });
+                    return { taken, total, pct: total > 0 ? Math.round((taken / total) * 100) : 0 };
+                },
                 
                 async init() {
                     Chart.defaults.color = '#849495';
@@ -316,31 +385,6 @@
                     finally { this.actionLoading = null; }
                 },
                 logout() { if(this.presenceChannel) this.presenceChannel.untrack(); sessionStorage.removeItem('adhera_token'); sessionStorage.removeItem('adhera_refresh_token'); window.location.href = 'index.html'; },
-                async exportData(fmt) {
-                    this.exportLoading = fmt; this.exportError = ''; this.exportUrl = '';
-                    try {
-                        const res = await fetch(`${CONFIG.API_BASE}/profile/export?format=${fmt}`, {
-                            headers: { 'Authorization': `Bearer ${this.token}` }
-                        });
-                        if (!res.ok) {
-                            let msg = 'Export failed';
-                            try { const d = await res.json(); msg = d.error?.message || d.detail || msg; } catch(_) {}
-                            throw new Error(msg);
-                        }
-                        const blob = await res.blob();
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = fmt === 'csv' ? 'adhera_export.csv' : 'adhera_export.json';
-                        document.body.appendChild(a);
-                        a.click();
-                        a.remove();
-                        setTimeout(() => URL.revokeObjectURL(url), 10000);
-                        this.exportSuccess = true;
-                        setTimeout(() => { this.exportSuccess = false; }, 4000);
-                    } catch(e) { this.exportError = e.message; }
-                    finally { this.exportLoading = null; }
-                },
                 async fetchMyProvider() {
                     this.providerLoading = true;
                     try {
@@ -460,7 +504,7 @@
                         if (weeklyChartInstance) { weeklyChartInstance.destroy(); weeklyChartInstance = null; }
                         weeklyChartInstance = new Chart(wc, { 
                             type: 'bar', 
-                            data: { labels: [], datasets: [{ data: [], backgroundColor: 'rgba(0, 219, 231, 0.8)', hoverBackgroundColor: '#00dbe7', borderRadius: 4 }] }, 
+                            data: { labels: [], datasets: [{ data: [], backgroundColor: 'rgba(0, 219, 231, 0.8)', hoverBackgroundColor: '#00dbe7', borderRadius: 8 }] }, 
                             options: commonOptions 
                         });
                     }
@@ -468,9 +512,14 @@
                     const mc = document.getElementById('monthlyChart');
                     if(mc) {
                         if (monthlyChartInstance) { monthlyChartInstance.destroy(); monthlyChartInstance = null; }
+                        const ctx = mc.getContext('2d');
+                        const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+                        gradient.addColorStop(0, 'rgba(0, 219, 231, 0.25)');
+                        gradient.addColorStop(1, 'rgba(0, 219, 231, 0)');
+                        
                         monthlyChartInstance = new Chart(mc, { 
                             type: 'line', 
-                            data: { labels: [], datasets: [{ data: [], borderColor: '#0566d9', backgroundColor: 'rgba(5, 102, 217, 0.1)', borderWidth: 3, tension: 0.4, fill: true, pointBackgroundColor: '#111318', pointBorderColor: '#0566d9', pointBorderWidth: 2, pointRadius: 3, pointHoverRadius: 6 }] }, 
+                            data: { labels: [], datasets: [{ data: [], borderColor: '#00dbe7', backgroundColor: gradient, borderWidth: 3, tension: 0.45, fill: true, pointBackgroundColor: '#111318', pointBorderColor: '#00dbe7', pointBorderWidth: 2, pointRadius: 3, pointHoverRadius: 6 }] }, 
                             options: commonOptions 
                         });
                     }
@@ -487,6 +536,16 @@
                     if (monthlyChartInstance) { 
                         monthlyChartInstance.data.labels = monthly.labels;
                         monthlyChartInstance.data.datasets[0].data = monthly.data; 
+                        
+                        // Visually highlight today's data point (the last index in monthly.data)
+                        const pointRadius = Array(monthly.data.length).fill(3);
+                        if (pointRadius.length > 0) pointRadius[pointRadius.length - 1] = 6;
+                        monthlyChartInstance.data.datasets[0].pointRadius = pointRadius;
+                        
+                        const pointHoverRadius = Array(monthly.data.length).fill(6);
+                        if (pointHoverRadius.length > 0) pointHoverRadius[pointHoverRadius.length - 1] = 9;
+                        monthlyChartInstance.data.datasets[0].pointHoverRadius = pointHoverRadius;
+
                         monthlyChartInstance.update('none'); 
                     }
                 },
@@ -521,7 +580,6 @@
                         window.addEventListener('beforeunload', () => {
                             this.presenceChannel.untrack();
                         });
-
                     } catch(e) { console.warn('Realtime setup skipped:', e.message); }
                 }
             }

@@ -85,7 +85,7 @@ def test_dashboard(page: Page):
     mock_api(page)
     set_mock_session(page)
     page.goto(file_url("dashboard.html"))
-    expect(page.locator("text=Aspirin")).to_be_visible()
+    expect(page.locator("text=Aspirin").first).to_be_visible()
     # Charts render check (canvas exists)
     expect(page.locator("canvas#weeklyChart")).to_be_visible()
     page.screenshot(path=f"{SCREENSHOT_DIR}/dashboard.png")
@@ -106,10 +106,12 @@ def test_medicines(page: Page):
     mock_api(page)
     set_mock_session(page)
     page.goto(file_url("medicines.html"))
-    expect(page.locator("text=Aspirin")).to_be_visible()
+    expect(page.locator("text=Aspirin").first).to_be_visible()
     # Add medicine
     page.fill("input[x-model='form.name']", "TestMed")
     page.click("form button[type='submit']")
+    # Open actions menu
+    page.click("button[aria-label='Medicine actions']")
     # Delete medicine
     page.on("dialog", lambda dialog: dialog.accept()) # Auto-accept confirm
     page.click("button:has-text('Delete')")

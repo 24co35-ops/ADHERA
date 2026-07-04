@@ -78,7 +78,8 @@ async function scanPage(browser, url, label) {
       for (const v of results.violations) {
         console.error(`  [${v.impact}] ${v.id}: ${v.description}`);
         for (const n of v.nodes) {
-          console.error(`    → ${n.html.slice(0, 120)}`);
+          console.error(`    → ${n.html.slice(0, 500)}`);
+          if (n.any) n.any.slice(0,2).forEach(a => console.error(`      ✗ ${a.message}`));
         }
       }
     } else {
