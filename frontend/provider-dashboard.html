@@ -42,13 +42,16 @@
                 actionErrorMsg: {},
                 hasMorePatients: false,
                 totalPatientCount: 0,
+                insightFlags: [],
+                flagsLoading: false,
+                resolvingFlag: {},
                 
                 async init() {
                     renderNav('provider');
                     Chart.defaults.color = '#849495';
                     Chart.defaults.font.family = 'Inter';
                     
-                    await Promise.all([this.fetchPatients(), this.fetchPendingRequests()]);
+                    await Promise.all([this.fetchPatients(), this.fetchPendingRequests(), this.fetchInsightFlags()]);
                     this.setupPresence(_payload);
                 },
                 
@@ -76,6 +79,54 @@
                     const data = await this.api('/provider/pending-requests') || [];
                     this.pendingRequests = data;
                     _renderPendingRequests(data);
+                },
+
+                async fetchInsightFlags() {
+                    this.flagsLoading = true;
+                    try {
+                        const data = await this.api('/provider/dashboard');
+                        this.insightFlags = (data && data.insight_flags) ? data.insight_flags : [];
+                    } catch (e) { console.warn('fetchInsightFlags error', e); }
+                    finally { this.flagsLoading = false; }
+                },
+
+                flagTypeLabel(type) {
+                    return {
+                        dose_drift: 'Dose timing drifting later',
+                        weekend_pattern: 'Weekend adherence gap',
+                        post_side_effect_drop: 'Adherence drop after side effect',
+                        silent_inactivity: 'No activity logged'
+                    }[type] || type;
+                },
+
+                flagSummary(flag) {
+                    const d = flag.details || {};
+                    if (flag.flag_type === 'dose_drift')
+                        return `Avg delay: ${d.early_avg_delay_min}min → ${d.late_avg_delay_min}min (worsening)`;
+                    if (flag.flag_type === 'weekend_pattern')
+                        return `${d.weekend_misses} weekend misses vs ${d.weekday_misses} weekday (${Math.round((d.weekend_ratio||0)*100)}% on weekends)`;
+                    if (flag.flag_type === 'post_side_effect_drop')
+                        return `Adherence: ${d.adherence_before_pct}% → ${d.adherence_after_pct}% after side effect (sev ${d.side_effect_severity})`;
+                    if (flag.flag_type === 'silent_inactivity')
+                        return d.days_since_last_log != null ? `${d.days_since_last_log} days since last log (${d.active_medicine_count} active med${d.active_medicine_count !== 1 ? 's' : ''})` : `No logs ever (${d.active_medicine_count} active med${d.active_medicine_count !== 1 ? 's' : ''})`;
+                    return JSON.stringify(d);
+                },
+
+                async resolveFlag(flagId) {
+                    this.resolvingFlag = { ...this.resolvingFlag, [flagId]: true };
+                    try {
+                        const res = await fetch(`${CONFIG.API_BASE}/provider/flags/${flagId}/resolve`, {
+                            method: 'PATCH',
+                            headers: { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({})
+                        });
+                        if (res.ok) {
+                            this.insightFlags = this.insightFlags.filter(f => f.id !== flagId);
+                        } else {
+                            console.error('resolveFlag failed', res.status);
+                        }
+                    } catch (e) { console.error('resolveFlag error', e); }
+                    finally { this.resolvingFlag = { ...this.resolvingFlag, [flagId]: false }; }
                 },
 
                 async acceptRequest(patientId) {
@@ -394,6 +445,51 @@
                 <span id="pending-requests-count" class="bg-cyan-500/20 text-cyan-400 text-xs font-bold px-2 py-0.5 rounded-full border border-cyan-500/30">0</span>
             </div>
             <div id="pending-requests-list" class="space-y-4"></div>
+        </div>
+        <!-- Insight Flags Section -->
+        <div x-show="flagsLoading || insightFlags.length > 0" class="glass p-6 rounded-xl relative space-y-4" x-cloak>
+            <div class="flex items-center gap-2 mb-4">
+                <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347A3.002 3.002 0 0112 21a3.002 3.002 0 01-2.797-2.02l-.347-.347z"></path></svg>
+                <h2 class="text-2xl font-bold">Insight Flags</h2>
+                <span class="bg-amber-500/20 text-amber-400 text-xs font-bold px-2 py-0.5 rounded-full border border-amber-500/30" x-text="insightFlags.length">0</span>
+            </div>
+
+            <!-- Loading Skeletons -->
+            <div x-show="flagsLoading" class="space-y-4" x-cloak>
+                <div class="bg-white/5 rounded-xl border border-white/10 p-4 animate-pulse h-16"></div>
+            </div>
+
+            <div x-show="!flagsLoading" class="space-y-4">
+                <template x-for="flag in insightFlags" :key="flag.id">
+                    <div class="bg-white/5 rounded-xl border border-white/10 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="flex items-start gap-4">
+                            <span class="px-2 py-0.5 rounded text-xs font-bold border shrink-0 mt-0.5"
+                                  :class="{
+                                      'bg-yellow-500/20 text-yellow-400 border-yellow-500/30': flag.severity <= 2,
+                                      'bg-orange-500/20 text-orange-400 border-orange-500/30': flag.severity === 3,
+                                      'bg-red-500/20 text-red-400 border-red-500/30': flag.severity === 4
+                                  }"
+                                  x-text="flag.severity === 4 ? '🔴 Critical' : (flag.severity === 3 ? '🟠 High' : '🟡 Warning')">
+                            </span>
+                            <div class="min-w-0">
+                                <div class="font-bold text-lg text-cyan-50 flex items-center gap-2 flex-wrap">
+                                    <span x-text="flag.full_name"></span>
+                                    <span class="text-sm font-normal text-slate-400" x-text="'· ' + flagTypeLabel(flag.flag_type)"></span>
+                                </div>
+                                <div class="text-sm text-slate-300 mt-1" x-text="flagSummary(flag)"></div>
+                                <div class="text-xs text-slate-500 mt-1" x-text="'Detected ' + new Date(flag.detected_at).toLocaleDateString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})"></div>
+                            </div>
+                        </div>
+                        <div class="shrink-0">
+                            <button @click="resolveFlag(flag.id)"
+                                    :disabled="resolvingFlag[flag.id]"
+                                    class="min-h-[44px] px-4 py-2 bg-transparent border border-white/20 hover:bg-white/10 text-slate-300 hover:text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                                <span x-text="resolvingFlag[flag.id] ? 'Resolving…' : 'Resolve'"></span>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
         </div>
 
         <div class="glass p-6 rounded-xl relative">
