@@ -1,5 +1,5 @@
 import requests
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 
 from app.auth.dependencies import get_current_user
 from app.config import settings
@@ -7,6 +7,7 @@ from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
 from app.db.supabase import supabase
 from app.feedback.schemas import FeedbackCreate
+from app.insights.engine import run_insights_for_patient
 from app.services.audit import log_audit_action
 
 router = APIRouter()
@@ -18,7 +19,7 @@ def _check_assignment(provider_id: str, patient_id: str):
 
 @router.post("/", response_model=SuccessResponse[dict], status_code=status.HTTP_201_CREATED)
 @limiter.limit("60/minute")
-async def create_feedback(request: Request, feedback: FeedbackCreate, user: dict = Depends(get_current_user)):
+async def create_feedback(request: Request, feedback: FeedbackCreate, background_tasks: BackgroundTasks, user: dict = Depends(get_current_user)):
     role = user.get("role", "patient")
     if role != "patient":
         raise HTTPException(status_code=403, detail="Only patients can submit feedback")
@@ -52,6 +53,7 @@ async def create_feedback(request: Request, feedback: FeedbackCreate, user: dict
         except Exception:
             log_audit_action("EMERGENCY_ALERT_FAILED", user["user_id"], {"feedback_id": res.data[0]["id"] if res.data else None})
 
+    background_tasks.add_task(run_insights_for_patient, user["user_id"])
     return SuccessResponse(data=res.data[0])
 
 @router.get("/", response_model=SuccessResponse[list])

@@ -1,12 +1,13 @@
 from datetime import datetime, time, timedelta, timezone
 
 import pytz
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 from app.auth.dependencies import get_current_user
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
 from app.db.supabase import supabase
+from app.insights.engine import run_insights_for_patient
 
 router = APIRouter()
 
@@ -38,7 +39,7 @@ def get_scheduled_utc_for_today(reminder: dict) -> str:
 
 @router.post("/{reminder_id}/taken", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
-async def dose_taken(request: Request, reminder_id: str, user: dict = Depends(get_current_user)):
+async def dose_taken(request: Request, reminder_id: str, background_tasks: BackgroundTasks, user: dict = Depends(get_current_user)):
     rem_res = supabase.table("reminders").select("*").eq("id", reminder_id).execute()
     if not rem_res.data:
         raise HTTPException(status_code=404, detail="Reminder not found")
@@ -52,11 +53,12 @@ async def dose_taken(request: Request, reminder_id: str, user: dict = Depends(ge
         "status": "taken",
         "outcome_utc": datetime.now(timezone.utc).isoformat()
     }).execute()
+    background_tasks.add_task(run_insights_for_patient, user["user_id"])
     return SuccessResponse(data=res.data[0])
 
 @router.post("/{reminder_id}/missed", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
-async def dose_missed(request: Request, reminder_id: str, user: dict = Depends(get_current_user)):
+async def dose_missed(request: Request, reminder_id: str, background_tasks: BackgroundTasks, user: dict = Depends(get_current_user)):
     rem_res = supabase.table("reminders").select("*").eq("id", reminder_id).execute()
     if not rem_res.data:
         raise HTTPException(status_code=404, detail="Reminder not found")
@@ -70,6 +72,7 @@ async def dose_missed(request: Request, reminder_id: str, user: dict = Depends(g
         "status": "missed",
         "outcome_utc": datetime.now(timezone.utc).isoformat()
     }).execute()
+    background_tasks.add_task(run_insights_for_patient, user["user_id"])
     return SuccessResponse(data=res.data[0])
 
 @router.post("/{reminder_id}/snooze", response_model=SuccessResponse[dict])
