@@ -23,7 +23,8 @@ async def get_provider_dashboard(request: Request, user: dict = Depends(require_
             return SuccessResponse(data={
                 "stats": {"avg_adherence": 0.0, "active_patients": 0, "critical_risk": 0},
                 "patients": [],
-                "alerts": []
+                "alerts": [],
+                "insight_flags": []
             })
         profiles_res = supabase.table("profiles").select("id, full_name, contact_number, date_of_birth, blood_group").in_("id", patient_ids).execute()
         profiles = {p["id"]: p for p in (profiles_res.data or [])}
@@ -77,10 +78,23 @@ async def get_provider_dashboard(request: Request, user: dict = Depends(require_
                 "description": f.get("description", ""),
                 "created_at": f.get("created_at")
             })
+        flags_res = supabase.table("patient_flags").select("*, profiles!patient_flags_user_id_fkey(full_name)").in_("user_id", patient_ids).is_("resolved_at", "null").order("severity", desc=True).limit(20).execute()
+        insight_flags = []
+        for fl in (flags_res.data or []):
+            prof_data = fl.get("profiles") or {}
+            insight_flags.append({
+                "id": fl.get("id"),
+                "flag_type": fl.get("flag_type"),
+                "severity": fl.get("severity"),
+                "details": fl.get("details", {}),
+                "detected_at": fl.get("detected_at"),
+                "full_name": prof_data.get("full_name", "Unknown Patient")
+            })
         return SuccessResponse(data={
             "stats": {"avg_adherence": avg_adherence, "active_patients": len(patients_list), "critical_risk": critical_risk_count},
             "patients": patients_list,
-            "alerts": alerts_list
+            "alerts": alerts_list,
+            "insight_flags": insight_flags
         })
     except Exception as e:
         logger.warning("Provider dashboard error for %s: %s", user.get("user_id"), str(e))
@@ -193,6 +207,26 @@ async def decline_patient_request(request: Request, patient_id: str, user: dict 
         "status": "declined"
     }).eq("patient_id", patient_id).eq("provider_id", user["user_id"]).eq("status", "pending").execute()
     return SuccessResponse(data={"declined": True})
+
+@router.patch("/flags/{flag_id}/resolve")
+@limiter.limit("30/minute")
+async def resolve_patient_flag(request: Request, flag_id: str, user: dict = Depends(require_role("provider"))):
+    # Fetch the flag to get its user_id
+    flag_res = supabase.table("patient_flags").select("user_id, resolved_at").eq("id", flag_id).execute()
+    if not flag_res.data:
+        raise HTTPException(status_code=404, detail="Flag not found")
+    flag = flag_res.data[0]
+    if flag.get("resolved_at") is not None:
+        raise HTTPException(status_code=409, detail="Flag already resolved")
+    # Verify the flag's patient is assigned to this provider
+    patient_id = flag["user_id"]
+    assignment_res = supabase.table("assignments").select("id").eq("provider_id", user["user_id"]).eq("patient_id", patient_id).eq("status", "active").execute()
+    if not assignment_res.data:
+        raise HTTPException(status_code=403, detail="Not assigned to this patient")
+    supabase.table("patient_flags").update({
+        "resolved_at": datetime.now(timezone.utc).isoformat()
+    }).eq("id", flag_id).execute()
+    return SuccessResponse(data={"resolved": True})
 
 # ── Patient self-service: my provider + search + request ──────────────────────
 
