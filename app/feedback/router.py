@@ -1,5 +1,13 @@
 import requests
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    status,
+)
 
 from app.auth.dependencies import get_current_user
 from app.config import settings

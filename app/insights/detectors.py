@@ -9,7 +9,8 @@ Unlike simple adherence percentages, these detectors highlight patterns:
 4. silent_inactivity: Catching disengagement where no logging/missed records occur.
 """
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 
 def _parse_dt(dt_val) -> datetime:
     """Parse string/datetime to a timezone-aware UTC datetime."""
@@ -36,7 +37,7 @@ def detect_dose_drift(adherence_rows: list, threshold_minutes: float = 45.0) -> 
     # Sort chronologically by scheduled time
     sorted_rows = sorted(taken_rows, key=lambda r: _parse_dt(r["scheduled_utc"]))
     last_seven = sorted_rows[-7:]
-    
+
     if len(last_seven) < 5:
         return None
 
