@@ -17,3 +17,9 @@ class UserUpdate(BaseModel):
 
 class RejectBody(BaseModel):
     reason: str
+
+class InviteUser(BaseModel):
+    email: str
+    role: str # 'provider' or 'patient'
+    full_name: Optional[str] = None
+

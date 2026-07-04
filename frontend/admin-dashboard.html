@@ -231,11 +231,11 @@
 
         <!-- ── Quick Actions ──────────────────────────────────────────── -->
         <div class="flex flex-wrap gap-3" role="group" aria-label="Quick actions">
-            <button disabled title="Coming soon" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold opacity-50 cursor-not-allowed" style="background:rgba(0,219,231,0.08);color:#00dbe7;border:1px solid rgba(0,219,231,0.15);" aria-label="Add provider (Coming soon)">
+            <button @click="openInviteModal('provider')" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold hover:brightness-110" style="background:rgba(0,219,231,0.08);color:#00dbe7;border:1px solid rgba(0,219,231,0.15);" aria-label="Add provider">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 Add Provider
             </button>
-            <button disabled title="Coming soon" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold opacity-50 cursor-not-allowed" style="background:rgba(167,139,250,0.08);color:#A78BFA;border:1px solid rgba(167,139,250,0.15);" aria-label="Add patient (Coming soon)">
+            <button @click="openInviteModal('patient')" class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold hover:brightness-110" style="background:rgba(167,139,250,0.08);color:#A78BFA;border:1px solid rgba(167,139,250,0.15);" aria-label="Add patient">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 Add Patient
             </button>
@@ -643,6 +643,40 @@
         </div>
     </div>
 
+    <!-- Invite User Modal -->
+    <div x-show="showInviteModal" class="modal-bg open" x-cloak role="dialog" aria-modal="true" aria-labelledby="invite-modal-title">
+        <div class="modal-card space-y-4" @click.away="showInviteModal = false">
+            <div class="flex justify-between items-center pb-2 border-b border-white/10">
+                <h3 id="invite-modal-title" class="text-lg font-bold text-cyan-400" x-text="'Invite ' + (inviteForm.role === 'provider' ? 'Provider' : 'Patient')"></h3>
+                <button @click="showInviteModal = false" class="text-slate-400 hover:text-white" aria-label="Close modal">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <form @submit.prevent="submitInvite" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5" for="invite-email">Email Address</label>
+                    <input id="invite-email" type="email" x-model="inviteForm.email" class="w-full p-2.5 rounded text-white" placeholder="e.g., user@example.com" required>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5" for="invite-name">Full Name (Optional)</label>
+                    <input id="invite-name" type="text" x-model="inviteForm.full_name" class="w-full p-2.5 rounded text-white" placeholder="e.g., John Doe">
+                </div>
+
+                <div x-show="inviteModalError" class="text-rose-400 text-xs mt-2" x-text="inviteModalError" role="alert"></div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" @click="showInviteModal = false" class="px-4 py-2 border border-white/10 text-slate-300 rounded-lg hover:bg-white/5 transition-colors text-sm font-semibold">Cancel</button>
+                    <button type="submit" :disabled="inviteSubmitting" class="px-5 py-2 rounded-lg text-sm font-bold bg-cyan-500 hover:bg-cyan-400 text-[#002022] transition-colors disabled:opacity-50 flex items-center gap-2">
+                        <svg x-show="inviteSubmitting" class="animate-spin w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                        <span x-text="inviteSubmitting ? 'Sending...' : 'Send Invite'"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Toast notification -->
     <div x-show="toast" x-cloak x-transition class="fixed bottom-6 right-6 px-4 py-2.5 rounded-xl shadow-2xl z-50 text-sm font-semibold" style="background:#00C853;color:#002200;" x-text="toast" role="alert" aria-live="polite"></div>
 
@@ -678,6 +712,9 @@
                 showAssignModal: false, assignModalLoading: false, assignModalError: '',
                 assignForm: { patient_id: '', provider_id: '' },
                 unassignedPatients: [], providersList: [],
+                // Invite modal state
+                showInviteModal: false, inviteModalError: '', inviteSubmitting: false,
+                inviteForm: { email: '', role: '', full_name: '' },
 
                 // Computed: client-side filtered + sorted user list
                 get filteredUsers() {
@@ -805,6 +842,30 @@
                         this.buildActivityFeed();
                     } catch(e) {
                         this.assignModalError = e.message || 'Assignment failed. Please try again.';
+                    }
+                },
+                openInviteModal(role) {
+                    this.inviteForm = { email: '', role: role, full_name: '' };
+                    this.inviteModalError = '';
+                    this.inviteSubmitting = false;
+                    this.showInviteModal = true;
+                },
+                async submitInvite() {
+                    if (!this.inviteForm.email) return;
+                    this.inviteModalError = '';
+                    this.inviteSubmitting = true;
+                    try {
+                        await this.api('/admin/invite-user', 'POST', {
+                            email: this.inviteForm.email,
+                            role: this.inviteForm.role,
+                            full_name: this.inviteForm.full_name || null
+                        });
+                        this.showInviteModal = false;
+                        this.showToast(`Invite sent successfully to ${this.inviteForm.email}`);
+                    } catch(e) {
+                        this.inviteModalError = e.message || 'Invitation failed. Please try again.';
+                    } finally {
+                        this.inviteSubmitting = false;
                     }
                 },
                 async approveUser(id) {

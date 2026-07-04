@@ -8,12 +8,19 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
-from app.admin.schemas import AssignmentUpdate, RejectBody, UserUpdate
+from app.admin.schemas import AssignmentUpdate, RejectBody, UserUpdate, InviteUser
 from app.auth.dependencies import require_role
+from app.config import settings
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
 from app.db.supabase import supabase
 from app.services.audit import log_audit_action
+
+try:
+    from supabase_auth.errors import AuthApiError
+except ImportError:
+    AuthApiError = Exception
+
 
 router = APIRouter()
 
@@ -776,5 +783,46 @@ async def get_unassigned_patients(request: Request, user: dict = Depends(require
     except Exception:
         pass
     return SuccessResponse(data=unassigned)
+
+@router.post("/invite-user", response_model=SuccessResponse[dict])
+@limiter.limit("30/minute")
+async def admin_invite_user(request: Request, payload: InviteUser, user: dict = Depends(require_role("admin"))):
+    try:
+        email = payload.email.strip().lower()
+        role = payload.role
+        if role not in ("provider", "patient"):
+            raise HTTPException(status_code=400, detail="Invalid role specified. Must be provider or patient.")
+        
+        # Check if user already exists in profiles
+        existing_profile = supabase.table("profiles").select("id").eq("email", email).execute().data
+        if existing_profile:
+            raise HTTPException(status_code=409, detail="A user with this email is already registered.")
+
+        try:
+            # Call invite_user_by_email using reset-password.html redirect
+            redirect_url = f"{settings.FRONTEND_URL}/reset-password.html"
+            supabase.auth.admin.invite_user_by_email(
+                email,
+                options={
+                    "data": {
+                        "role": role,
+                        "full_name": payload.full_name or ""
+                    },
+                    "redirect_to": redirect_url
+                }
+            )
+        except AuthApiError as e:
+            msg = getattr(e, "message", str(e)).lower()
+            if ("already" in msg and "registered" in msg) or "already exists" in msg:
+                raise HTTPException(status_code=409, detail="A user with this email is already registered.")
+            raise HTTPException(status_code=400, detail=getattr(e, "message", str(e)))
+        
+        log_audit_action("ADMIN_USER_INVITE", user["user_id"], {"email": email, "role": role})
+        return SuccessResponse(data={"message": f"Invite sent successfully to {email}"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 

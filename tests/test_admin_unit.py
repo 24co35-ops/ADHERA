@@ -385,3 +385,83 @@ class TestAdminCreateAssignment:
             headers=make_token(role="provider"),
         )
         assert response.status_code == 403
+
+
+class TestAdminInviteUser:
+    """
+    Tests for POST /admin/invite-user — admin inviting a new provider or patient.
+    """
+
+    @patch("app.admin.router.log_audit_action")
+    @patch("app.admin.router.supabase")
+    def test_invite_user_success(self, mock_sb, mock_audit):
+        """Successful invite flow."""
+        # Profile check returns empty (user does not exist yet)
+        mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+        # Mock auth.admin.invite_user_by_email
+        mock_sb.auth.admin.invite_user_by_email.return_value = MagicMock()
+
+        response = client.post(
+            "/v1/admin/invite-user",
+            json={"email": "new.user@example.com", "role": "provider", "full_name": "New Provider"},
+            headers=make_token(role="admin"),
+        )
+        assert response.status_code == 200
+        assert "invite sent successfully" in response.json()["data"]["message"].lower()
+        
+        # Verify invite parameters
+        mock_sb.auth.admin.invite_user_by_email.assert_called_once_with(
+            "new.user@example.com",
+            options={
+                "data": {"role": "provider", "full_name": "New Provider"},
+                "redirect_to": f"{settings.FRONTEND_URL}/reset-password.html"
+            }
+        )
+        mock_audit.assert_called_once()
+
+    @patch("app.admin.router.supabase")
+    def test_invite_user_profile_already_exists(self, mock_sb):
+        """Conflict: profile with this email already exists in public.profiles."""
+        mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[{"id": "existing-id"}])
+
+        response = client.post(
+            "/v1/admin/invite-user",
+            json={"email": "existing@example.com", "role": "patient", "full_name": "Existing Patient"},
+            headers=make_token(role="admin"),
+        )
+        assert response.status_code == 409
+        assert "already registered" in response.json()["error"]["message"].lower()
+
+    @patch("app.admin.router.supabase")
+    def test_invite_user_auth_already_exists(self, mock_sb):
+        """Conflict: AuthApiError raised due to user already in Supabase Auth."""
+        mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+        
+        from supabase_auth.errors import AuthApiError
+        # Mock invite_user_by_email to raise AuthApiError representing duplicate user
+        mock_sb.auth.admin.invite_user_by_email.side_effect = AuthApiError(
+            message="A user with this email has already been registered",
+            status=400,
+            code="user_already_exists"
+        )
+
+        response = client.post(
+            "/v1/admin/invite-user",
+            json={"email": "existing.auth@example.com", "role": "patient"},
+            headers=make_token(role="admin"),
+        )
+        assert response.status_code == 409
+        assert "already registered" in response.json()["error"]["message"].lower()
+
+    @patch("app.admin.router.supabase")
+    def test_invite_user_invalid_role(self, mock_sb):
+        """Validation error: role must be provider or patient."""
+        response = client.post(
+            "/v1/admin/invite-user",
+            json={"email": "test@example.com", "role": "admin"},
+            headers=make_token(role="admin"),
+        )
+        assert response.status_code == 400
+        assert "invalid role" in response.json()["error"]["message"].lower()
+
+
