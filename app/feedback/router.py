@@ -75,17 +75,17 @@ async def list_feedback(
 ):
     role = user.get("role", "patient")
     if role == "patient":
-        q = supabase.table("feedback").select("*").eq("user_id", user["user_id"]).order("created_at", desc=True).range(offset, offset + limit - 1)
+        q = supabase.table("feedback").select("*, medicines(name)").eq("user_id", user["user_id"]).order("created_at", desc=True).range(offset, offset + limit - 1)
     elif role == "provider":
         if not patient_id:
             raise HTTPException(status_code=400, detail="patient_id required for provider")
         _check_assignment(user["user_id"], patient_id)
-        q = supabase.table("feedback").select("*").eq("user_id", patient_id).order("created_at", desc=True).range(offset, offset + limit - 1)
+        q = supabase.table("feedback").select("*, medicines(name)").eq("user_id", patient_id).order("created_at", desc=True).range(offset, offset + limit - 1)
     elif role == "admin":
         if patient_id:
-            q = supabase.table("feedback").select("*").eq("user_id", patient_id).order("created_at", desc=True).range(offset, offset + limit - 1)
+            q = supabase.table("feedback").select("*, medicines(name)").eq("user_id", patient_id).order("created_at", desc=True).range(offset, offset + limit - 1)
         else:
-            q = supabase.table("feedback").select("*").order("created_at", desc=True).range(offset, offset + limit - 1)
+            q = supabase.table("feedback").select("*, medicines(name)").order("created_at", desc=True).range(offset, offset + limit - 1)
     else:
         raise HTTPException(status_code=403, detail="Forbidden")
     res = q.execute()

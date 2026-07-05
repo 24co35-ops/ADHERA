@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
@@ -61,6 +61,95 @@ async def get_dashboard(request: Request, patient_id: str = Query(None), user: d
                 "weekly_warning": False
             })
 
+        # Resolve user timezone
+        import pytz
+        profile_res = supabase.table("profiles").select("timezone").eq("id", uid).execute()
+        user_tz_str = "UTC"
+        if profile_res.data:
+            user_tz_str = profile_res.data[0].get("timezone") or "UTC"
+        try:
+            user_tz = pytz.timezone(user_tz_str)
+        except Exception:
+            user_tz = pytz.utc
+
+        now_local = datetime.now(user_tz)
+        today_date = now_local.date()
+
+        # Get reminders
+        reminders_res = supabase.table("reminders").select("*, medicines(*)").eq("user_id", uid).eq("is_active", True).execute()
+
+        start_local = user_tz.localize(datetime.combine(today_date, time.min))
+        end_local = user_tz.localize(datetime.combine(today_date, time.max))
+        start_utc = start_local.astimezone(pytz.utc)
+        end_utc = end_local.astimezone(pytz.utc)
+
+        # Get adherence for today
+        adherence_res = supabase.table("adherence").select("*").eq("user_id", uid).gte("scheduled_utc", start_utc.isoformat()).lte("scheduled_utc", end_utc.isoformat()).execute()
+
+        completed = set()
+        today_taken = 0
+        for entry in adherence_res.data:
+            dt_comp = datetime.fromisoformat(entry["scheduled_utc"].replace("Z", "+00:00"))
+            completed.add((entry["reminder_id"], dt_comp))
+            if entry["status"] == "taken":
+                today_taken += 1
+
+        # Calculate upcoming
+        today_pending = 0
+        for reminder in reminders_res.data:
+            med = reminder.get("medicines")
+            if not med or not med.get("is_active", True):
+                continue
+            med_start_str = med.get("start_date")
+            med_end_str = med.get("end_date")
+            if med_start_str:
+                med_start = datetime.strptime(med_start_str, "%Y-%m-%d").date()
+                if today_date < med_start:
+                    continue
+            if med_end_str:
+                med_end = datetime.strptime(med_end_str, "%Y-%m-%d").date()
+                if today_date > med_end:
+                    continue
+
+            time_str = reminder["dose_time_utc"]
+            try:
+                t = time.fromisoformat(time_str)
+            except Exception:
+                continue
+
+            today_utc = datetime.now(timezone.utc).date()
+            for offset in [-1, 0, 1]:
+                d_utc = today_utc + timedelta(days=offset)
+                occurrence_utc = pytz.utc.localize(datetime.combine(d_utc, t))
+                occurrence_local = occurrence_utc.astimezone(user_tz)
+
+                if occurrence_local.date() == today_date:
+                    rec_type = reminder["recurrence_type"]
+                    if rec_type == "daily":
+                        pass
+                    elif rec_type == "weekday":
+                        params = reminder.get("recurrence_params") or []
+                        if occurrence_local.isoweekday() not in params:
+                            continue
+                    elif rec_type == "alternate":
+                        if med_start_str:
+                            days_diff = (occurrence_local.date() - med_start).days
+                            if days_diff % 2 != 0:
+                                continue
+                    else:
+                        continue
+
+                    is_completed = False
+                    for comp_rem_id, comp_dt in completed:
+                        if comp_rem_id == reminder["id"]:
+                            if abs((comp_dt - occurrence_utc).total_seconds()) < 60:
+                                is_completed = True
+                                break
+                    if not is_completed:
+                        today_pending += 1
+
+        today_total = len(adherence_res.data) + today_pending
+
         res = supabase.table("adherence").select("status, scheduled_utc").eq("user_id", uid).execute()
         w_data = [x for x in res.data if x.get('scheduled_utc', '') >= (now - timedelta(days=7)).isoformat()]
         m_data = [x for x in res.data if x.get('scheduled_utc', '') >= (now - timedelta(days=30)).isoformat()]
@@ -93,7 +182,9 @@ async def get_dashboard(request: Request, patient_id: str = Query(None), user: d
             "weekly_warning": wr < 70,
             "weekly_percentage": wr,
             "streak": streak,
-            "missed_this_month": missed_this_month
+            "missed_this_month": missed_this_month,
+            "today_taken": today_taken,
+            "today_total": today_total
         })
     except HTTPException:
         raise

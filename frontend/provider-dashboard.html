@@ -744,9 +744,9 @@
 
                                 <!-- Row 2: Demographics — de-emphasized (smaller, muted) -->
                                 <div class="text-[11px] text-slate-400 flex items-center gap-1.5 flex-wrap leading-snug">
-                                    <span x-text="'Age ' + (p.profiles?.age ?? 'N/A')"></span>
+                                    <span x-text="'Age ' + (p.profiles?.age ?? '—')"></span>
                                     <span class="text-slate-600">•</span>
-                                    <span x-text="'Blood ' + (p.profiles?.blood_group || 'N/A')"></span>
+                                    <span x-text="'Blood ' + (p.profiles?.blood_group || '—')"></span>
                                     <span class="text-slate-600">•</span>
                                     <span :class="presenceMap[p.patient_id]?.online ? 'text-emerald-400' : 'text-slate-400'"
                                           x-text="presenceMap[p.patient_id]?.online ? 'Online now' : presenceMap[p.patient_id]?.last_seen ? 'Seen ' + formatRelativeTime(presenceMap[p.patient_id].last_seen) : 'Never logged in'"></span>
