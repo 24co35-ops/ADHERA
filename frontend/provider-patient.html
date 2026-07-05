@@ -199,16 +199,24 @@
                     const now = new Date();
                     const map = {};
                     for (let i = days-1; i >= 0; i--) {
-                        const d = new Date(now); d.setDate(d.getDate() - i);
-                        map[d.toISOString().split('T')[0]] = { taken: 0, total: 0 };
+                        const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - i));
+                        const y = d.getUTCFullYear();
+                        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+                        const day = String(d.getUTCDate()).padStart(2, '0');
+                        const dateStr = `${y}-${m}-${day}`;
+                        map[dateStr] = { taken: 0, total: 0 };
                     }
                     this.trend.forEach(t => {
                         const ds = t.scheduled_utc.split('T')[0];
                         if (map[ds]) { map[ds].total++; if (t.status === 'taken') map[ds].taken++; }
                     });
                     const labels = [], data = [];
+                    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
                     for (const [date, c] of Object.entries(map)) {
-                        labels.push(new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+                        const parts = date.split('-');
+                        const mName = months[parseInt(parts[1], 10) - 1];
+                        const dayNum = parseInt(parts[2], 10);
+                        labels.push(`${mName} ${dayNum}`);
                         data.push(c.total > 0 ? Math.round(c.taken / c.total * 100) : 0);
                     }
                     return { labels, data };
@@ -304,7 +312,7 @@
         select option { background-color: #1a1d24 !important; color: #e2e2e8 !important; }
         [x-cloak] { display: none !important; }
         /* Pill tabs */
-        .tab-pill { padding: 7px 18px; border-radius: 999px; font-size: 0.8125rem; font-weight: 600; transition: all 150ms; color: #94a3b8; background: transparent; border: none; cursor: pointer; white-space: nowrap; }
+        .tab-pill { display: inline-flex; align-items: center; justify-content: center; line-height: 1; padding: 8px 18px; border-radius: 999px; font-size: 0.8125rem; font-weight: 600; transition: all 150ms; color: #94a3b8; background: transparent; border: none; cursor: pointer; white-space: nowrap; }
         .tab-pill:hover { color: #e2e2e8; background: rgba(255,255,255,0.06); }
         .tab-pill.active { background: rgba(0,219,231,0.15); color: #00dbe7; }
         /* Section hierarchy */
@@ -344,7 +352,7 @@
     <main class="flex-1 px-4 md:px-6 max-w-5xl mx-auto w-full space-y-5 pb-12">
 
         <!-- ── Sticky Patient Header ──────────────────────────────────────── -->
-        <div class="card-primary p-6 sticky z-40" style="top: 64px;">
+        <div class="card-primary p-6 sticky z-40 mb-5" style="top: 64px;">
             <!-- Avatar row -->
             <div class="flex flex-col md:flex-row md:items-center gap-5">
                 <!-- Avatar -->
@@ -381,7 +389,7 @@
         </div>
 
         <!-- ── Pill Tabs ──────────────────────────────────────────────────── -->
-        <div class="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl overflow-x-auto" role="tablist">
+        <div class="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-2xl overflow-x-auto mb-5" role="tablist">
             <button id="tab-overview" @click="tab='overview'" role="tab"
                     :aria-selected="tab==='overview'" :class="tab==='overview' ? 'tab-pill active' : 'tab-pill'">
                 Overview
@@ -409,19 +417,19 @@
 
             <!-- 1. Patient Summary metrics row -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="card-primary p-4 rounded-2xl text-center">
+                <div class="card-primary p-5 rounded-2xl text-center">
                     <span class="text-xs text-slate-400 uppercase tracking-wider block mb-1">Overall Adherence</span>
                     <span class="text-3xl font-bold text-cyan-300" x-text="(adherenceData.overall_percentage||0)+'%'"></span>
                 </div>
-                <div class="card-primary p-4 rounded-2xl text-center">
+                <div class="card-primary p-5 rounded-2xl text-center">
                     <span class="text-xs text-slate-400 uppercase tracking-wider block mb-1">Streak</span>
                     <span class="text-3xl font-bold text-white" x-text="(stats.streak||0)+' d'"></span>
                 </div>
-                <div class="card-primary p-4 rounded-2xl text-center">
+                <div class="card-primary p-5 rounded-2xl text-center">
                     <span class="text-xs text-slate-400 uppercase tracking-wider block mb-1">Missed This Month</span>
                     <span class="text-3xl font-bold text-rose-400" x-text="stats.missed_this_month||0"></span>
                 </div>
-                <div class="card-primary p-4 rounded-2xl text-center">
+                <div class="card-primary p-5 rounded-2xl text-center">
                     <span class="text-xs text-slate-400 uppercase tracking-wider block mb-1">Weekly</span>
                     <span class="text-3xl font-bold" x-text="(stats.weekly_adherence||0)+'%'"></span>
                 </div>
