@@ -469,6 +469,7 @@
         .btn-action:hover:not(:disabled) { background: rgba(255,255,255,0.08); color: #e2e2e8; }
         .btn-action:disabled { opacity: 0.38; cursor: not-allowed; }
         .coming-soon-tip { position: relative; }
+        .risk-badge-pill { flex-shrink: 0; padding: 3px 9px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
         .coming-soon-tip:hover::after { content: 'Coming soon'; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #1a1d24; border: 1px solid rgba(255,255,255,0.12); color: #94a3b8; font-size: 0.7rem; padding: 4px 10px; border-radius: 6px; white-space: nowrap; z-index: 50; pointer-events: none; }
         .skeleton { background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.05) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 12px; }
         @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
@@ -744,7 +745,7 @@
                                     <span style="font-weight:700;font-size:16px;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;"
                                           x-text="p.profiles?.full_name || 'Unknown'"></span>
                                     <!-- Solid-fill risk badge, WCAG AA contrast verified -->
-                                    <span style="flex-shrink:0;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;"
+                                    <span class="risk-badge-pill"
                                           :style="(p.risk_level === 'critical' ? 'background:#FF5252;color:#fff;' :
                                                    p.risk_level === 'high'     ? 'background:#FFB300;color:#1a1100;' :
                                                    p.risk_level === 'moderate' ? 'background:#00dbe7;color:#002022;' :
@@ -765,7 +766,7 @@
                                 <!-- Row 3: Clinical metrics (13px) -->
                                 <div style="font-size:13px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
                                     <!-- Adherence % in risk color -->
-                                    <span style="font-weight:700;"
+                                    <span class="font-bold tabular-nums"
                                           :style="'color:' + adherenceColor(p.adherence?.weekly_percentage ?? 0)"
                                           x-text="(p.adherence?.weekly_percentage ?? 0) + '%'"></span>
                                     <span style="font-size:10px;color:#475569;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">weekly</span>
@@ -775,7 +776,7 @@
                                           x-text="'Last dose: ' + (p.last_dose_taken ? formatRelativeTime(p.last_dose_taken) : 'None')"></span>
                                     <span style="color:#334155;">|</span>
                                     <!-- Missed today -->
-                                    <span style="display:flex;align-items:center;gap:3px;font-weight:600;"
+                                    <span class="flex items-center gap-1 font-semibold"
                                           :style="p.missed_today > 0 ? 'color:#fb7185;' : 'color:#94a3b8;'">
                                         <template x-if="p.missed_today > 0">
                                             <svg style="width:11px;height:11px;flex-shrink:0;" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
@@ -787,8 +788,8 @@
 
                                 <!-- Row 4: Next medication -->
                                 <div style="font-size:13px;display:flex;align-items:center;gap:5px;">
-                                    <svg style="width:13px;height:13px;flex-shrink:0;"
-                                         :style="p.next_medication ? 'color:#34d399;' : 'color:#475569;'"
+                                    <svg width="13" height="13" class="shrink-0"
+                                         :style="p.next_medication ? 'width:13px;height:13px;flex-shrink:0;color:#34d399;' : 'width:13px;height:13px;flex-shrink:0;color:#475569;'"
                                          fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                     </svg>
