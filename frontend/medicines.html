@@ -260,7 +260,7 @@
                             </div>
                             <div>
                                 <label for="med-end" class="block text-xs font-semibold text-slate-300 mb-1" x-text="t('form.end_date')"></label>
-                                <input id="med-end" type="date" x-model="form.end_date" class="w-full p-2.5 rounded">
+                                <input id="med-end" type="date" x-model="form.end_date" class="w-full p-2.5 rounded" :style="form.end_date ? 'color: #e2e2e8 !important' : 'color: rgba(255,255,255,0.3) !important'">
                             </div>
                         </div>
                     </div>
