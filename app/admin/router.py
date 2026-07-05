@@ -793,10 +793,15 @@ async def admin_invite_user(request: Request, payload: InviteUser, user: dict = 
         if role not in ("provider", "patient"):
             raise HTTPException(status_code=400, detail="Invalid role specified. Must be provider or patient.")
 
-        # Check if user already exists in profiles
-        existing_profile = supabase.table("profiles").select("id").eq("email", email).execute().data
-        if existing_profile:
-            raise HTTPException(status_code=409, detail="A user with this email is already registered.")
+        # Check if user already exists in auth.users
+        try:
+            auth_users = supabase.auth.admin.list_users()
+            if any(u.email and u.email.strip().lower() == email for u in auth_users):
+                raise HTTPException(status_code=409, detail="A user with this email is already registered.")
+        except HTTPException:
+            raise
+        except Exception:
+            pass
 
         try:
             # Call invite_user_by_email using reset-password.html redirect

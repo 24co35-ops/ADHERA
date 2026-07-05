@@ -396,8 +396,8 @@ class TestAdminInviteUser:
     @patch("app.admin.router.supabase")
     def test_invite_user_success(self, mock_sb, mock_audit):
         """Successful invite flow."""
-        # Profile check returns empty (user does not exist yet)
-        mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+        # Auth list_users returns empty (user does not exist yet)
+        mock_sb.auth.admin.list_users.return_value = []
         # Mock auth.admin.invite_user_by_email
         mock_sb.auth.admin.invite_user_by_email.return_value = MagicMock()
 
@@ -421,8 +421,10 @@ class TestAdminInviteUser:
 
     @patch("app.admin.router.supabase")
     def test_invite_user_profile_already_exists(self, mock_sb):
-        """Conflict: profile with this email already exists in public.profiles."""
-        mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[{"id": "existing-id"}])
+        """Conflict: user with this email already exists in Supabase Auth."""
+        mock_sb.auth.admin.list_users.return_value = [
+            MagicMock(id="existing-id", email="existing@example.com")
+        ]
 
         response = client.post(
             "/v1/admin/invite-user",
@@ -435,7 +437,7 @@ class TestAdminInviteUser:
     @patch("app.admin.router.supabase")
     def test_invite_user_auth_already_exists(self, mock_sb):
         """Conflict: AuthApiError raised due to user already in Supabase Auth."""
-        mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+        mock_sb.auth.admin.list_users.return_value = []
         
         from supabase_auth.errors import AuthApiError
         # Mock invite_user_by_email to raise AuthApiError representing duplicate user
