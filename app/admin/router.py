@@ -13,7 +13,7 @@ from app.auth.dependencies import require_role
 from app.config import settings
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
-from app.db.supabase import supabase
+from app.db.supabase import supabase, supabase_auth
 from app.services.audit import log_audit_action
 
 try:
@@ -383,6 +383,25 @@ async def reactivate_user(request: Request, id: str, user: dict = Depends(requir
     supabase.table("profiles").update({"is_active": True}).eq("id", id).execute()
     log_audit_action("USER_REACTIVATED", user["user_id"], {"target": id})
     return SuccessResponse(data={"reactivated": True})
+
+
+@router.post("/users/{id}/reset-password")
+@limiter.limit("10/minute")
+async def reset_user_password(request: Request, id: str, user: dict = Depends(require_role("admin"))):
+    try:
+        u = supabase.auth.admin.get_user_by_id(id)
+        email = u.user.email
+    except Exception:
+        raise HTTPException(404, "User not found in authentication system.")
+    try:
+        supabase_auth.auth.reset_password_for_email(
+            email,
+            options={"redirect_to": f"{settings.FRONTEND_URL}/reset-password.html"}
+        )
+    except Exception:
+        pass
+    log_audit_action("ADMIN_TRIGGERED_PASSWORD_RESET", user["user_id"], {"target": id, "email": email})
+    return SuccessResponse(data={"message": f"Password reset email sent to {email}"})
 
 
 @router.patch("/users/{id}/role")

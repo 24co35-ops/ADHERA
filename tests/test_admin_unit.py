@@ -150,6 +150,57 @@ class TestUserManagement:
         response = client.patch(f"/v1/admin/users/{PROVIDER_ID}/role", json={"role": "invalid"}, headers=make_token())
         assert response.status_code == 400
 
+    @patch("app.admin.router.supabase")
+    def test_get_user_success(self, mock_sb):
+        mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[{
+            "id": PROVIDER_ID, "full_name": "Test Provider", "date_of_birth": "1990-01-01"
+        }])
+        mock_sb.auth.admin.get_user_by_id.return_value = MagicMock(user=MagicMock(email="test@user.com"))
+        
+        response = client.get(f"/v1/admin/users/{PROVIDER_ID}", headers=make_token())
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["email"] == "test@user.com"
+        assert data["full_name"] == "Test Provider"
+        assert "age" in data
+
+    @patch("app.admin.router.supabase")
+    def test_update_user_success(self, mock_sb):
+        mock_sb.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(data=[{
+            "id": PROVIDER_ID, "full_name": "Updated Provider"
+        }])
+        
+        response = client.patch(
+            f"/v1/admin/users/{PROVIDER_ID}",
+            json={"full_name": "Updated Provider", "contact_number": "1234567890"},
+            headers=make_token()
+        )
+        assert response.status_code == 200
+        assert response.json()["data"]["full_name"] == "Updated Provider"
+
+    @patch("app.admin.router.supabase_auth")
+    @patch("app.admin.router.supabase")
+    def test_reset_password_success(self, mock_sb, mock_sb_auth):
+        mock_sb.auth.admin.get_user_by_id.return_value = MagicMock(user=MagicMock(email="test@user.com"))
+        mock_sb_auth.auth.reset_password_for_email.return_value = MagicMock()
+        
+        response = client.post(f"/v1/admin/users/{PROVIDER_ID}/reset-password", headers=make_token())
+        assert response.status_code == 200
+        assert "password reset email sent to test@user.com" in response.json()["data"]["message"].lower()
+        mock_sb.auth.admin.get_user_by_id.assert_called_once_with(PROVIDER_ID)
+        mock_sb_auth.auth.reset_password_for_email.assert_called_once_with(
+            "test@user.com",
+            options={"redirect_to": f"{settings.FRONTEND_URL}/reset-password.html"}
+        )
+
+    @patch("app.admin.router.supabase")
+    def test_reset_password_not_found(self, mock_sb):
+        mock_sb.auth.admin.get_user_by_id.side_effect = Exception("User not found")
+        
+        response = client.post(f"/v1/admin/users/{PROVIDER_ID}/reset-password", headers=make_token())
+        assert response.status_code == 404
+        assert "user not found" in response.json()["error"]["message"].lower()
+
 
 class TestProviderApproval:
     @patch("app.admin.router.supabase")

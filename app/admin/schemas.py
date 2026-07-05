@@ -13,6 +13,11 @@ class AssignmentUpdate(BaseModel):
     note: Optional[str] = None
 
 class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    contact_number: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    blood_group: Optional[str] = None
+    timezone: Optional[str] = None
     is_active: Optional[bool] = None
 
 class RejectBody(BaseModel):

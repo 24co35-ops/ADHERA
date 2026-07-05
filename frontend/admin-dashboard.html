@@ -510,7 +510,9 @@
             <!-- User cards -->
             <div class="space-y-3">
                 <template x-for="u in filteredUsers" :key="u.id">
-                    <div :id="'user-'+u.id" class="bg-white/5 rounded-xl border border-white/10 p-5 card-hover relative">
+                    <div :id="'user-'+u.id" 
+                         class="bg-white/5 rounded-xl border border-white/10 p-5 card-hover relative"
+                         :style="openMenuId === u.id ? 'z-index: 50 !important;' : ''">
                         <div class="flex items-start gap-4">
                             <!-- Avatar -->
                             <div class="avatar"
@@ -544,15 +546,15 @@
                                 </button>
                                 <div x-show="openMenuId===u.id" @click.stop x-cloak
                                      class="overflow-menu mt-1 z-50 py-1" role="menu">
-                                    <button @click="openUserDetail(u);openMenuId=null" class="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-white/10 flex items-center gap-2" role="menuitem">
+                                    <button @click.stop="openUserModal(u.id, 'view');openMenuId=null" class="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-white/10 flex items-center gap-2" role="menuitem">
                                         <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                         View Profile
                                     </button>
-                                    <button @click="openMenuId=null" class="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-white/10 flex items-center gap-2" role="menuitem">
+                                    <button @click.stop="openUserModal(u.id, 'edit');openMenuId=null" class="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-white/10 flex items-center gap-2" role="menuitem">
                                         <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                         Edit User
                                     </button>
-                                    <button @click="openMenuId=null" class="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-white/10 flex items-center gap-2" role="menuitem">
+                                    <button @click.stop="confirmResetPassword(u);openMenuId=null" class="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-white/10 flex items-center gap-2" role="menuitem">
                                         <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
                                         Reset Password
                                     </button>
@@ -570,13 +572,13 @@
                                         </button>
                                     </template>
                                     <template x-if="u.is_active && u.role!=='admin'">
-                                        <button @click.stop="deactivateUser(u.id);openMenuId=null" class="w-full text-left px-4 py-2 text-sm hover:bg-white/10 flex items-center gap-2" style="color:#FF5252" role="menuitem">
+                                        <button @click.stop="toggleUserSuspension(u);openMenuId=null" class="w-full text-left px-4 py-2 text-sm hover:bg-white/10 flex items-center gap-2" style="color:#FF5252" role="menuitem">
                                             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
                                             Suspend
                                         </button>
                                     </template>
                                     <template x-if="u.role!=='admin'&&!u.is_active&&u.role==='patient'">
-                                        <button @click.stop="approveUser(u.id);openMenuId=null" class="w-full text-left px-4 py-2 text-sm hover:bg-white/10 flex items-center gap-2" style="color:#00C853" role="menuitem">
+                                        <button @click.stop="toggleUserSuspension(u);openMenuId=null" class="w-full text-left px-4 py-2 text-sm hover:bg-white/10 flex items-center gap-2" style="color:#00C853" role="menuitem">
                                             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                             Activate
                                         </button>
@@ -677,6 +679,100 @@
         </div>
     </div>
 
+    <!-- User Detail / Edit Modal -->
+    <div x-show="showUserModal" class="modal-bg open" x-cloak role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
+        <div class="modal-card space-y-4 max-w-lg" @click.away="showUserModal = false">
+            <div class="flex justify-between items-center pb-2 border-b border-white/10">
+                <h3 id="user-modal-title" class="text-lg font-bold text-cyan-400" x-text="userModalMode === 'edit' ? 'Edit User' : 'User Profile'"></h3>
+                <button @click="showUserModal = false" class="text-slate-400 hover:text-white" aria-label="Close modal">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div x-show="userModalLoading" class="text-center py-8 text-slate-400">
+                <div class="skeleton h-8 w-full mb-3 animate-pulse"></div>
+                <div class="skeleton h-8 w-full animate-pulse"></div>
+            </div>
+
+            <div x-show="!userModalLoading" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" for="user-full-name">Full Name</label>
+                        <input id="user-full-name" type="text" x-model="userForm.full_name" class="w-full p-2.5 rounded text-white" :disabled="userModalMode === 'view'" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" for="user-email">Email Address</label>
+                        <input id="user-email" type="email" x-model="userForm.email" class="w-full p-2.5 rounded text-white bg-white/5 cursor-not-allowed" disabled>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" for="user-role">Role</label>
+                        <input id="user-role" type="text" x-model="userForm.role" class="w-full p-2.5 rounded text-white bg-white/5 cursor-not-allowed" disabled>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" for="user-status">Status</label>
+                        <input id="user-status" type="text" :value="userForm.is_active ? 'Active' : (userForm.role === 'provider' ? 'Pending' : 'Suspended')" class="w-full p-2.5 rounded text-white bg-white/5 cursor-not-allowed" disabled>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" for="user-dob">Date of Birth</label>
+                        <input id="user-dob" type="date" x-model="userForm.date_of_birth" class="w-full p-2.5 rounded text-white" :disabled="userModalMode === 'view'">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" for="user-blood-group">Blood Group</label>
+                        <select id="user-blood-group" x-model="userForm.blood_group" class="w-full p-2.5 rounded text-white" :disabled="userModalMode === 'view'">
+                            <option value="">Select blood group...</option>
+                            <option value="A+">A+</option>
+                            <option value="A-">A-</option>
+                            <option value="B+">B+</option>
+                            <option value="B-">B-</option>
+                            <option value="AB+">AB+</option>
+                            <option value="AB-">AB-</option>
+                            <option value="O+">O+</option>
+                            <option value="O-">O-</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" for="user-contact">Contact Number</label>
+                        <input id="user-contact" type="text" x-model="userForm.contact_number" class="w-full p-2.5 rounded text-white" :disabled="userModalMode === 'view'">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1" for="user-timezone">Timezone</label>
+                        <input id="user-timezone" type="text" x-model="userForm.timezone" class="w-full p-2.5 rounded text-white" :disabled="userModalMode === 'view'">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4" x-show="userModalMode === 'view'">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Join Date</label>
+                        <div class="p-2.5 rounded bg-white/5 text-slate-300 text-sm" x-text="userForm.created_at ? new Date(userForm.created_at).toLocaleDateString() : 'N/A'"></div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Last Login</label>
+                        <div class="p-2.5 rounded bg-white/5 text-slate-300 text-sm" x-text="userForm.last_seen ? formatRelativeTime(userForm.last_seen) : 'Never'"></div>
+                    </div>
+                </div>
+
+                <div x-show="userModalError" class="text-rose-400 text-xs mt-2" x-text="userModalError" role="alert"></div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" @click="showUserModal = false" class="px-4 py-2 border border-white/10 text-slate-300 rounded-lg hover:bg-white/5 transition-colors text-sm font-semibold" x-text="userModalMode === 'view' ? 'Close' : 'Cancel'"></button>
+                    <button x-show="userModalMode === 'edit'" type="button" @click="submitUserUpdate" :disabled="userSubmitting" class="px-5 py-2 rounded-lg text-sm font-bold bg-cyan-500 hover:bg-cyan-400 text-[#002022] transition-colors disabled:opacity-50 flex items-center gap-2">
+                        <svg x-show="userSubmitting" class="animate-spin w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                        <span x-text="userSubmitting ? 'Saving...' : 'Save Changes'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast notification -->
     <div x-show="toast" x-cloak x-transition class="fixed bottom-6 right-6 px-4 py-2.5 rounded-xl shadow-2xl z-50 text-sm font-semibold" style="background:#00C853;color:#002200;" x-text="toast" role="alert" aria-live="polite"></div>
 
@@ -715,6 +811,15 @@
                 // Invite modal state
                 showInviteModal: false, inviteModalError: '', inviteSubmitting: false,
                 inviteForm: { email: '', role: '', full_name: '' },
+
+                // User Modal state
+                showUserModal: false,
+                userModalMode: 'view',
+                userModalLoading: false,
+                userModalError: '',
+                userSubmitting: false,
+                userForm: { id: '', full_name: '', email: '', role: '', is_active: false, date_of_birth: '', blood_group: '', contact_number: '', timezone: '', created_at: '', last_seen: '' },
+                originalUserForm: {},
 
                 // Computed: client-side filtered + sorted user list
                 get filteredUsers() {
@@ -881,6 +986,89 @@
                     try { await this.api(`/admin/users/${id}`, 'PATCH', {is_active:false}); this.showToast('User deactivated');
                     await this.fetchUsers(); this.buildActivityFeed(); } catch(e){}
                 },
+                async openUserModal(userId, mode) {
+                    this.showUserModal = true;
+                    this.userModalMode = mode;
+                    this.userModalLoading = true;
+                    this.userModalError = '';
+                    this.userSubmitting = false;
+                    this.userForm = { id: '', full_name: '', email: '', role: '', is_active: false, date_of_birth: '', blood_group: '', contact_number: '', timezone: '', created_at: '', last_seen: '' };
+                    this.originalUserForm = {};
+                    try {
+                        const data = await this.api(`/admin/users/${userId}`);
+                        this.userForm = {
+                            id: data.id || '',
+                            full_name: data.full_name || '',
+                            email: data.email || '',
+                            role: data.role || '',
+                            is_active: !!data.is_active,
+                            date_of_birth: data.date_of_birth || '',
+                            blood_group: data.blood_group || '',
+                            contact_number: data.contact_number || '',
+                            timezone: data.timezone || '',
+                            created_at: data.created_at || '',
+                            last_seen: data.last_seen || ''
+                        };
+                        this.originalUserForm = { ...this.userForm };
+                    } catch(e) {
+                        this.userModalError = e.message || 'Failed to load user details.';
+                    } finally {
+                        this.userModalLoading = false;
+                    }
+                },
+                async submitUserUpdate() {
+                    this.userModalError = '';
+                    const changedFields = {};
+                    const fields = ['full_name', 'date_of_birth', 'blood_group', 'contact_number', 'timezone'];
+                    fields.forEach(f => {
+                        const newVal = this.userForm[f] === '' ? null : this.userForm[f];
+                        const oldVal = this.originalUserForm[f] === '' ? null : this.originalUserForm[f];
+                        if (newVal !== oldVal) {
+                            changedFields[f] = newVal;
+                        }
+                    });
+                    if (Object.keys(changedFields).length === 0) {
+                        this.showUserModal = false;
+                        return;
+                    }
+                    this.userSubmitting = true;
+                    try {
+                        await this.api(`/admin/users/${this.userForm.id}`, 'PATCH', changedFields);
+                        this.showUserModal = false;
+                        this.showToast('User updated successfully');
+                        await this.fetchUsers();
+                        this.buildActivityFeed();
+                    } catch(e) {
+                        this.userModalError = e.message || 'Failed to save changes. Please try again.';
+                    } finally {
+                        this.userSubmitting = false;
+                    }
+                },
+                async confirmResetPassword(u) {
+                    if (!confirm(`Send password reset email to ${u.email}?`)) return;
+                    try {
+                        const res = await this.api(`/admin/users/${u.id}/reset-password`, 'POST');
+                        this.showToast(res.message || 'Password reset email sent');
+                    } catch(e) {
+                        this.showToast(e.message || 'Failed to send reset email');
+                    }
+                },
+                async toggleUserSuspension(u) {
+                    if (u.is_active && !confirm('Are you sure you want to suspend this user? This will disable account access.')) return;
+                    try {
+                        const path = u.is_active ? `/admin/users/${u.id}/suspend` : `/admin/users/${u.id}/reactivate`;
+                        await this.api(path, 'PATCH');
+                        this.showToast(u.is_active ? 'User suspended' : 'User activated');
+                        const target = this.users.find(user => user.id === u.id);
+                        if (target) {
+                            target.is_active = !u.is_active;
+                        }
+                        this.buildActivityFeed();
+                    } catch(e) {
+                        this.showToast(e.message || 'Failed to update user status');
+                    }
+                },
+
                 performSearch() { const q=this.searchQuery.toLowerCase().trim(); if(!q){this.searchResults=[];return;} this.searchResults=this.users.filter(u=>(u.full_name&&u.full_name.toLowerCase().includes(q))||(u.contact_number&&u.contact_number.includes(q))); },
                 clearSearch() { this.searchQuery=''; this.searchResults=[]; },
                 scrollToUser(id) { const el=document.getElementById('user-'+id); if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('bg-white/20');setTimeout(()=>el.classList.remove('bg-white/20'),1500);} },
