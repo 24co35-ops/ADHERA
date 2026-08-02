@@ -413,7 +413,14 @@
         </div>
 
         <!-- ══ OVERVIEW TAB ════════════════════════════════════════════════ -->
-        <div x-show="tab==='overview'" class="space-y-5" role="tabpanel" aria-labelledby="tab-overview">
+        <div x-show="tab==='overview'"
+             x-transition:enter="transition ease-out duration-150"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-100"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="space-y-5" role="tabpanel" aria-labelledby="tab-overview">
 
             <!-- 1. Patient Summary metrics row -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -474,7 +481,14 @@
             </div>
 
             <!-- 3. Current Alerts (high-severity feedback) -->
-            <div x-show="urgentFeedback.length > 0" class="card-primary p-5 rounded-2xl" x-cloak>
+            <div x-show="urgentFeedback.length > 0"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 -translate-y-1"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 -translate-y-1"
+                 class="card-primary p-5 rounded-2xl" x-cloak>
                 <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
                     <span>Current Alerts</span>
                     <span class="bg-rose-500/20 text-rose-400 text-xs px-2 py-0.5 rounded-full border border-rose-500/30"
@@ -541,7 +555,14 @@
         </div>
 
         <!-- ══ ADHERENCE TAB ═══════════════════════════════════════════════ -->
-        <div x-show="tab==='adherence'" class="space-y-5" role="tabpanel" aria-labelledby="tab-adherence">
+        <div x-show="tab==='adherence'"
+             x-transition:enter="transition ease-out duration-150"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-100"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="space-y-5" role="tabpanel" aria-labelledby="tab-adherence">
             <!-- Clinic avg comparison -->
             <div class="card-primary p-5 rounded-2xl flex flex-col md:flex-row md:items-center gap-6">
                 <div class="flex-1">
@@ -597,7 +618,14 @@
         </div>
 
         <!-- ══ MEDICINES TAB ═══════════════════════════════════════════════ -->
-        <div x-show="tab==='medicines'" class="space-y-4" role="tabpanel" aria-labelledby="tab-medicines">
+        <div x-show="tab==='medicines'"
+             x-transition:enter="transition ease-out duration-150"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-100"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="space-y-4" role="tabpanel" aria-labelledby="tab-medicines">
             <div x-show="medsLoading" class="text-slate-400 text-sm py-4">Loading medicines…</div>
             <div x-show="!medsLoading && patientMeds.length === 0" class="text-center py-12 text-slate-500" x-cloak>
                 <p class="font-semibold text-white mb-1">No medicines found</p>
@@ -642,7 +670,14 @@
                     </div>
 
                     <!-- Expanded: timings -->
-                    <div x-show="expandedMed===med.id" class="mt-4 border-t border-white/10 pt-4 space-y-3" x-cloak>
+                    <div x-show="expandedMed===med.id"
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0"
+                         x-transition:enter-end="opacity-100"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100"
+                         x-transition:leave-end="opacity-0"
+                         class="mt-4 border-t border-white/10 pt-4 space-y-3" x-cloak>
                         <div class="flex justify-between items-center">
                             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Dose Timings</span>
                             <button @click="addTimingFor=med.id; addForm={dose_label:'',dose_time_utc:'',recurrence_type:'daily',timezone:'UTC'}"
@@ -701,9 +736,23 @@
         </div>
 
         <!-- ══ FEEDBACK TAB ════════════════════════════════════════════════ -->
-        <div x-show="tab==='feedback'" class="space-y-4" role="tabpanel" aria-labelledby="tab-feedback">
+        <div x-show="tab==='feedback'"
+             x-transition:enter="transition ease-out duration-150"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-100"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="space-y-4" role="tabpanel" aria-labelledby="tab-feedback">
             <!-- Emergency alert -->
-            <div x-show="feedbackList.some(f=>f.severity===4)" class="bg-rose-900/30 border border-rose-500/30 p-3 rounded-xl flex items-center gap-2 text-sm text-rose-400" x-cloak>
+            <div x-show="feedbackList.some(f=>f.severity===4)"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 -translate-y-1"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 -translate-y-1"
+                 class="bg-rose-900/30 border border-rose-500/30 p-3 rounded-xl flex items-center gap-2 text-sm text-rose-400" x-cloak>
                 <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                 Emergency feedback on record — verify patient status immediately.
             </div>
@@ -735,7 +784,14 @@
         </div>
 
         <!-- ══ TIMELINE TAB ════════════════════════════════════════════════ -->
-        <div x-show="tab==='timeline'" class="space-y-2" role="tabpanel" aria-labelledby="tab-timeline">
+        <div x-show="tab==='timeline'"
+             x-transition:enter="transition ease-out duration-150"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-100"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="space-y-2" role="tabpanel" aria-labelledby="tab-timeline">
             <p class="text-xs text-slate-400 mb-4">Chronological record built from adherence, feedback, and medicine data.</p>
             <div x-show="timelineEvents.length === 0" class="text-center py-12 text-slate-400">
                 <p class="font-semibold text-white mb-1">No events yet</p>

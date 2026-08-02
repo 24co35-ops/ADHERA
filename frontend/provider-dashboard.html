@@ -688,20 +688,41 @@
             </div>
 
             <!-- Limit warning -->
-            <div x-show="hasMorePatients" class="bg-amber-900/20 border border-amber-500/20 p-3 rounded-xl text-amber-400 text-xs mb-4 flex items-center gap-2" x-cloak>
+            <div x-show="hasMorePatients"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 -translate-y-1"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 -translate-y-1"
+                 class="bg-amber-900/20 border border-amber-500/20 p-3 rounded-xl text-amber-400 text-xs mb-4 flex items-center gap-2" x-cloak>
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 Showing first 15 of <span class="font-bold mx-1" x-text="totalPatientCount"></span> patients.
             </div>
 
             <!-- Loading skeletons -->
-            <div x-show="loading" class="space-y-3" x-cloak>
+            <div x-show="loading"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0"
+                 class="space-y-3" x-cloak>
                 <div class="skeleton h-20 rounded-xl"></div>
                 <div class="skeleton h-20 rounded-xl"></div>
                 <div class="skeleton h-20 rounded-xl"></div>
             </div>
 
             <!-- Empty: no patients -->
-            <div x-show="!loading && patients.length === 0" class="flex flex-col items-center justify-center flex-1 py-8 text-center" x-cloak>
+            <div x-show="!loading && patients.length === 0"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0"
+                 class="flex flex-col items-center justify-center flex-1 py-8 text-center" x-cloak>
                 <div class="w-16 h-16 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center mb-4 text-cyan-400">
                     <svg class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                 </div>
@@ -711,6 +732,12 @@
 
             <!-- No filter results -->
             <div x-show="!loading && patients.length > 0 && filteredPatients.length === 0"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0"
                  class="flex flex-col items-center justify-center flex-1 py-8 text-center" x-cloak>
                 <div class="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mb-4 text-amber-400">
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>

@@ -656,7 +656,14 @@
                     </select>
                 </div>
 
-                <div x-show="assignModalError" class="text-rose-400 text-xs mt-2" x-text="assignModalError" role="alert"></div>
+                <div x-show="assignModalError" x-cloak
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 -translate-y-1"
+                     x-transition:enter-end="opacity-100 translate-y-0"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 translate-y-0"
+                     x-transition:leave-end="opacity-0 -translate-y-1"
+                     class="text-rose-400 text-xs mt-2" x-text="assignModalError" role="alert"></div>
 
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" @click="showAssignModal = false" class="px-4 py-2 border border-white/10 text-slate-300 rounded-lg hover:bg-white/5 transition-colors text-sm font-semibold">Cancel</button>
@@ -701,7 +708,14 @@
                     <input id="invite-name" type="text" x-model="inviteForm.full_name" class="w-full p-2.5 rounded text-white" placeholder="e.g., John Doe">
                 </div>
 
-                <div x-show="inviteModalError" class="text-rose-400 text-xs mt-2" x-text="inviteModalError" role="alert"></div>
+                <div x-show="inviteModalError" x-cloak
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 -translate-y-1"
+                     x-transition:enter-end="opacity-100 translate-y-0"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 translate-y-0"
+                     x-transition:leave-end="opacity-0 -translate-y-1"
+                     class="text-rose-400 text-xs mt-2" x-text="inviteModalError" role="alert"></div>
 
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" @click="showInviteModal = false" class="px-4 py-2 border border-white/10 text-slate-300 rounded-lg hover:bg-white/5 transition-colors text-sm font-semibold">Cancel</button>
@@ -809,7 +823,14 @@
                     </div>
                 </div>
 
-                <div x-show="userModalError" class="text-rose-400 text-xs mt-2" x-text="userModalError" role="alert"></div>
+                <div x-show="userModalError" x-cloak
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 -translate-y-1"
+                     x-transition:enter-end="opacity-100 translate-y-0"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 translate-y-0"
+                     x-transition:leave-end="opacity-0 -translate-y-1"
+                     class="text-rose-400 text-xs mt-2" x-text="userModalError" role="alert"></div>
 
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" @click="showUserModal = false" class="px-4 py-2 border border-white/10 text-slate-300 rounded-lg hover:bg-white/5 transition-colors text-sm font-semibold" x-text="userModalMode === 'view' ? 'Close' : 'Cancel'"></button>
