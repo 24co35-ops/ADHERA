@@ -544,7 +544,14 @@
                                         :aria-expanded="openMenuId===u.id">
                                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
                                 </button>
-                                <div x-show="openMenuId===u.id" @click.stop x-cloak
+                                <div x-show="openMenuId===u.id"
+                                     x-transition:enter="transition ease-out duration-200"
+                                     x-transition:enter-start="opacity-0 scale-95 translate-y-2"
+                                     x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                                     x-transition:leave="transition ease-in duration-150"
+                                     x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                                     x-transition:leave-end="opacity-0 scale-95 translate-y-2"
+                                     @click.stop x-cloak
                                      class="overflow-menu mt-1 z-50 py-1" role="menu">
                                     <button @click.stop="openUserModal(u.id, 'view');openMenuId=null" class="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-white/10 flex items-center gap-2" role="menuitem">
                                         <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
@@ -600,8 +607,22 @@
     </main>
 
     <!-- Assign Patient Modal -->
-    <div x-show="showAssignModal" class="modal-bg open" x-cloak role="dialog" aria-modal="true" aria-labelledby="assign-modal-title">
-        <div class="modal-card space-y-4" @click.away="showAssignModal = false">
+    <div x-show="showAssignModal"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="modal-bg open" x-cloak role="dialog" aria-modal="true" aria-labelledby="assign-modal-title">
+        <div x-show="showAssignModal"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 scale-95 translate-y-2"
+             x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+             x-transition:leave-end="opacity-0 scale-95 translate-y-2"
+             class="modal-card space-y-4" @click.away="showAssignModal = false">
             <div class="flex justify-between items-center pb-2 border-b border-white/10">
                 <h3 id="assign-modal-title" class="text-lg font-bold text-cyan-400">Assign Patient to Provider</h3>
                 <button @click="showAssignModal = false" class="text-slate-400 hover:text-white" aria-label="Close modal">
@@ -646,8 +667,22 @@
     </div>
 
     <!-- Invite User Modal -->
-    <div x-show="showInviteModal" class="modal-bg open" x-cloak role="dialog" aria-modal="true" aria-labelledby="invite-modal-title">
-        <div class="modal-card space-y-4" @click.away="showInviteModal = false">
+    <div x-show="showInviteModal"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="modal-bg open" x-cloak role="dialog" aria-modal="true" aria-labelledby="invite-modal-title">
+        <div x-show="showInviteModal"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 scale-95 translate-y-2"
+             x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+             x-transition:leave-end="opacity-0 scale-95 translate-y-2"
+             class="modal-card space-y-4" @click.away="showInviteModal = false">
             <div class="flex justify-between items-center pb-2 border-b border-white/10">
                 <h3 id="invite-modal-title" class="text-lg font-bold text-cyan-400" x-text="'Invite ' + (inviteForm.role === 'provider' ? 'Provider' : 'Patient')"></h3>
                 <button @click="showInviteModal = false" class="text-slate-400 hover:text-white" aria-label="Close modal">
@@ -680,8 +715,22 @@
     </div>
 
     <!-- User Detail / Edit Modal -->
-    <div x-show="showUserModal" class="modal-bg open" x-cloak role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
-        <div class="modal-card space-y-4 max-w-lg" @click.away="showUserModal = false">
+    <div x-show="showUserModal"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="modal-bg open" x-cloak role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
+        <div x-show="showUserModal"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 scale-95 translate-y-2"
+             x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+             x-transition:leave-end="opacity-0 scale-95 translate-y-2"
+             class="modal-card space-y-4 max-w-lg" @click.away="showUserModal = false">
             <div class="flex justify-between items-center pb-2 border-b border-white/10">
                 <h3 id="user-modal-title" class="text-lg font-bold text-cyan-400" x-text="userModalMode === 'edit' ? 'Edit User' : 'User Profile'"></h3>
                 <button @click="showUserModal = false" class="text-slate-400 hover:text-white" aria-label="Close modal">
@@ -774,7 +823,14 @@
     </div>
 
     <!-- Toast notification -->
-    <div x-show="toast" x-cloak x-transition class="fixed bottom-6 right-6 px-4 py-2.5 rounded-xl shadow-2xl z-50 text-sm font-semibold" style="background:#00C853;color:#002200;" x-text="toast" role="alert" aria-live="polite"></div>
+    <div x-show="toast" x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-2"
+         class="fixed bottom-6 right-6 px-4 py-2.5 rounded-xl shadow-2xl z-50 text-sm font-semibold" style="background:#00C853;color:#002200;" x-text="toast" role="alert" aria-live="polite"></div>
 
     <script>
         const _token = sessionStorage.getItem('adhera_token');
