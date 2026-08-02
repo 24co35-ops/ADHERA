@@ -736,14 +736,15 @@
 
         <!-- ══ TIMELINE TAB ════════════════════════════════════════════════ -->
         <div x-show="tab==='timeline'" class="space-y-2" role="tabpanel" aria-labelledby="tab-timeline">
-            <p class="text-xs text-slate-500 mb-4">Chronological record built from adherence, feedback, and medicine data.</p>
-            <div x-show="timelineEvents.length === 0" class="text-center py-12 text-slate-500">
+            <p class="text-xs text-slate-400 mb-4">Chronological record built from adherence, feedback, and medicine data.</p>
+            <div x-show="timelineEvents.length === 0" class="text-center py-12 text-slate-400">
                 <p class="font-semibold text-white mb-1">No events yet</p>
                 <p class="text-sm">Events will appear as this patient logs doses, submits feedback, and takes medicines.</p>
             </div>
             <div class="relative pl-6 space-y-0">
                 <template x-for="(ev, idx) in timelineEvents" :key="idx">
-                    <div class="relative flex gap-4 pb-5">
+                    <div class="relative flex gap-4 pb-5 transition-all duration-300"
+                         :class="['delay-75', 'delay-150', 'delay-225', 'delay-300'][idx % 4] || ''">
                         <!-- Line -->
                         <div x-show="idx < timelineEvents.length - 1"
                              class="absolute left-0 top-4 bottom-0 w-px bg-white/10" style="left: 4px;"></div>
@@ -756,7 +757,7 @@
                                     <span class="text-sm font-semibold text-white" x-text="ev.label"></span>
                                     <p class="text-xs text-slate-400 mt-0.5" x-text="ev.desc"></p>
                                 </div>
-                                <time class="text-xs text-slate-500 shrink-0"
+                                <time class="text-xs text-slate-400 shrink-0"
                                       :datetime="ev.date"
                                       x-text="new Date(ev.date).toLocaleDateString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})">
                                 </time>
