@@ -132,7 +132,7 @@
 </head>
 <body class="min-h-screen flex items-center justify-center" x-data="loginData()">
     <main class="w-full max-w-md p-4">
-        <div class="glass p-8 rounded-xl shadow-2xl">
+        <div class="glass glass-card p-8 rounded-2xl shadow-2xl">
             <div class="flex justify-center w-full mb-4" style="height: 60px;">
         <div style="transform: scale(0.3); transform-origin: center;">
             <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -154,34 +154,62 @@
     </div>
             <h1 class="text-2xl font-bold text-center mb-6 text-white">Sign in to Adhera</h1>
             <!-- Registration success banner -->
-            <div x-show="registered" x-cloak class="bg-emerald-900/50 text-emerald-400 border border-emerald-500/30 p-3 rounded-xl mb-4 text-sm text-center">Registration successful. Please log in.</div>
+            <div x-show="registered" x-cloak
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 -translate-y-1"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 -translate-y-1"
+                 class="bg-emerald-900/50 text-emerald-400 border border-emerald-500/30 p-3 rounded-xl mb-4 text-sm text-center">Registration successful. Please log in.</div>
             <!-- Pending approval banner -->
-            <div x-show="pendingApproval" x-cloak class="bg-amber-900/50 text-amber-400 border border-amber-500/30 p-3 rounded-xl mb-4 text-sm text-center">Your provider account is pending admin approval. You will be notified once approved.</div>
+            <div x-show="pendingApproval" x-cloak
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 -translate-y-1"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 -translate-y-1"
+                 class="bg-amber-900/50 text-amber-400 border border-amber-500/30 p-3 rounded-xl mb-4 text-sm text-center">Your provider account is pending admin approval. You will be notified once approved.</div>
             <!-- Disabled account banner -->
-            <div x-show="accountDisabled" x-cloak class="bg-red-900/50 text-red-400 border border-red-500/30 p-3 rounded-xl mb-4 text-sm text-center">Your account has been disabled. Contact support.</div>
+            <div x-show="accountDisabled" x-cloak
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 -translate-y-1"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 -translate-y-1"
+                 class="bg-red-900/50 text-red-400 border border-red-500/30 p-3 rounded-xl mb-4 text-sm text-center">Your account has been disabled. Contact support.</div>
             <div x-show="!mfaRequired">
                 <form @submit.prevent="login" class="space-y-5">
-                    <div>
-                        <label for="email" class="block text-sm font-medium mb-1">Email</label>
+                    <div class="flex flex-col">
+                        <label for="email" class="block text-sm font-medium mb-1 items-center">Email</label>
                         <input id="email" type="email" x-model="email" class="w-full py-3 px-3 rounded bg-transparent border border-transparent text-white min-h-[44px]" required :disabled="loading">
                     </div>
-                    <div>
-                        <label for="password" class="block text-sm font-medium mb-1">Password</label>
+                    <div class="flex flex-col">
+                        <label for="password" class="block text-sm font-medium mb-1 items-center">Password</label>
                         <input id="password" type="password" x-model="password" class="w-full py-3 px-3 rounded bg-transparent border border-transparent text-white min-h-[44px]" required :disabled="loading">
                         <div class="text-right mt-1 mb-4">
                             <a href="/forgot-password.html"
-                                class="inline-block py-2 text-sm text-indigo-600 hover:text-indigo-800 hover:underline transition-colors">
+                                class="inline-block py-2 text-sm text-cyan-400 hover:text-cyan-300 hover:underline transition-colors">
                                 Forgot your password?
                             </a>
                         </div>
                     </div>
-                    <div x-show="error" x-cloak class="bg-red-900/40 border border-red-500/40 rounded-xl px-4 py-3 text-red-300 text-sm flex items-start gap-2" role="alert" aria-live="assertive">
+                    <div x-show="error" x-cloak
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 -translate-y-1"
+                         x-transition:enter-end="opacity-100 translate-y-0"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 translate-y-0"
+                         x-transition:leave-end="opacity-0 -translate-y-1"
+                         class="bg-red-900/40 border border-red-500/40 rounded-xl px-4 py-3 text-red-300 text-sm flex items-start gap-2" role="alert" aria-live="assertive">
                         <svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
                         <span x-text="error"></span>
                     </div>
-                    <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center min-h-[44px]" :disabled="loading" aria-label="Login">
-                        <svg x-show="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <span x-text="loading ? 'Logging in...' : 'Login'"></span>
+                    <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center gap-2 min-h-[44px]" :disabled="loading" aria-label="Login">
+                        <svg x-show="loading" class="animate-spin h-5 w-5 text-white shrink-0 transition-all duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span class="transition-all duration-200" x-text="loading ? 'Logging in...' : 'Login'"></span>
                     </button>
                     <div class="text-center text-sm mt-4">
                         <a href="register.html" class="inline-block py-2 text-cyan-400 hover:text-cyan-300 hover:underline">Create an account</a>
@@ -194,14 +222,21 @@
                     <div class="text-center mb-2">
                         <p class="text-sm text-slate-300">Multi-Factor Authentication is enabled. Please enter your 6-digit verification code.</p>
                     </div>
-                    <div>
-                        <label for="mfa-code" class="block text-sm font-medium mb-1 text-center">Verification Code</label>
+                    <div class="flex flex-col">
+                        <label for="mfa-code" class="block text-sm font-medium mb-1 text-center items-center">Verification Code</label>
                         <input id="mfa-code" type="text" x-model="mfaCode" placeholder="000000" class="w-full p-2 rounded bg-transparent border border-transparent text-white text-center font-mono text-2xl tracking-widest" required maxlength="6" :disabled="loading">
                     </div>
-                    <div x-show="error" x-cloak class="text-red-400 text-sm text-center" x-text="error"></div>
-                    <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center min-h-[44px]" :disabled="loading" aria-label="Verify">
-                        <svg x-show="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <span x-text="loading ? 'Verifying...' : 'Verify'"></span>
+                    <div x-show="error" x-cloak
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 -translate-y-1"
+                         x-transition:enter-end="opacity-100 translate-y-0"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 translate-y-0"
+                         x-transition:leave-end="opacity-0 -translate-y-1"
+                         class="bg-red-900/40 border border-red-500/40 rounded-xl px-3 py-2 text-red-300 text-sm text-center" x-text="error" role="alert"></div>
+                    <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded transition-colors flex justify-center items-center gap-2 min-h-[44px]" :disabled="loading" aria-label="Verify">
+                        <svg x-show="loading" class="animate-spin h-5 w-5 text-white shrink-0 transition-all duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span class="transition-all duration-200" x-text="loading ? 'Verifying...' : 'Verify'"></span>
                     </button>
                     <div class="text-center text-sm mt-4">
                         <button type="button" @click="mfaRequired = false; error = null;" class="min-h-[44px] hover:underline text-slate-400 bg-transparent border-0 cursor-pointer">Back to Login</button>
