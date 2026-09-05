@@ -138,6 +138,7 @@ export const RegisterPage: React.FC = () => {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder={role === 'provider' ? 'Dr. Jane Doe' : 'Jane Doe'}
+                  autoComplete="name"
                   className="w-full pl-10 pr-4 py-2 rounded-xl glass-input text-sm"
                 />
               </div>
@@ -157,6 +158,7 @@ export const RegisterPage: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@example.com"
+                  autoComplete="email"
                   className="w-full pl-10 pr-4 py-2 rounded-xl glass-input text-sm"
                 />
               </div>
@@ -177,6 +179,7 @@ export const RegisterPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Min 8 characters"
+                  autoComplete="new-password"
                   className="w-full pl-10 pr-4 py-2 rounded-xl glass-input text-sm"
                 />
               </div>

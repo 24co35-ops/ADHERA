@@ -43,6 +43,7 @@ supabase/.temp
 
 # Debug screenshots and one-off scripts (never commit these)
 *.png
+!frontend/public/assets/favicons/*.png
 debug_*.py
 verify_*.py
 update_*.py
