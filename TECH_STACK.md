@@ -24,7 +24,7 @@ This document describes every technology, library, and service used in the Adher
 
 ## Overview
 
-```
+```text
 ┌──────────────────────────────────────────────────────────────────────┐
 │  Layer              Technology                  Version / Notes       │
 │──────────────────────────────────────────────────────────────────────│
@@ -62,7 +62,7 @@ The primary implementation language. Python 3.10 is the minimum due to use of st
 **Why FastAPI over Flask or Django:**
 
 | Criterion | Flask | Django | FastAPI |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Async support | Limited (Flask-Async) | Limited (ASGI add-on) | Native async/await |
 | Request validation | Manual / Marshmallow | Django Forms / DRF | Built-in via Pydantic |
 | API docs | Flask-RESTX / Flasgger | DRF Spectacular | Auto-generated (OpenAPI 3.0) |
@@ -117,7 +117,7 @@ Supabase is the data and operations platform. It provides PostgreSQL with a mana
 **Why Supabase over raw PostgreSQL:**
 
 | Capability | Raw PostgreSQL | Supabase |
-|---|---|---|
+| --- | --- | --- |
 | Authentication | Custom JWT system | Built-in Auth (bcrypt, JWT, MFA, email verification) |
 | Row Level Security | Available, manual | First-class, dashboard-configurable |
 | Realtime updates | Custom pg_notify + WebSocket server | Built-in Supabase Realtime |
@@ -158,7 +158,7 @@ Private bucket for PDF and CSV report exports. Access is controlled via RLS poli
 Adhera delegates all authentication to Supabase Auth. The application does **not** implement its own token issuance, password hashing, or session management.
 
 | Feature | Implementation |
-|---|---|
+| --- | --- |
 | Password hashing | bcrypt (Supabase Auth internal) |
 | Access token | JWT (HS256), 15-minute expiry |
 | Refresh token | Supabase-managed, 7-day expiry, single-use |
@@ -186,7 +186,7 @@ payload = jwt.decode(
 
 No external job queue server (no Celery, Redis, or RabbitMQ). The full notification pipeline runs inside Supabase:
 
-```
+```text
 pg_cron (every 1 minute)
     │
     └─► SELECT due reminders from operational_state
@@ -214,7 +214,7 @@ Browser push notifications use the W3C Push API. Push subscriptions are stored p
 
 All retry state persists in the `notification_retries` table in Supabase (not in process memory), so retries survive server restarts.
 
-```
+```text
 Attempt 1 → fail → +5 min → Attempt 2 → fail → +5 min → Attempt 3 → fail
                                                                     │
                                                Log failure to audit_log
@@ -344,7 +344,7 @@ Secret scanning tool run in CI to prevent accidental commitment of API keys, JWT
 ## Security Libraries
 
 | Library | Purpose |
-|---|---|
+| --- | --- |
 | `python-jose` / `PyJWT` | JWT decode and signature verification |
 | `slowapi` | Rate limiting middleware for FastAPI (wraps limits) |
 | `python-multipart` | Required by FastAPI for form data / file upload parsing |
@@ -358,7 +358,7 @@ Secret scanning tool run in CI to prevent accidental commitment of API keys, JWT
 
 ### `requirements.txt`
 
-```
+```text
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
 gunicorn>=21.2.0
@@ -390,20 +390,24 @@ locust>=2.28.0
 }
 ```
 
-### Frontend (CDN — no npm)
+### Frontend (`frontend/package.json`)
 
-```html
-<!-- Tailwind CSS -->
-<script src="https://cdn.tailwindcss.com"></script>
-
-<!-- Alpine.js -->
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.x.x/dist/chart.umd.min.js"></script>
-
-<!-- Supabase JS client -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+```json
+{
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "@tanstack/react-query": "^5.67.1",
+    "chart.js": "^4.4.8",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.475.0",
+    "react": "^18.3.1",
+    "react-chartjs-2": "^5.3.0",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.29.0",
+    "tailwind-merge": "^3.0.1",
+    "zustand": "^5.0.3"
+  }
+}
 ```
 
 ---
@@ -415,7 +419,7 @@ locust>=2.28.0
 Celery and Redis add operational complexity: a separate broker service, worker processes, and persistence configuration. Supabase pg_cron + Edge Functions achieve the same result (persistent, restartable job queue) entirely within the Supabase platform — one fewer infrastructure component to manage and monitor.
 
 ### Why React 18 + Vite SPA?
- 
+
 A modern medical compliance platform requires rapid interactive state transitions (one-click dose confirmations, interactive adherence trends, dynamic provider review tables, and role-based client routing). React 18 with Vite and TypeScript provides strict typing, instant HMR, modular component architecture, and high-performance bundle generation for static edge hosting on Vercel.
 
 ### Why Supabase Auth instead of a custom JWT system?

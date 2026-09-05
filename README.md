@@ -2,7 +2,7 @@
 
 > *Help patients stay on track with their medication and give doctors the data they need to intervene before non-adherence becomes a health crisis.*
 
-**Version:** 1.0 · **Status:** Active Development · **Live:** https://adhera-seven.vercel.app  
+**Version:** 1.0 · **Status:** Active Development · **Live:** [https://adhera-seven.vercel.app](https://adhera-seven.vercel.app)  
 **Domain:** Healthcare / Web Application / Health Informatics  
 **Project Type:** Software Engineering Academic Project
 
@@ -46,6 +46,7 @@ Adhera is a web-based medication adherence platform that:
 ## Key Features
 
 ### For Patients
+
 - Register medications with flexible schedules (daily, specific weekdays, alternate days, or PRN)
 - Receive email and browser push reminders per dose slot (Morning / Afternoon / Evening / Night)
 - Mark doses as Taken, Missed, or Snooze (up to 3× per dose; auto-expires after 2 hours)
@@ -54,6 +55,7 @@ Adhera is a web-based medication adherence platform that:
 - Export personal data at any time (JSON / CSV)
 
 ### For Healthcare Providers
+
 - Dashboard showing all assigned patients with overall adherence rates
 - Critical alert indicator for any patient with weekly adherence below 70%
 - Full per-patient drill-down: medication history, adherence breakdown, feedback records
@@ -61,6 +63,7 @@ Adhera is a web-based medication adherence platform that:
 - Export patient adherence reports as PDF or CSV
 
 ### For Administrators
+
 - Approve or reject Healthcare Provider registrations with a mandatory written reason
 - Manage patient-to-provider assignments
 - Create, deactivate, and reactivate accounts for all roles
@@ -71,7 +74,7 @@ Adhera is a web-based medication adherence platform that:
 ## User Roles
 
 | Role | Description |
-|---|---|
+| --- | --- |
 | **Patient** | Self-registered; manages their own medication schedule and adherence records |
 | **Healthcare Provider** | Administrator-verified medical professional; monitors assigned patients' compliance data |
 | **Administrator** | System operator; manages accounts, verifies providers, handles assignments |
@@ -90,7 +93,7 @@ The system is deployed on three tiers:
 - **Notifications:** Web Push API with VAPID keys + Supabase Edge Functions
 
 | Tier | Technology | Responsibility |
-|---|---|---|
+| --- | --- | --- |
 | **Presentation** | React 18, Vite, TypeScript, Tailwind CSS | SPA UI rendering, client-side routing, state management |
 | **API** | Python 3.10+, FastAPI | Business logic, request validation, orchestration |
 | **Data** | Supabase (PostgreSQL 15+) | Persistence, RLS enforcement, scheduled jobs |
@@ -201,7 +204,7 @@ The frontend will be available at `http://localhost:3000`.
 All endpoints are versioned under `/v1`. Full interactive documentation is available at `/docs` when the server is running.
 
 | Group | Base Path | Description |
-|---|---|---|
+| --- | --- | --- |
 | Auth | `/v1/auth` | Registration, login, logout, password reset |
 | Profile | `/v1/profile` | Profile management, emergency contact, VAPID |
 | Medicines | `/v1/medicines` | Medicine CRUD |
@@ -228,7 +231,7 @@ pytest --cov=app --cov-report=term-missing
 
 ## Deployment
 
-The app is deployed on Vercel at https://adhera-seven.vercel.app
+The app is deployed on Vercel at [https://adhera-seven.vercel.app](https://adhera-seven.vercel.app)
 
 - **Frontend:** React + Vite SPA (Vercel Static Build)
 - **Backend:** Vercel Serverless Functions (Python)
@@ -246,7 +249,7 @@ The app is deployed on Vercel at https://adhera-seven.vercel.app
 
 ## Project Structure
 
-```
+```text
 adhera/
 ├── api/
 │   └── index.py                 # Vercel Serverless entry point
@@ -304,7 +307,7 @@ adhera/
 ## Roadmap
 
 | Version | Status | Additions |
-|---|---|---|
+| --- | --- | --- |
 | v1.0 | ✅ Live | Core platform, all modules, Vercel deployment |
 | v1.1 | 🔧 In Progress | Email confirmation via Resend SMTP, push notifications stable |
 | v2.0 | 📋 Planned | Caregiver access, multi-language, native iOS/Android |
@@ -326,7 +329,7 @@ adhera/
 ✅ 261/261 unit & integration tests passing with 77% test coverage
 ✅ WCAG 2.1 AA accessibility scans passing across all 8 SPA routes
 ✅ GitHub Actions CI passing
-✅ Deployed on Vercel at https://adhera-seven.vercel.app
+✅ Deployed on Vercel at [https://adhera-seven.vercel.app](https://adhera-seven.vercel.app)
 
 ---
 

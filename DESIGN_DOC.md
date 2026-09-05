@@ -26,17 +26,17 @@
 
 ## 1. System Overview
 
-Adhera is a three-tier web application with an independent notification subsystem. The system is built on Supabase as the data and auth platform, Python (FastAPI) as the API layer, and a responsive HTML/CSS/JS frontend.
+Adhera is a three-tier web application with an independent notification subsystem. The system is built on Supabase as the data and auth platform, Python (FastAPI) as the API layer, and a modern React + Vite frontend.
 
 ### 1.1 High-Level Components
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                     ADHERA SYSTEM                           │
 │                                                             │
 │  ┌──────────────┐     HTTPS/REST      ┌──────────────────┐  │
 │  │   Frontend   │ ──────────────────► │  FastAPI Backend  │  │
-│  │ HTML/CSS/JS  │ ◄────────────────── │  (Python 3.10+)  │  │
+│  │ React / Vite │ ◄────────────────── │  (Python 3.10+)  │  │
 │  │  (Browser)   │                     └────────┬─────────┘  │
 │  └──────────────┘                              │            │
 │                                                │ Supabase   │
@@ -69,7 +69,7 @@ Adhera is a three-tier web application with an independent notification subsyste
 Adhera uses a **layered architecture** with strict separation between tiers:
 
 | Tier | Technology | Responsibility |
-|---|---|---|
+| --- | --- | --- |
 | Presentation | React 18, Vite, TypeScript, Tailwind CSS | Single Page App UI, client-side routing, state management, Supabase Realtime |
 | API | Python 3.10+, FastAPI | Business logic, request validation, orchestration |
 | Data | Supabase (PostgreSQL 15+) | Data persistence, RLS enforcement, scheduled jobs |
@@ -383,7 +383,7 @@ create index idx_audit_log_actor          on public.audit_log(actor_id, created_
 
 Adhera delegates all authentication to Supabase Auth. The application does **not** implement its own token issuance, password hashing, or session management.
 
-```
+```text
 ┌────────────────────────────────────────────────────────┐
 │                  Authentication Flow                    │
 │                                                         │
@@ -437,7 +437,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 Three layers enforce access control:
 
 | Layer | Mechanism | Covers |
-|---|---|---|
+| --- | --- | --- |
 | Network | Supabase RLS policies | All direct DB access |
 | API | FastAPI role dependency | Business logic routes |
 | Admin | Supabase service role key | Admin-only operations (bypasses RLS) |
@@ -460,7 +460,7 @@ async def get_patients(user = Depends(require_role("provider", "admin"))):
 ### 4.4 Security Checklist
 
 | Concern | Implementation |
-|---|---|
+| --- | --- |
 | Password hashing | Supabase Auth (bcrypt internally) |
 | Access token | JWT, 15-min expiry, verified via JWKS |
 | Refresh token | Supabase Auth managed, 7-day expiry |
@@ -470,87 +470,14 @@ async def get_patients(user = Depends(require_role("provider", "admin"))):
 | SQL injection | Supabase client parameterised queries; no raw SQL string concat |
 | CORS | FastAPI CORS middleware: authorised frontend origin only |
 | CSRF | `SameSite=Lax` on cookies + Authorization header for API calls |
-| Secrets | Environment variables; never in source code |
-| Audit log | Append-only; admin access logged with reason code |
-
----
-
-## 5. Notification System Design
-
-### 5.1 Architecture
-
-Adhera uses Supabase-native scheduling instead of a separate job queue server:
-
-```
-pg_cron job (every minute)
-    │
-    ▼
-SELECT * FROM reminders
-WHERE next_dispatch_utc <= now()
-  AND is_active = true
-    │
-    ▼
-For each due reminder:
-    ├── Call Supabase Edge Function: dispatch-reminder
-    │       ├── Email via Resend API
-    │       └── Browser Push via Web Push Protocol
-    │
-    └── Update operational state store
-        (set status = 'pending', reset snooze counter)
-```
-
-### 5.2 Edge Function: `dispatch-reminder`
-
-```typescript
-// supabase/functions/dispatch-reminder/index.ts
-import { serve } from "https://deno.land/std/http/server.ts"
-import { Resend } from "npm:resend"
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"))
-
-serve(async (req) => {
-  const { reminder_id, user_id, medicine_name, dosage, scheduled_utc } = await req.json()
-
-  const results = { email: "pending", push: "pending" }
-
-  // Email dispatch
-  try {
-    await resend.emails.send({
-      from: "Adhera <reminders@adhera.app>",
-      to: user_email,
-      subject: `Time to take ${medicine_name}`,
-      html: buildReminderEmail({ medicine_name, dosage, reminder_id })
-    })
-    results.email = "sent"
-  } catch (err) {
-    results.email = `failed: ${err.message}`
-    await scheduleRetry(reminder_id, attempt_number + 1)
-  }
-
-  // Browser push dispatch (if subscription exists)
-  if (push_subscription) {
-    try {
-      await sendWebPush(push_subscription, { medicine_name, dosage, reminder_id })
-      results.push = "sent"
-    } catch {
-      results.push = "failed"
-      // Push failure falls back to email; no separate retry for push
-    }
-  }
-
-  await logDispatch(reminder_id, results)
-  return new Response(JSON.stringify(results))
-})
-```
-
 ### 5.3 Retry Strategy
 
-```
+```text
 Attempt 1 → fail → wait 5 min → Attempt 2 → fail → wait 5 min → Attempt 3 → fail
      └─────────────────────────────────────────────────────────────────┘
                                         │
-                              Log failure to system_events
-                              Set notification_failed = true on dashboard
+                               Log failure to system_events
+                               Set notification_failed = true on dashboard
 ```
 
 All retry state is stored in `notification_retries` table, persisted in Supabase — no separate queue server required.
@@ -587,7 +514,7 @@ select cron.schedule(
 
 ### 6.1 Base URL Structure
 
-```
+```text
 Production:  https://api.adhera.app/v1
 Development: http://localhost:8000/v1
 ```
@@ -597,7 +524,7 @@ Development: http://localhost:8000/v1
 #### Authentication
 
 | Method | Endpoint | Description |
-|---|---|---|
+| --- | --- | --- |
 | `POST` | `/auth/register` | Register new user |
 | `POST` | `/auth/login` | Login; returns Supabase tokens |
 | `POST` | `/auth/logout` | Revoke session |
@@ -608,7 +535,7 @@ Development: http://localhost:8000/v1
 #### Profile
 
 | Method | Endpoint | Description |
-|---|---|---|
+| --- | --- | --- |
 | `GET` | `/profile` | Get authenticated user's profile |
 | `PATCH` | `/profile` | Update profile fields |
 | `PATCH` | `/profile/password` | Change password |
@@ -619,8 +546,66 @@ Development: http://localhost:8000/v1
 #### Medicines
 
 | Method | Endpoint | Description |
-|---|---|---|
+| --- | --- | --- |
 | `GET` | `/medicines` | List active medicines |
+| `POST` | `/medicines` | Add medicine |
+| `GET` | `/medicines/{id}` | Get medicine detail |
+| `PATCH` | `/medicines/{id}` | Update medicine |
+| `DELETE` | `/medicines/{id}` | Soft-delete medicine |
+
+#### Reminders
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/medicines/{id}/reminders` | List reminders for a medicine |
+| `POST` | `/medicines/{id}/reminders` | Add reminder slot |
+| `PATCH` | `/reminders/{id}` | Update reminder |
+| `DELETE` | `/reminders/{id}` | Deactivate reminder |
+
+#### Dose Tracking
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `POST` | `/doses/{reminder_id}/taken` | Mark dose Taken |
+| `POST` | `/doses/{reminder_id}/missed` | Mark dose Missed |
+| `POST` | `/doses/{reminder_id}/snooze` | Snooze reminder (body: `{minutes: 15 / 30 / 60}`) |
+| `GET` | `/doses/history` | Permanent Medication History (filterable) |
+
+#### Feedback
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `POST` | `/feedback` | Submit side-effect report |
+| `GET` | `/feedback` | List patient's feedback history |
+
+#### Analytics
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/analytics/dashboard` | Patient dashboard data |
+| `GET` | `/analytics/adherence` | Adherence rates (daily/weekly/monthly) |
+| `GET` | `/analytics/trend` | Adherence trend for chart |
+
+#### Provider
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/provider/patients` | List assigned patients |
+| `GET` | `/provider/patients/{id}` | Patient detail |
+| `GET` | `/provider/patients/{id}/report` | Generate report (PDF/CSV) |
+
+#### Admin
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/admin/users` | List all users |
+| `PATCH` | `/admin/users/{id}` | Activate / deactivate user |
+| `GET` | `/admin/providers/pending` | Pending provider registrations |
+| `POST` | `/admin/providers/{id}/approve` | Approve provider |
+| `POST` | `/admin/providers/{id}/reject` | Reject provider |
+| `GET` | `/admin/assignments` | List assignments |
+| `POST` | `/admin/assignments` | Create assignment |
+| `PATCH` | `/admin/assignments/{id}` | Update assignment |` | `/medicines` | List active medicines |
 | `POST` | `/medicines` | Add medicine |
 | `GET` | `/medicines/{id}` | Get medicine detail |
 | `PATCH` | `/medicines/{id}` | Update medicine |
@@ -707,7 +692,7 @@ Development: http://localhost:8000/v1
 ### 6.4 Error Codes
 
 | Code | HTTP Status | Description |
-|---|---|---|
+| --- | --- | --- |
 | `VALIDATION_ERROR` | 400 | Request body fails validation |
 | `UNAUTHORIZED` | 401 | Missing or expired token |
 | `FORBIDDEN` | 403 | Insufficient role permissions |
@@ -722,7 +707,7 @@ Development: http://localhost:8000/v1
 
 ### 7.1 Dose Status State Machine
 
-```
+```text
                     ┌─────────────────┐
                     │                 │
           ┌─────────►    PENDING      ◄───────────┐
@@ -756,13 +741,14 @@ Development: http://localhost:8000/v1
 ```
 
 **Key rules:**
+
 - `PENDING` → `SNOOZED` resets snooze counter iff count < 3
 - Auto-expiry timer is fixed at original scheduled time + 2h; snooze does not extend it
 - `TAKEN` and `MISSED` are final; only admin superseding entries are allowed
 
 ### 7.2 Healthcare Provider Registration State Machine
 
-```
+```text
 REGISTERED ──► PENDING_APPROVAL ──► APPROVED ──► ACTIVE
                       │
                       └──► REJECTED (mandatory reason stored)
@@ -770,7 +756,7 @@ REGISTERED ──► PENDING_APPROVAL ──► APPROVED ──► ACTIVE
 
 ### 7.3 Emergency Contact State Machine
 
-```
+```text
 NONE ──► UNVERIFIED ──► VERIFIED ──► ALERTS_ACTIVE
               │               │
               └───────────────┴──► REMOVED ──► NONE
@@ -783,7 +769,7 @@ NONE ──► UNVERIFIED ──► VERIFIED ──► ALERTS_ACTIVE
 ### 8.1 Technology Choices
 
 | Concern | Choice | Rationale |
-|---|---|---|
+| --- | --- | --- |
 | Framework & Language | React 18, Vite, TypeScript | SPA architecture; strict type safety; instant HMR; high-performance bundling |
 | Styling | Tailwind CSS | Glassmorphism design system; dark mode tokens (`#111318`); WCAG 2.1 AA compliant contrast |
 | State & Cache | Zustand + TanStack React Query | Lightweight auth store + declarative server cache and refetching |
@@ -793,7 +779,7 @@ NONE ──► UNVERIFIED ──► VERIFIED ──► ALERTS_ACTIVE
 
 ### 8.2 Page Structure
 
-```
+```text
 /                   → Landing / Login
 /register           → Registration flow
 /dashboard          → Patient dashboard (protected)
@@ -850,7 +836,7 @@ window.addEventListener('beforeunload', () => channel.unsubscribe())
 
 ### 9.1 Patient Registers a Medicine and Gets a Reminder
 
-```
+```text
 Patient Browser          FastAPI              Supabase DB           Edge Function
      │                      │                      │                      │
      │── POST /medicines ──►│                      │                      │
@@ -868,7 +854,7 @@ Patient Browser          FastAPI              Supabase DB           Edge Functio
 
 ### 9.2 Patient Marks a Dose as Taken
 
-```
+```text
 Patient Browser          FastAPI              Supabase DB
      │                      │                      │
      │── POST /doses/:id/taken ──►│               │
@@ -884,7 +870,7 @@ Patient Browser          FastAPI              Supabase DB
 
 ### 9.3 Severity 4 Emergency Feedback
 
-```
+```text
 Patient Browser          FastAPI              Supabase DB      Edge Function    Provider
      │                      │                      │                │              │
      │── POST /feedback ───►│                      │                │              │
@@ -917,7 +903,7 @@ async def global_handler(request: Request, exc: Exception):
 ### 10.2 Notification Failure Handling
 
 | Failure Type | Behaviour |
-|---|---|
+| --- | --- |
 | SMTP rejection (permanent) | Log, skip retries, mark failed |
 | SMTP timeout | Retry up to 3× at 5-min intervals |
 | Push service error | Fall back to email immediately |
@@ -936,7 +922,7 @@ async def global_handler(request: Request, exc: Exception):
 ### 11.1 Testing Layers
 
 | Layer | Framework | Coverage Target |
-|---|---|---|
+| --- | --- | --- |
 | Unit | pytest | ≥ 80% of business logic |
 | Integration | pytest + Supabase test project | All API endpoints |
 | Security | OWASP ZAP + manual pen test | No Critical/High findings |
@@ -946,7 +932,7 @@ async def global_handler(request: Request, exc: Exception):
 
 ### 11.2 Key Test Scenarios
 
-```
+```text
 ADH-TEST-051: Dose auto-expiry
   Precondition: A dose is in Pending state at T=0
   Action:       System clock advances to T + 2h + 1min
@@ -988,7 +974,7 @@ ENVIRONMENT=production
 
 ### 12.2 Deployment Pipeline
 
-```
+```text
 Developer pushes to main
         │
         ▼
