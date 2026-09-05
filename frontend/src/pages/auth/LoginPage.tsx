@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuthStore, parseJwt } from '../../stores/authStore';
 import { UserRole } from '../../types';
 import { api } from '../../lib/api';
-import { Activity, Lock, Mail, ArrowRight, ShieldCheck, UserCheck, Stethoscope, ShieldAlert, ChevronLeft } from 'lucide-react';
+import { Activity, Lock, Mail, ArrowRight, ShieldAlert, ChevronLeft } from 'lucide-react';
 import { GlassCard } from '../../components/GlassCard';
 
 export const LoginPage: React.FC = () => {
@@ -149,21 +149,6 @@ export const LoginPage: React.FC = () => {
     setMfaPartialToken(null);
     setMfaCode('');
     setMfaError('');
-  };
-
-  const fillDemo = (roleType: 'patient' | 'provider' | 'admin') => {
-    setErrorMessage('');
-    setSessionExpiredNotice(false);
-    if (roleType === 'patient') {
-      setEmail('patient@adhera.io');
-      setPassword('PatientPass123!');
-    } else if (roleType === 'provider') {
-      setEmail('dr.house@adhera.io');
-      setPassword('ProviderPass123!');
-    } else {
-      setEmail('admin@adhera.io');
-      setPassword('AdminPass123!');
-    }
   };
 
   return (
@@ -337,39 +322,6 @@ export const LoginPage: React.FC = () => {
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
-
-              {/* Quick Demo Accounts */}
-              <div className="mt-6 pt-6 border-t border-white/10">
-                <span className="block text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider text-center mb-3">
-                  Quick Demo Fill
-                </span>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => fillDemo('patient')}
-                    className="flex flex-col items-center p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-on-surface transition-colors"
-                  >
-                    <UserCheck className="w-4 h-4 text-primary mb-1" />
-                    <span>Patient</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fillDemo('provider')}
-                    className="flex flex-col items-center p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-on-surface transition-colors"
-                  >
-                    <Stethoscope className="w-4 h-4 text-secondary mb-1" />
-                    <span>Provider</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fillDemo('admin')}
-                    className="flex flex-col items-center p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] text-on-surface transition-colors"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-tertiary mb-1" />
-                    <span>Admin</span>
-                  </button>
-                </div>
-              </div>
             </GlassCard>
 
             <p className="mt-6 text-center text-xs text-on-surface-variant">

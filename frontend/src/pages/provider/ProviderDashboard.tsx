@@ -16,9 +16,11 @@ import {
   Clock,
   ShieldCheck,
 } from 'lucide-react';
+import { useI18n } from '../../lib/i18n';
 
 export const ProviderDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const [patients, setPatients] = useState<any[]>([]);
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
@@ -108,10 +110,10 @@ export const ProviderDashboard: React.FC = () => {
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
           <Users className="w-7 h-7 text-primary" />
-          <span>Provider Clinical Command Center</span>
+          <span>{t('provider.title')}</span>
         </h1>
         <p className="text-xs sm:text-sm text-on-surface-variant mt-1">
-          Monitor real-time patient adherence, clinical flags, and care requests
+          {t('provider.subtitle')}
         </p>
       </div>
 
