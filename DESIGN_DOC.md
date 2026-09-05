@@ -492,6 +492,7 @@ async def get_patients(user = Depends(require_role("provider", "admin"))):
 ```
 
 The notification pipeline operates entirely serverless:
+
 1. **Scheduler (`pg_cron`)**: Runs every minute, polling `reminders` joining with active schedules.
 2. **Dispatcher (Edge Function)**: Invoked via webhook/pg_net with payload containing patient email, medicine name, dosage, and scheduled time.
 3. **Delivery**: Edge Function calls Resend/SendGrid API to send HTML reminder emails with direct action links.
@@ -500,7 +501,10 @@ The notification pipeline operates entirely serverless:
 
 - **Runtime**: Deno / Supabase Edge Functions.
 - **Triggers**: Scheduled via `pg_cron` / `pg_net` HTTP POST.
-- **Payload**:
+- **Error Handling**: On failure (HTTP != 200), inserts a record into `notification_retries`.
+
+**Payload Schema:**
+
 ```json
 {
   "reminder_id": "uuid",
@@ -511,7 +515,6 @@ The notification pipeline operates entirely serverless:
   "scheduled_utc": "2025-01-01T08:00:00Z"
 }
 ```
-- **Error Handling**: On failure (HTTP != 200), inserts a record into `notification_retries`.
 
 ### 5.3 Retry Strategy
 
