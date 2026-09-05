@@ -80,7 +80,7 @@ Adhera uses a **layered architecture** with strict separation between tiers:
 ### 2.2 Why Supabase Over Raw PostgreSQL
 
 | Capability | Raw PostgreSQL | Supabase |
-|---|---|---|
+| --- | --- | --- |
 | Authentication | Custom JWT system required | Built-in Auth with bcrypt, JWT, MFA |
 | Row Level Security | Available but manual setup | First-class feature with dashboard UI |
 | Realtime updates | Requires pg_notify + websocket server | Built-in Supabase Realtime |
@@ -91,7 +91,7 @@ Adhera uses a **layered architecture** with strict separation between tiers:
 
 ### 2.3 Deployment Tiers
 
-```
+```text
 Tier 1 — Development / Small Pilot
 ├── Supabase Free → Supabase Pro
 ├── 1,000 registered users
@@ -470,6 +470,49 @@ async def get_patients(user = Depends(require_role("provider", "admin"))):
 | SQL injection | Supabase client parameterised queries; no raw SQL string concat |
 | CORS | FastAPI CORS middleware: authorised frontend origin only |
 | CSRF | `SameSite=Lax` on cookies + Authorization header for API calls |
+
+---
+
+## 5. Notification System Design
+
+### 5.1 Architecture
+
+```text
+┌─────────────────┐      every minute      ┌──────────────────────┐
+│  Supabase       │ ─────────────────────► │ Supabase Edge        │
+│  pg_cron        │                        │ Function:            │
+│                 │                        │ dispatch-reminder    │
+└─────────────────┘                        └──────────┬───────────┘
+                                                      │
+                                                      │ HTTPS / SMTP
+                                           ┌──────────▼───────────┐
+                                           │ Email Provider       │
+                                           │ (Resend / SendGrid)  │
+                                           └──────────────────────┘
+```
+
+The notification pipeline operates entirely serverless:
+1. **Scheduler (`pg_cron`)**: Runs every minute, polling `reminders` joining with active schedules.
+2. **Dispatcher (Edge Function)**: Invoked via webhook/pg_net with payload containing patient email, medicine name, dosage, and scheduled time.
+3. **Delivery**: Edge Function calls Resend/SendGrid API to send HTML reminder emails with direct action links.
+
+### 5.2 Edge Function: dispatch-reminder
+
+- **Runtime**: Deno / Supabase Edge Functions.
+- **Triggers**: Scheduled via `pg_cron` / `pg_net` HTTP POST.
+- **Payload**:
+```json
+{
+  "reminder_id": "uuid",
+  "user_id": "uuid",
+  "email": "patient@example.com",
+  "medicine_name": "Metformin",
+  "dosage": "500mg",
+  "scheduled_utc": "2025-01-01T08:00:00Z"
+}
+```
+- **Error Handling**: On failure (HTTP != 200), inserts a record into `notification_retries`.
+
 ### 5.3 Retry Strategy
 
 ```text
@@ -598,64 +641,6 @@ Development: http://localhost:8000/v1
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `GET` | `/admin/users` | List all users |
-| `PATCH` | `/admin/users/{id}` | Activate / deactivate user |
-| `GET` | `/admin/providers/pending` | Pending provider registrations |
-| `POST` | `/admin/providers/{id}/approve` | Approve provider |
-| `POST` | `/admin/providers/{id}/reject` | Reject provider |
-| `GET` | `/admin/assignments` | List assignments |
-| `POST` | `/admin/assignments` | Create assignment |
-| `PATCH` | `/admin/assignments/{id}` | Update assignment |` | `/medicines` | List active medicines |
-| `POST` | `/medicines` | Add medicine |
-| `GET` | `/medicines/{id}` | Get medicine detail |
-| `PATCH` | `/medicines/{id}` | Update medicine |
-| `DELETE` | `/medicines/{id}` | Soft-delete medicine |
-
-#### Reminders
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/medicines/{id}/reminders` | List reminders for a medicine |
-| `POST` | `/medicines/{id}/reminders` | Add reminder slot |
-| `PATCH` | `/reminders/{id}` | Update reminder |
-| `DELETE` | `/reminders/{id}` | Deactivate reminder |
-
-#### Dose Tracking
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/doses/{reminder_id}/taken` | Mark dose Taken |
-| `POST` | `/doses/{reminder_id}/missed` | Mark dose Missed |
-| `POST` | `/doses/{reminder_id}/snooze` | Snooze reminder (body: `{minutes: 15|30|60}`) |
-| `GET` | `/doses/history` | Permanent Medication History (filterable) |
-
-#### Feedback
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/feedback` | Submit side-effect report |
-| `GET` | `/feedback` | List patient's feedback history |
-
-#### Analytics
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/analytics/dashboard` | Patient dashboard data |
-| `GET` | `/analytics/adherence` | Adherence rates (daily/weekly/monthly) |
-| `GET` | `/analytics/trend` | Adherence trend for chart |
-
-#### Provider
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/provider/patients` | List assigned patients |
-| `GET` | `/provider/patients/{id}` | Patient detail |
-| `GET` | `/provider/patients/{id}/report` | Generate report (PDF/CSV) |
-
-#### Admin
-
-| Method | Endpoint | Description |
-|---|---|---|
 | `GET` | `/admin/users` | List all users |
 | `PATCH` | `/admin/users/{id}` | Activate / deactivate user |
 | `GET` | `/admin/providers/pending` | Pending provider registrations |
