@@ -326,7 +326,7 @@ async def mfa_enable(request: Request, current_user: dict = Depends(get_current_
             try:
                 qr = qrcode.make(qr_code_uri)
                 buf = io.BytesIO()
-                qr.save(buf, format="PNG")
+                qr.save(buf)
                 qr_base64 = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
             except Exception as qr_err:
                 logger.warning(f"QR code generation error: {str(qr_err)}")
