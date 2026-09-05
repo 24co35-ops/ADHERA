@@ -317,19 +317,16 @@ adhera/
 
 ## Verified Stable State
 
-✅ Registration and login via Supabase Auth (email confirmation disabled for development)
-✅ Patient dashboard with adherence charts (Chart.js / React integration)
-✅ Medicine management (add, edit, soft delete)
-✅ Dose tracking (Taken / Missed / Snoozed)
-✅ Side effect feedback with Severity 1–4
-✅ Provider dashboard with patient adherence overview
-✅ Admin module (user management, provider approval)
-✅ Data export (JSON / CSV streamed directly, no Storage dependency)
-✅ Browser push notifications (VAPID + service worker)
-✅ 261/261 unit & integration tests passing with 77% test coverage
-✅ WCAG 2.1 AA accessibility scans passing across all 8 SPA routes
-✅ GitHub Actions CI passing
-✅ Deployed on Vercel at [https://adhera-seven.vercel.app](https://adhera-seven.vercel.app)
+✅ **Authentication & Session Management**: Supabase Auth integration with registration (`/auth/register`), login (`/auth/login`), silent refresh (`/auth/refresh`), and Two-Step TOTP Multi-Factor Authentication (MFA) step support. Resilient session handling against background transient 401s.
+✅ **Patient Dashboard & Health Tracking**: Real-time adherence rate calculations, medication scheduling, and Chart.js adherence trend visualization.
+✅ **Medicine Management**: Full CRUD (add, edit, soft delete) with dosage, frequencies, and reminder time slots.
+✅ **Dose & Adherence Tracking**: Log dose states (Taken, Missed, Snooze) with timestamp tracking and adherence percentage calculation.
+✅ **Side-Effect Feedback**: Log side-effect records with 1–4 severity grading linked to specific medications and patient records.
+✅ **Provider & Admin Dashboards**: Provider patient list with compliance alerts and admin user role approval workflows.
+✅ **Data Export**: Direct JSON and CSV streaming for patient health and adherence records.
+✅ **Testing & Quality Assurance**: 261/261 passing pytest unit and integration tests; automated frontend build and type-checking.
+✅ **Accessibility & Design Standards**: Dark-themed UI with glassmorphism styling, high-contrast cyan accents, and WCAG 2.1 AA compliant accessibility foundations.
+✅ **Live Deployment**: Hosted on Vercel at [https://adhera-seven.vercel.app](https://adhera-seven.vercel.app).
 
 ---
 
