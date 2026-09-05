@@ -60,7 +60,7 @@ export const ForgotPasswordPage: React.FC = () => {
         <GlassCard className="mt-6 sm:px-8 py-8 shadow-2xl">
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
-              <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-2">
+              <label htmlFor="forgot-email" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-2">
                 Email Address
               </label>
               <div className="relative">
@@ -68,6 +68,8 @@ export const ForgotPasswordPage: React.FC = () => {
                   <Mail className="w-4 h-4" />
                 </div>
                 <input
+                  id="forgot-email"
+                  name="email"
                   type="email"
                   required
                   value={email}

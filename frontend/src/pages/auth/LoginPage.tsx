@@ -120,7 +120,7 @@ export const LoginPage: React.FC = () => {
         <GlassCard className="mt-6 sm:px-8 py-8 shadow-2xl">
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div>
-              <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-2">
+              <label htmlFor="login-email" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-2">
                 Email Address
               </label>
               <div className="relative">
@@ -128,6 +128,8 @@ export const LoginPage: React.FC = () => {
                   <Mail className="w-4 h-4" />
                 </div>
                 <input
+                  id="login-email"
+                  name="email"
                   type="email"
                   required
                   value={email}
@@ -141,7 +143,7 @@ export const LoginPage: React.FC = () => {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider">
+                <label htmlFor="login-password" className="block text-xs font-semibold text-on-surface uppercase tracking-wider">
                   Password
                 </label>
                 <Link
@@ -156,6 +158,8 @@ export const LoginPage: React.FC = () => {
                   <Lock className="w-4 h-4" />
                 </div>
                 <input
+                  id="login-password"
+                  name="password"
                   type="password"
                   required
                   value={password}
@@ -168,8 +172,10 @@ export const LoginPage: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between">
-              <label className="flex items-center space-x-2 cursor-pointer">
+              <label htmlFor="login-remember-me" className="flex items-center space-x-2 cursor-pointer">
                 <input
+                  id="login-remember-me"
+                  name="rememberMe"
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}

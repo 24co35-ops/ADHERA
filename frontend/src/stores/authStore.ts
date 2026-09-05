@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { User, UserRole, Profile } from '../types';
-import { getToken, setTokens, clearTokens, api } from '../lib/api';
+import { getToken, getRefreshToken, setTokens, clearTokens, api } from '../lib/api';
+import { fetchConfig, config } from '../lib/config';
 
 interface AuthState {
   user: User | null;
@@ -84,8 +85,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     try {
-      const payload = parseJwt(token);
+      let currentToken = token;
+      let payload = parseJwt(currentToken);
       if (!payload) throw new Error('Invalid token payload');
+
+      // Check if token is expired before setting isAuthenticated
+      if (payload.exp && payload.exp * 1000 <= Date.now()) {
+        const refreshToken = getRefreshToken();
+        if (refreshToken) {
+          try {
+            await fetchConfig();
+            const refreshRes = await fetch(`${config.API_BASE}/auth/refresh`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refresh_token: refreshToken }),
+            });
+            if (refreshRes.ok) {
+              const data = await refreshRes.json();
+              if (data.success && data.data) {
+                setTokens(data.data.access_token, data.data.refresh_token);
+                currentToken = data.data.access_token;
+                payload = parseJwt(currentToken);
+              }
+            }
+          } catch (e) {
+            console.warn('Silent refresh failed during init:', e);
+          }
+        }
+        // If still expired after refresh attempt, clear tokens cleanly
+        if (!payload || (payload.exp && payload.exp * 1000 <= Date.now())) {
+          clearTokens();
+          set({ user: null, isAuthenticated: false, isLoading: false });
+          return;
+        }
+      }
 
       const role: UserRole = payload?.user_metadata?.role || payload?.role || 'patient';
       const user: User = {

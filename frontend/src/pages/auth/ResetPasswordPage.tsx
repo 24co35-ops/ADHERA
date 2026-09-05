@@ -81,7 +81,7 @@ export const ResetPasswordPage: React.FC = () => {
 
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div>
-                <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-2">
+                <label htmlFor="reset-password" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-2">
                   New Password
                 </label>
                 <div className="relative">
@@ -89,6 +89,8 @@ export const ResetPasswordPage: React.FC = () => {
                     <Lock className="w-4 h-4" />
                   </div>
                   <input
+                    id="reset-password"
+                    name="password"
                     type="password"
                     required
                     minLength={8}
@@ -102,7 +104,7 @@ export const ResetPasswordPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-2">
+                <label htmlFor="reset-confirm-password" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-2">
                   Confirm New Password
                 </label>
                 <div className="relative">
@@ -110,6 +112,8 @@ export const ResetPasswordPage: React.FC = () => {
                     <Lock className="w-4 h-4" />
                   </div>
                   <input
+                    id="reset-confirm-password"
+                    name="confirmPassword"
                     type="password"
                     required
                     minLength={8}

@@ -125,7 +125,7 @@ export const RegisterPage: React.FC = () => {
 
           <form className="space-y-4" onSubmit={handleRegister}>
             <div>
-              <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
+              <label htmlFor="reg-fullname" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
                 Full Name
               </label>
               <div className="relative">
@@ -133,6 +133,8 @@ export const RegisterPage: React.FC = () => {
                   <UserIcon className="w-4 h-4" />
                 </div>
                 <input
+                  id="reg-fullname"
+                  name="fullName"
                   type="text"
                   required
                   value={fullName}
@@ -145,7 +147,7 @@ export const RegisterPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
+              <label htmlFor="reg-email" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
                 Email Address
               </label>
               <div className="relative">
@@ -153,6 +155,8 @@ export const RegisterPage: React.FC = () => {
                   <Mail className="w-4 h-4" />
                 </div>
                 <input
+                  id="reg-email"
+                  name="email"
                   type="email"
                   required
                   value={email}
@@ -165,7 +169,7 @@ export const RegisterPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
+              <label htmlFor="reg-password" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
                 Password
               </label>
               <div className="relative">
@@ -173,6 +177,8 @@ export const RegisterPage: React.FC = () => {
                   <Lock className="w-4 h-4" />
                 </div>
                 <input
+                  id="reg-password"
+                  name="password"
                   type="password"
                   required
                   minLength={8}
@@ -196,6 +202,7 @@ export const RegisterPage: React.FC = () => {
                   </div>
                   <input
                     id="reg-dob"
+                    name="dateOfBirth"
                     type="date"
                     value={dateOfBirth}
                     onChange={(e) => setDateOfBirth(e.target.value)}
@@ -206,10 +213,12 @@ export const RegisterPage: React.FC = () => {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
+                  <label htmlFor="reg-license" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
                     License Number
                   </label>
                   <input
+                    id="reg-license"
+                    name="licenseNumber"
                     type="text"
                     required
                     value={licenseNumber}
@@ -219,10 +228,12 @@ export const RegisterPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
+                  <label htmlFor="reg-specialization" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
                     Specialization
                   </label>
                   <input
+                    id="reg-specialization"
+                    name="specialization"
                     type="text"
                     value={specialization}
                     onChange={(e) => setSpecialization(e.target.value)}
@@ -234,10 +245,12 @@ export const RegisterPage: React.FC = () => {
             )}
 
             <div>
-              <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
+              <label htmlFor="reg-timezone" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
                 Timezone
               </label>
               <input
+                id="reg-timezone"
+                name="timezone"
                 type="text"
                 value={timezoneStr}
                 onChange={(e) => setTimezoneStr(e.target.value)}
