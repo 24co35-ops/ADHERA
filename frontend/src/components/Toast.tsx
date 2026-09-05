@@ -64,6 +64,7 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void
       </div>
       <button
         onClick={() => onDismiss(toast.id)}
+        aria-label="Dismiss notification"
         className="text-on-surface-variant hover:text-white p-1 rounded-lg"
       >
         <X className="w-4 h-4" />
