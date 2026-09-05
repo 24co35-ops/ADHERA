@@ -1,8 +1,10 @@
-const CACHE_NAME = 'adhera-v2';
+const CACHE_NAME = 'adhera-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/assets/favicons/favicon.ico',
+  '/assets/favicons/favicon-192x192.png',
+  '/assets/favicons/favicon-512x512.png',
   '/site.webmanifest',
 ];
 
