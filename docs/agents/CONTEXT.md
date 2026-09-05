@@ -16,7 +16,7 @@ This configuration file defines project context, standards, issue tracking, desi
 ## 2. Triage & Workflow Labels
 
 | Label | Description |
-|---|---|
+| --- | --- |
 | `needs-triage` | Newly created issues awaiting review and specification |
 | `ready-for-agent` | Fully specified issues ready for automated agent execution |
 | `bug` | Software defects or regressions needing fix and test verification |
@@ -29,6 +29,7 @@ This configuration file defines project context, standards, issue tracking, desi
 ## 3. ADHERA Design & Motion Vocabulary
 
 ### 3.1 Component Taxonomy
+
 - **Care Team Card**: Assigned provider/care-team widget featuring 40px initials avatar, role badge, and contact action.
 - **Stat Widget**: Metric display container (`p-5`, 20px padding) showing key performance indicators (adherence %, streak, missed count).
 - **Risk Badge**: High-contrast solid-fill pill indicating risk tier (`Critical`, `High`, `Moderate`, `Low`) meeting WCAG AA 4.5:1 ratio.
@@ -36,12 +37,14 @@ This configuration file defines project context, standards, issue tracking, desi
 - **Alert Banner**: High-priority feedback banner for Severity 3–4 alerts with distinct backdrop glow and emergency indicator.
 
 ### 3.2 Material System Terms
+
 - **Glass Surface**: Translucent backdrop container (`background: rgba(255,255,255,0.05); backdrop-filter: blur(24px);`).
 - **Specular Border**: Subtle top specular edge highlight (`border-t: 1px solid rgba(255,255,255,0.15);`).
 - **Ambient Glow**: Soft colored depth shadow (`box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5), 0 0 20px rgba(0,219,231,0.08);`).
 - **Depth Elevation**: Multi-layered shadow hierarchy (`card-primary`, `card-secondary`, `card-tertiary`).
 
 ### 3.3 Motion & Transition System
+
 - **enter-spring**: Entrance transition using decelerated curve (`cubic-bezier(0.16, 1, 0.3, 1)`, 200–300ms) for modals and popovers.
 - **exit-ease**: Exit transition using accelerated curve (`cubic-bezier(0.7, 0, 0.84, 0)`, 150–200ms) for closing elements.
 - **press-feedback**: Interactive button press down transform (`active:scale-[0.98] transition-transform duration-100`).
