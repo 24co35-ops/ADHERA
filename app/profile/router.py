@@ -3,7 +3,7 @@ import io
 import json as json_mod
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
@@ -86,7 +86,7 @@ async def save_push_subscription(request: Request, subscription: dict, user: dic
             "endpoint": endpoint,
             "auth": auth,
             "p256dh": p256dh,
-            "updated_at": datetime.utcnow().isoformat()
+            "updated_at": datetime.now(timezone.utc).isoformat()
         }
         res = supabase.table("push_subscriptions").upsert(data, on_conflict="user_id").execute()
         if not res.data:

@@ -41,7 +41,7 @@ class TestCreateFeedback:
         assert response.json()["data"]["description"] == "Good"
 
     @patch("app.feedback.router.supabase")
-    @patch("app.feedback.router.requests.post")
+    @patch("app.feedback.router.httpx.post")
     def test_create_feedback_emergency_severity(self, mock_post, mock_sb):
         inserted = {"id": "f1", "user_id": TEST_USER_ID, "medicine_id": "med-1", "severity": 4, "description": "Severe pain"}
         

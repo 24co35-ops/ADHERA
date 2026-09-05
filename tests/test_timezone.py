@@ -5,7 +5,7 @@ from app.main import app
 import jwt
 from app.config import settings
 from datetime import datetime, timezone, timedelta, time
-import pytz
+from zoneinfo import ZoneInfo
 from freezegun import freeze_time
 
 client = TestClient(app)
@@ -87,8 +87,8 @@ def test_spring_forward_missed_automatically(mock_supabase, iana_tz, sf_date, fb
     mock_supabase.table().select().eq().gte().lte().execute.return_value = MagicMock(data=[])
     
     # Freeze time AFTER the skipped hour (clock jumps past scheduled time)
-    tz = pytz.timezone(iana_tz)
-    freeze_dt = tz.localize(datetime.fromisoformat(f"{sf_date}T{freeze_local_sf}"))
+    tz = ZoneInfo(iana_tz)
+    freeze_dt = datetime.fromisoformat(f"{sf_date}T{freeze_local_sf}").replace(tzinfo=tz)
     
     with freeze_time(freeze_dt):
         res = client.get("/v1/doses/upcoming", headers=headers())
@@ -187,9 +187,9 @@ def test_india_timezone_conversion(mock_supabase):
     local_time_str = "23:30:00"
     
     # Local 23:30 in Asia/Kolkata is 18:00 UTC
-    tz = pytz.timezone(iana_tz)
-    local_dt = tz.localize(datetime.fromisoformat("2026-06-19T23:30:00"))
-    utc_dt = local_dt.astimezone(pytz.utc)
+    tz = ZoneInfo(iana_tz)
+    local_dt = datetime.fromisoformat("2026-06-19T23:30:00").replace(tzinfo=tz)
+    utc_dt = local_dt.astimezone(timezone.utc)
     
     assert utc_dt.time() == time(18, 0, 0)
     

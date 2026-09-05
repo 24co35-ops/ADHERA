@@ -19,9 +19,9 @@ def test_feedback_severity_1(mock_supabase):
     })
     assert res.status_code == 201
 
-@patch("app.feedback.router.requests.post")
+@patch("app.feedback.router.httpx.post")
 @patch("app.feedback.router.supabase")
-def test_feedback_severity_4(mock_supabase, mock_requests_post):
+def test_feedback_severity_4(mock_supabase, mock_httpx_post):
     mock_supabase.table().insert().execute.return_value = MagicMock(data=[{"id": "2"}])
     mock_supabase.table().select().eq().eq().execute.return_value = MagicMock(data=[{"profiles": {"email": "p@demo.com"}}])
     
@@ -30,8 +30,8 @@ def test_feedback_severity_4(mock_supabase, mock_requests_post):
     })
     
     assert res.status_code == 201
-    mock_requests_post.assert_called_once()
-    args, kwargs = mock_requests_post.call_args
+    mock_httpx_post.assert_called_once()
+    args, kwargs = mock_httpx_post.call_args
     assert "/functions/v1/emergency-alert" in args[0]
 
 

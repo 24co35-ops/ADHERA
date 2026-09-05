@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
@@ -62,15 +63,14 @@ async def get_dashboard(request: Request, patient_id: str = Query(None), user: d
             })
 
         # Resolve user timezone
-        import pytz
         profile_res = supabase.table("profiles").select("timezone").eq("id", uid).execute()
         user_tz_str = "UTC"
         if profile_res.data:
             user_tz_str = profile_res.data[0].get("timezone") or "UTC"
         try:
-            user_tz = pytz.timezone(user_tz_str)
+            user_tz = ZoneInfo(user_tz_str)
         except Exception:
-            user_tz = pytz.utc
+            user_tz = timezone.utc
 
         now_local = datetime.now(user_tz)
         today_date = now_local.date()
@@ -78,10 +78,10 @@ async def get_dashboard(request: Request, patient_id: str = Query(None), user: d
         # Get reminders
         reminders_res = supabase.table("reminders").select("*, medicines(*)").eq("user_id", uid).eq("is_active", True).execute()
 
-        start_local = user_tz.localize(datetime.combine(today_date, time.min))
-        end_local = user_tz.localize(datetime.combine(today_date, time.max))
-        start_utc = start_local.astimezone(pytz.utc)
-        end_utc = end_local.astimezone(pytz.utc)
+        start_local = datetime.combine(today_date, time.min, tzinfo=user_tz)
+        end_local = datetime.combine(today_date, time.max, tzinfo=user_tz)
+        start_utc = start_local.astimezone(timezone.utc)
+        end_utc = end_local.astimezone(timezone.utc)
 
         # Get adherence for today
         adherence_res = supabase.table("adherence").select("*").eq("user_id", uid).gte("scheduled_utc", start_utc.isoformat()).lte("scheduled_utc", end_utc.isoformat()).execute()
@@ -120,7 +120,7 @@ async def get_dashboard(request: Request, patient_id: str = Query(None), user: d
             today_utc = datetime.now(timezone.utc).date()
             for offset in [-1, 0, 1]:
                 d_utc = today_utc + timedelta(days=offset)
-                occurrence_utc = pytz.utc.localize(datetime.combine(d_utc, t))
+                occurrence_utc = datetime.combine(d_utc, t, tzinfo=timezone.utc)
                 occurrence_local = occurrence_utc.astimezone(user_tz)
 
                 if occurrence_local.date() == today_date:

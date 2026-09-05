@@ -1,14 +1,10 @@
 import asyncio
 import logging
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 
 from app.db.supabase import supabase
 
 logger = logging.getLogger("adhera.audit")
-
-# Dedicated thread-pool for fire-and-forget audit writes
-_audit_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="audit")
 
 
 def _is_valid_uuid(value: str) -> bool:
@@ -43,16 +39,17 @@ def _do_insert(action: str, user_id: str | None, details: dict):
 
 def log_audit_action(action: str, user_id: str | None, details: dict):
     """
-    Fire-and-forget audit log. Runs in a background thread so it never
-    delays the HTTP response. Does not raise; silently skips non-UUID actors.
+    Fire-and-forget audit log. Dispatches to asyncio.to_thread when an event loop is running.
+    Does not raise; silently skips non-UUID actors.
     """
     if user_id is not None and not _is_valid_uuid(user_id):
         logger.debug("Skipping audit log for non-UUID actor_id=%r action=%s", user_id, action)
         return
     try:
-        loop = asyncio.get_event_loop()
-        loop.run_in_executor(_audit_pool, _do_insert, action, user_id, details)
+        loop = asyncio.get_running_loop()
+        loop.create_task(asyncio.to_thread(_do_insert, action, user_id, details))
     except RuntimeError:
         # No running event loop (e.g. during tests) — run synchronously
         _do_insert(action, user_id, details)
+
 

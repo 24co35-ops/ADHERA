@@ -21,7 +21,6 @@ pydantic-core==2.41.4
 email-validator==2.3.0
 
 # ── Auth / JWT ───────────────────────────────────────────────────────────────
-PyJWT==2.13.0
 python-jose[cryptography]==3.5.0
 cryptography==46.0.3
 
@@ -36,10 +35,6 @@ pillow>=11.2.1
 redis>=5.0.0
 
 freezegun==1.5.5
-pytz==2025.2
-requests==2.32.5
-urllib3==2.5.0
-charset-normalizer==3.4.4
 
 # ── Async / HTTP internals ───────────────────────────────────────────────────
 anyio==4.11.0

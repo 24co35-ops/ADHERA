@@ -1,14 +1,77 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
+  darkMode: 'class',
   content: [
-    "./**/*.html",
-    "./js/**/*.js",
-    "./admin/**/*.html",
-    "./auth/**/*.html",
-    "./provider/**/*.html",
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+      },
+      colors: {
+        surface: '#111318',
+        'surface-dim': '#111318',
+        'surface-bright': '#37393e',
+        'surface-container-lowest': '#0c0e12',
+        'surface-container-low': '#1a1c20',
+        'surface-container': '#1e2024',
+        'surface-container-high': '#282a2e',
+        'surface-container-highest': '#333539',
+        'on-surface': '#e2e2e8',
+        'on-surface-variant': '#b9cacb',
+        'inverse-surface': '#e2e2e8',
+        'inverse-on-surface': '#2f3035',
+        outline: '#849495',
+        'outline-variant': '#3a494b',
+        'surface-tint': '#00dbe7',
+        primary: {
+          DEFAULT: '#00dbe7',
+          light: '#e1fdff',
+          dark: '#00696f',
+          container: '#00f2ff',
+          'on-container': '#006a71',
+          'on-primary': '#00363a',
+          fixed: '#74f5ff',
+          'fixed-dim': '#00dbe7',
+        },
+        secondary: {
+          DEFAULT: '#adc6ff',
+          container: '#0566d9',
+          'on-secondary': '#002e6a',
+          'on-container': '#e6ecff',
+          fixed: '#d8e2ff',
+          'fixed-dim': '#adc6ff',
+        },
+        tertiary: {
+          DEFAULT: '#d0bcff',
+          container: '#e2d4ff',
+          'on-tertiary': '#3c0091',
+          'on-container': '#6f3cd8',
+        },
+        error: {
+          DEFAULT: '#ffb4ab',
+          container: '#93000a',
+          'on-error': '#690005',
+          'on-container': '#ffdad6',
+        },
+        background: '#111318',
+        'on-background': '#e2e2e8',
+        'status-success': '#10B981',
+        'status-warning': '#F59E0B',
+        'status-error': '#EF4444',
+      },
+      borderRadius: {
+        '2xl': '1.25rem',
+        '3xl': '1.5rem',
+      },
+      boxShadow: {
+        glass: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+        glow: '0 0 20px rgba(0, 219, 231, 0.25)',
+        'glow-error': '0 0 20px rgba(239, 68, 68, 0.35)',
+      },
+    },
   },
   plugins: [],
-}
+};

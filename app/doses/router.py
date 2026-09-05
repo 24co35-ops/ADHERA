@@ -1,6 +1,5 @@
 from datetime import datetime, time, timedelta, timezone
-
-import pytz
+from zoneinfo import ZoneInfo
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 from app.auth.dependencies import get_current_user
@@ -18,9 +17,9 @@ def get_scheduled_utc_for_today(reminder: dict) -> str:
         user_tz_str = profile_res.data[0].get("timezone") or "UTC"
 
     try:
-        user_tz = pytz.timezone(user_tz_str)
+        user_tz = ZoneInfo(user_tz_str)
     except Exception:
-        user_tz = pytz.utc
+        user_tz = timezone.utc
 
     now_local = datetime.now(user_tz)
     today_date = now_local.date()
@@ -29,12 +28,12 @@ def get_scheduled_utc_for_today(reminder: dict) -> str:
 
     for offset in [-1, 0, 1]:
         d_utc = today_utc + timedelta(days=offset)
-        occurrence_utc = pytz.utc.localize(datetime.combine(d_utc, t))
+        occurrence_utc = datetime.combine(d_utc, t, tzinfo=timezone.utc)
         occurrence_local = occurrence_utc.astimezone(user_tz)
         if occurrence_local.date() == today_date:
             return occurrence_utc.isoformat().replace("+00:00", "Z")
 
-    occurrence_utc = pytz.utc.localize(datetime.combine(today_utc, t))
+    occurrence_utc = datetime.combine(today_utc, t, tzinfo=timezone.utc)
     return occurrence_utc.isoformat().replace("+00:00", "Z")
 
 @router.post("/{reminder_id}/taken", response_model=SuccessResponse[dict])
@@ -89,19 +88,19 @@ async def doses_upcoming(request: Request, user: dict = Depends(get_current_user
         user_tz_str = profile_res.data[0].get("timezone") or "UTC"
 
     try:
-        user_tz = pytz.timezone(user_tz_str)
+        user_tz = ZoneInfo(user_tz_str)
     except Exception:
-        user_tz = pytz.utc
+        user_tz = timezone.utc
 
     now_local = datetime.now(user_tz)
     today_date = now_local.date()
 
     reminders_res = supabase.table("reminders").select("*, medicines(*)").eq("user_id", user["user_id"]).eq("is_active", True).execute()
 
-    start_local = user_tz.localize(datetime.combine(today_date, time.min))
-    end_local = user_tz.localize(datetime.combine(today_date, time.max))
-    start_utc = start_local.astimezone(pytz.utc)
-    end_utc = end_local.astimezone(pytz.utc)
+    start_local = datetime.combine(today_date, time.min, tzinfo=user_tz)
+    end_local = datetime.combine(today_date, time.max, tzinfo=user_tz)
+    start_utc = start_local.astimezone(timezone.utc)
+    end_utc = end_local.astimezone(timezone.utc)
 
     adherence_res = supabase.table("adherence").select("*").eq("user_id", user["user_id"]).gte("scheduled_utc", start_utc.isoformat()).lte("scheduled_utc", end_utc.isoformat()).execute()
 
@@ -136,7 +135,7 @@ async def doses_upcoming(request: Request, user: dict = Depends(get_current_user
         today_utc = datetime.now(timezone.utc).date()
         for offset in [-1, 0, 1]:
             d_utc = today_utc + timedelta(days=offset)
-            occurrence_utc = pytz.utc.localize(datetime.combine(d_utc, t))
+            occurrence_utc = datetime.combine(d_utc, t, tzinfo=timezone.utc)
             occurrence_local = occurrence_utc.astimezone(user_tz)
 
             if occurrence_local.date() == today_date:

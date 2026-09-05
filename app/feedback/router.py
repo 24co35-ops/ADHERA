@@ -1,4 +1,4 @@
-import requests
+import httpx
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -57,7 +57,7 @@ async def create_feedback(request: Request, feedback: FeedbackCreate, background
                 "provider_email": provider_email,
                 "emergency_contact_email": cont.data[0]["email"] if cont.data else None
             }
-            requests.post(url, headers=headers, json=payload, timeout=5)
+            httpx.post(url, headers=headers, json=payload, timeout=5.0)
         except Exception:
             log_audit_action("EMERGENCY_ALERT_FAILED", user["user_id"], {"feedback_id": res.data[0]["id"] if res.data else None})
 
