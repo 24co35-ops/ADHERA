@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhera-v3';
+const CACHE_NAME = 'adhera-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -34,17 +34,35 @@ self.addEventListener('fetch', (event) => {
   // Never cache API requests
   if (url.pathname.startsWith('/v1/')) return;
 
-  // Network-First strategy
+  // For HTML page navigation, use Network First, fallback to cached index.html if offline
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // Only cache static assets (js, css, images, fonts)
+  const isStatic =
+    url.pathname.match(/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|webmanifest)$/) ||
+    url.hostname.includes('fonts.googleapis.com') ||
+    url.hostname.includes('fonts.gstatic.com');
+
+  if (!isStatic) return;
+
   event.respondWith(
-    fetch(request)
-      .then((res) => {
-        if (res.ok && (url.origin === self.location.origin || url.hostname.includes('fonts.googleapis.com'))) {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-        }
-        return res;
-      })
-      .catch(() => caches.match(request))
+    caches.match(request).then((cached) => {
+      return (
+        cached ||
+        fetch(request).then((res) => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return res;
+        })
+      );
+    })
   );
 });
 

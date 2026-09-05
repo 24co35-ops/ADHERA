@@ -94,7 +94,7 @@ export async function adheraFetch(url: string, options: RequestInit = {}): Promi
     // Persistent 401 -> Session Expired
     clearTokens();
     if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
-      window.location.href = '/login?expired=1';
+      window.location.href = '/login';
     }
   }
 
