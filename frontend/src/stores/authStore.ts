@@ -79,85 +79,81 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   initialize: async () => {
     const token = getToken();
-    if (!token) {
+    // Reject obviously empty tokens (e.g. stored from MFA partial-login)
+    if (!token || token.split('.').length !== 3) {
+      clearTokens();
       set({ isLoading: false, isAuthenticated: false, user: null });
       return;
     }
 
-    try {
-      let currentToken = token;
-      let payload = parseJwt(currentToken);
-      if (!payload) throw new Error('Invalid token payload');
+    let currentToken = token;
+    let payload = parseJwt(currentToken);
 
-      // Check if token is expired before setting isAuthenticated
-      if (payload.exp && payload.exp * 1000 <= Date.now()) {
-        const refreshToken = getRefreshToken();
-        if (refreshToken) {
-          try {
-            await fetchConfig();
-            const refreshRes = await fetch(`${config.API_BASE}/auth/refresh`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ refresh_token: refreshToken }),
-            });
-            if (refreshRes.ok) {
-              const data = await refreshRes.json();
-              if (data.success && data.data) {
-                setTokens(data.data.access_token, data.data.refresh_token);
-                currentToken = data.data.access_token;
-                payload = parseJwt(currentToken);
-              }
-            }
-          } catch (e) {
-            console.warn('Silent refresh failed during init:', e);
-          }
-        }
-        // If still expired after refresh attempt, clear tokens cleanly
-        if (!payload || (payload.exp && payload.exp * 1000 <= Date.now())) {
-          clearTokens();
-          set({ user: null, isAuthenticated: false, isLoading: false });
-          return;
-        }
-      }
-
-      const role: UserRole = payload?.user_metadata?.role || payload?.role || 'patient';
-      const user: User = {
-        id: payload.sub,
-        email: payload.email || '',
-        role: role,
-        full_name: payload.user_metadata?.full_name || '',
-      };
-
-      set({
-        user,
-        role,
-        isAuthenticated: true,
-      });
-
-      // Fetch profile to get full details
-      try {
-        const res = await api.get<Profile>('/profile/');
-        if (res.success && res.data) {
-          set({
-            profile: res.data,
-            user: {
-              ...user,
-              full_name: res.data.full_name || user.full_name,
-              role: res.data.role || role,
-              timezone: res.data.timezone,
-            },
-            role: res.data.role || role,
+    // If token is already expired, attempt silent refresh first
+    if (!payload || (payload.exp && payload.exp * 1000 <= Date.now())) {
+      const refreshToken = getRefreshToken();
+      if (refreshToken) {
+        try {
+          await fetchConfig();
+          const refreshRes = await fetch(`${config.API_BASE}/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: refreshToken }),
           });
+          if (refreshRes.ok) {
+            const data = await refreshRes.json();
+            if (data.success && data.data) {
+              setTokens(data.data.access_token, data.data.refresh_token);
+              currentToken = data.data.access_token;
+              payload = parseJwt(currentToken);
+            }
+          }
+        } catch (e) {
+          console.warn('[Adhera] Silent refresh failed during init:', e);
         }
-      } catch (err) {
-        console.warn('Profile fetch failed during auth init:', err);
       }
-    } catch (e) {
-      console.error('Auth initialization error:', e);
-      clearTokens();
-      set({ user: null, isAuthenticated: false });
-    } finally {
-      set({ isLoading: false });
+      // Still expired or invalid after refresh? Bail cleanly — no redirect, just clear
+      if (!payload || (payload.exp && payload.exp * 1000 <= Date.now())) {
+        clearTokens();
+        set({ user: null, isAuthenticated: false, isLoading: false });
+        return;
+      }
+    }
+
+    // Token is valid — set authenticated immediately
+    const role: UserRole = payload?.user_metadata?.role || payload?.role || 'patient';
+    const user: User = {
+      id: payload.sub,
+      email: payload.email || '',
+      role: role,
+      full_name: payload.user_metadata?.full_name || '',
+    };
+
+    set({
+      user,
+      role,
+      isAuthenticated: true,
+      isLoading: false, // unblock routing NOW, before profile fetch
+    });
+
+    // Fetch profile in the background — failure must NOT affect auth state
+    try {
+      const res = await api.get<Profile>('/profile/');
+      if (res.success && res.data) {
+        set({
+          profile: res.data,
+          user: {
+            ...user,
+            full_name: res.data.full_name || user.full_name,
+            role: res.data.role || role,
+            timezone: res.data.timezone,
+          },
+          role: res.data.role || role,
+        });
+      }
+    } catch (err) {
+      // Profile fetch failing is non-fatal — user is still authenticated
+      console.warn('[Adhera] Profile fetch failed (non-fatal):', err);
     }
   },
 }));

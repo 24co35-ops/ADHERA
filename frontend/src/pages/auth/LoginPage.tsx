@@ -44,7 +44,20 @@ export const LoginPage: React.FC = () => {
     try {
       const res = await api.post<any>('/auth/login', { email, password });
       if (res.success && res.data) {
+        // MFA required — backend sends empty tokens, do NOT store them
+        if (res.data.mfa_required) {
+          setErrorMessage('MFA is enabled on this account. Please contact support or disable MFA to log in.');
+          return;
+        }
+
         const { access_token, refresh_token } = res.data;
+
+        // Guard: reject empty/malformed tokens before storing
+        if (!access_token || access_token.split('.').length !== 3) {
+          setErrorMessage('Received invalid token from server. Please try again.');
+          return;
+        }
+
         const payload = parseJwt(access_token);
         const userRole: UserRole = res.data.user?.role || payload?.user_metadata?.role || payload?.role || 'patient';
         const userObj = res.data.user || {

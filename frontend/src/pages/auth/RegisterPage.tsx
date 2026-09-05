@@ -45,14 +45,18 @@ export const RegisterPage: React.FC = () => {
         payload.specialization = specialization;
       }
 
-      const res = await api.post<any>('/auth/signup', payload);
+      const res = await api.post<any>('/auth/register', payload);
       if (res.success) {
-        if (res.data?.access_token) {
+        if (res.data?.access_token && res.data.access_token.split('.').length === 3) {
+          // Auto-login only when backend returns real tokens
           login(res.data.access_token, res.data.refresh_token, res.data.user);
           if (role === 'provider') navigate('/provider');
           else navigate('/dashboard');
+        } else if (res.data?.pending) {
+          setSuccessMsg('Registration submitted! An admin will review your account within 24 hours.');
+          setTimeout(() => navigate('/login'), 3000);
         } else {
-          setSuccessMsg('Registration successful! Please check your email to verify your account, or sign in.');
+          setSuccessMsg('Registration successful! Please check your email to verify your account, then sign in.');
           setTimeout(() => navigate('/login'), 2500);
         }
       }

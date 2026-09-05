@@ -56,45 +56,55 @@ export async function adheraFetch(url: string, options: RequestInit = {}): Promi
 
   if (response.status === 401) {
     const refreshToken = getRefreshToken();
-    if (refreshToken) {
-      if (!isRefreshing) {
-        isRefreshing = true;
-        try {
-          const refreshRes = await fetch(`${config.API_BASE}/auth/refresh`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refresh_token: refreshToken }),
-          });
-
-          if (refreshRes.ok) {
-            const data = await refreshRes.json();
-            if (data.success && data.data) {
-              setTokens(data.data.access_token, data.data.refresh_token);
-              onRefreshed(data.data.access_token);
-              isRefreshing = false;
-              headers.set('Authorization', `Bearer ${data.data.access_token}`);
-              return fetch(fullUrl, { ...options, headers });
-            }
-          }
-        } catch (e) {
-          console.error('[Adhera] Token refresh failed:', e);
-        } finally {
-          isRefreshing = false;
-        }
-      } else {
-        // Wait for token refresh to complete
-        const retryToken = await new Promise<string>((resolve) => {
-          refreshSubscribers.push(resolve);
+    if (refreshToken && !isRefreshing) {
+      isRefreshing = true;
+      try {
+        const refreshRes = await fetch(`${config.API_BASE}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refreshToken }),
         });
-        headers.set('Authorization', `Bearer ${retryToken}`);
-        return fetch(fullUrl, { ...options, headers });
+
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          if (data.success && data.data?.access_token) {
+            setTokens(data.data.access_token, data.data.refresh_token);
+            onRefreshed(data.data.access_token);
+            headers.set('Authorization', `Bearer ${data.data.access_token}`);
+            return fetch(fullUrl, { ...options, headers });
+          }
+        }
+      } catch (e) {
+        console.error('[Adhera] Token refresh failed:', e);
+      } finally {
+        isRefreshing = false;
       }
+    } else if (refreshToken && isRefreshing) {
+      // Another request is already refreshing — queue and retry
+      const retryToken = await new Promise<string>((resolve) => {
+        refreshSubscribers.push(resolve);
+      });
+      headers.set('Authorization', `Bearer ${retryToken}`);
+      return fetch(fullUrl, { ...options, headers });
     }
 
-    // Persistent 401 -> Session Expired
-    clearTokens();
-    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
-      window.location.href = '/login';
+    // Refresh failed or no refresh token.
+    // Only clear + redirect if we're on a protected route (not during/just after login).
+    // Background calls (profile, analytics, etc.) should NOT force-logout a fresh session.
+    const isAuthPage = typeof window !== 'undefined' &&
+      (window.location.pathname.startsWith('/login') ||
+       window.location.pathname.startsWith('/register'));
+
+    if (!isAuthPage) {
+      // Give a short grace period — a token minted seconds ago is valid,
+      // so only redirect if the stored token is genuinely absent/expired.
+      const storedToken = getToken();
+      const isGenuinelyLoggedOut = !storedToken || storedToken.split('.').length !== 3;
+      if (isGenuinelyLoggedOut) {
+        clearTokens();
+        window.location.href = '/login';
+      }
+      // Otherwise: return the 401 response and let the caller handle it
     }
   }
 
