@@ -22,6 +22,8 @@ export const LoginPage: React.FC = () => {
     const params = new URLSearchParams(location.search);
     if (params.get('expired')) {
       setSessionExpiredNotice(true);
+      // Clean query parameter from URL bar without reload
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [location]);
 
@@ -36,6 +38,7 @@ export const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+    setSessionExpiredNotice(false);
     setLoading(true);
 
     try {
@@ -67,6 +70,8 @@ export const LoginPage: React.FC = () => {
   };
 
   const fillDemo = (roleType: 'patient' | 'provider' | 'admin') => {
+    setErrorMessage('');
+    setSessionExpiredNotice(false);
     if (roleType === 'patient') {
       setEmail('patient@adhera.io');
       setPassword('PatientPass123!');

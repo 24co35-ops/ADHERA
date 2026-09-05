@@ -38,20 +38,28 @@ export const ProviderDashboard: React.FC = () => {
   const loadProviderData = async () => {
     try {
       setLoading(true);
-      const [patientsRes, requestsRes, alertsRes] = await Promise.all([
-        api.get<any[]>('/provider/patients'),
+      const [dashRes, requestsRes] = await Promise.allSettled([
+        api.get<any>('/provider/dashboard'),
         api.get<any[]>('/provider/pending-requests'),
-        api.get<any[]>('/provider/critical-alerts'),
       ]);
 
-      if (patientsRes.success && patientsRes.data) {
-        setPatients(patientsRes.data);
+      if (dashRes.status === 'fulfilled' && dashRes.value.success && dashRes.value.data) {
+        const d = dashRes.value.data;
+        const pts = (d.patients || []).map((p: any) => ({
+          id: p.patient_id,
+          full_name: p.profiles?.full_name,
+          email: p.profiles?.email,
+          contact_number: p.profiles?.contact_number,
+          adherence_rate: p.adherence?.weekly_percentage ?? 100,
+          risk_level: p.risk_level,
+          active_medicines: p.next_medication ? 1 : 0,
+        }));
+        setPatients(pts);
+        setCriticalAlerts(pts.filter((p: any) => p.adherence_rate < 70));
       }
-      if (requestsRes.success && requestsRes.data) {
-        setPendingRequests(requestsRes.data);
-      }
-      if (alertsRes.success && alertsRes.data) {
-        setCriticalAlerts(alertsRes.data);
+
+      if (requestsRes.status === 'fulfilled' && requestsRes.value.success && requestsRes.value.data) {
+        setPendingRequests(requestsRes.value.data);
       }
     } catch (err: any) {
       addToast('error', err.message || 'Failed to load provider data');
@@ -64,9 +72,9 @@ export const ProviderDashboard: React.FC = () => {
     loadProviderData();
   }, []);
 
-  const handleApproveRequest = async (requestId: string) => {
+  const handleApproveRequest = async (patientId: string) => {
     try {
-      const res = await api.post(`/provider/requests/${requestId}/approve`);
+      const res = await api.patch<any>(`/provider/requests/${patientId}/accept`);
       if (res.success) {
         addToast('success', 'Patient assignment approved!');
         loadProviderData();
@@ -76,15 +84,15 @@ export const ProviderDashboard: React.FC = () => {
     }
   };
 
-  const handleRejectRequest = async (requestId: string) => {
+  const handleRejectRequest = async (patientId: string) => {
     try {
-      const res = await api.post(`/provider/requests/${requestId}/reject`);
+      const res = await api.patch<any>(`/provider/requests/${patientId}/decline`);
       if (res.success) {
-        addToast('info', 'Patient request rejected.');
+        addToast('info', 'Patient request declined.');
         loadProviderData();
       }
     } catch (err: any) {
-      addToast('error', err.message || 'Failed to reject request');
+      addToast('error', err.message || 'Failed to decline request');
     }
   };
 
@@ -169,14 +177,14 @@ export const ProviderDashboard: React.FC = () => {
 
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => handleApproveRequest(req.id)}
+                    onClick={() => handleApproveRequest(req.patient_id)}
                     className="btn-press flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-status-success text-surface font-bold text-xs"
                   >
                     <Check className="w-3.5 h-3.5" />
                     <span>Approve</span>
                   </button>
                   <button
-                    onClick={() => handleRejectRequest(req.id)}
+                    onClick={() => handleRejectRequest(req.patient_id)}
                     className="btn-press flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-status-error/10 text-red-300 hover:bg-status-error/20 font-semibold text-xs"
                   >
                     <X className="w-3.5 h-3.5" />
