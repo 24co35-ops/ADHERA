@@ -6,17 +6,11 @@
       "use": "@vercel/python"
     },
     {
-      "src": "frontend/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/sw.js",
-      "headers": [
-        { "key": "Content-Type", "value": "application/javascript" },
-        { "key": "Service-Worker-Allowed", "value": "/" }
-      ]
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     }
   ],
   "routes": [
@@ -26,36 +20,23 @@
     },
     {
       "src": "/sw.js",
-      "dest": "frontend/sw.js"
+      "headers": {
+        "Content-Type": "application/javascript",
+        "Service-Worker-Allowed": "/"
+      },
+      "dest": "frontend/dist/sw.js"
     },
     {
-      "src": "/favicon.ico",
-      "dest": "frontend/assets/favicons/favicon.ico"
-    },
-    {
-      "src": "/apple-touch-icon.png",
-      "dest": "frontend/assets/favicons/favicon-180x180.png"
+      "src": "/assets/(.*)",
+      "dest": "frontend/dist/assets/$1"
     },
     {
       "src": "/site.webmanifest",
-      "dest": "frontend/site.webmanifest"
-    },
-    {
-      "src": "/forgot-password.html",
-      "dest": "frontend/forgot-password.html"
-    },
-    {
-      "src": "/reset-password.html",
-      "dest": "frontend/reset-password.html"
-    },
-    {
-      "src": "/admin/dashboard.html",
-      "dest": "frontend/admin/dashboard.html"
+      "dest": "frontend/dist/site.webmanifest"
     },
     {
       "src": "/(.*)",
-      "dest": "frontend/$1"
+      "dest": "frontend/dist/index.html"
     }
   ]
 }
-

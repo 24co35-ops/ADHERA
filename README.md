@@ -91,7 +91,7 @@ The system is deployed on three tiers:
 
 | Tier | Technology | Responsibility |
 |---|---|---|
-| **Presentation** | HTML5, CSS3, JS + Alpine.js | UI rendering, Supabase Realtime subscriptions |
+| **Presentation** | React 18, Vite, TypeScript, Tailwind CSS | SPA UI rendering, client-side routing, state management |
 | **API** | Python 3.10+, FastAPI | Business logic, request validation, orchestration |
 | **Data** | Supabase (PostgreSQL 15+) | Persistence, RLS enforcement, scheduled jobs |
 | **Notification** | pg_cron + Edge Functions | Reminder dispatch, retry logic, email delivery |
@@ -121,7 +121,7 @@ cp .env.example .env
 
 1. Fill in `.env` with your Supabase and Resend credentials
 2. Run backend: `uvicorn app.main:app --reload --port 8000`
-3. Serve frontend: `python -m http.server 8080 --directory frontend`
+3. Run frontend: `cd frontend && npm install && npm run dev`
 
 ---
 
@@ -184,13 +184,15 @@ uvicorn app.main:app --reload --port 8000
 The API will be available at `http://localhost:8000`.  
 Interactive API docs (Swagger UI) at `http://localhost:8000/docs`.
 
-### Frontend
-
-Serve it via any static file server:
+### Frontend (React + Vite)
 
 ```bash
-python -m http.server 8080 --directory frontend
+cd frontend
+npm install
+npm run dev
 ```
+
+The frontend will be available at `http://localhost:3000`.
 
 ---
 
@@ -228,7 +230,7 @@ pytest --cov=app --cov-report=term-missing
 
 The app is deployed on Vercel at https://adhera-seven.vercel.app
 
-- **Frontend:** Vercel Static
+- **Frontend:** React + Vite SPA (Vercel Static Build)
 - **Backend:** Vercel Serverless Functions (Python)
 - **Entry point:** `api/index.py`
 - **CI/CD:** GitHub Actions → auto-deploys to Vercel on push to `main`
@@ -270,13 +272,18 @@ adhera/
 │   └── functions/
 │       └── dispatch-reminder/   # Edge Function for notification dispatch
 ├── frontend/
-│   ├── index.html               # Landing / Login
-│   ├── dashboard.html           # Patient dashboard
-│   ├── medicines.html
-│   ├── provider/
-│   ├── admin/
-│   ├── css/
-│   └── js/
+│   ├── src/                     # React application source code
+│   │   ├── components/          # Reusable UI & layout components
+│   │   ├── pages/               # Patient, Provider, Admin & Auth pages
+│   │   ├── stores/              # Zustand auth & app state stores
+│   │   ├── lib/                 # API client, Supabase client, config
+│   │   ├── styles/              # Global CSS & theme tokens
+│   │   └── types/               # TypeScript interfaces & API types
+│   ├── public/                  # Static assets, favicons, service worker
+│   ├── index.html               # Vite SPA entry point
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── vite.config.ts
 ├── tests/
 │   ├── test_auth.py
 │   ├── test_medicines.py
