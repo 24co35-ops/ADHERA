@@ -39,16 +39,16 @@ async def create_feedback(request: Request, feedback: FeedbackCreate, background
         try:
             url = f"{settings.SUPABASE_URL}/functions/v1/emergency-alert"
             headers = {"Authorization": f"Bearer {settings.SUPABASE_ANON_KEY}", "Content-Type": "application/json"}
-            prov = supabase.table("assignments").select("profiles!provider_id(email)").eq("patient_id", user["user_id"]).eq("status", "active").execute()
-            cont = supabase.table("emergency_contacts").select("email").eq("user_id", user["user_id"]).execute()
+            prov = supabase.table("assignments").select("provider_id").eq("patient_id", user["user_id"]).eq("status", "active").execute()
             provider_email = None
-            if prov.data:
-                p_item = prov.data[0]
-                if "profiles" in p_item and isinstance(p_item["profiles"], dict):
-                    provider_email = p_item["profiles"].get("email")
-                elif "provider_id" in p_item:
-                    prof = supabase.table("profiles").select("contact_number").eq("id", p_item["provider_id"]).execute()
-                    provider_email = prof.data[0].get("contact_number") if prof.data else None
+            if prov.data and prov.data[0].get("provider_id"):
+                pid = prov.data[0]["provider_id"]
+                try:
+                    u = supabase.auth.admin.get_user_by_id(pid)
+                    provider_email = u.user.email
+                except Exception:
+                    provider_email = None
+            cont = supabase.table("emergency_contacts").select("email").eq("user_id", user["user_id"]).execute()
             payload = {
                 "patient_id": user["user_id"],
                 "medicine_name": feedback.medicine_id,

@@ -28,6 +28,7 @@ class Token(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str
+    user: Optional[dict] = None
     mfa_required: Optional[bool] = None
     partial_token: Optional[str] = None
 

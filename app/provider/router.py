@@ -350,19 +350,18 @@ async def resolve_patient_flag(request: Request, flag_id: str, user: dict = Depe
 @router.get("/my-provider")
 @limiter.limit("60/minute")
 async def get_my_provider(request: Request, user: dict = Depends(get_current_user)):
-    result = supabase.table("assignments").select(
-        "*, profiles!assignments_provider_id_fkey(id, full_name, contact_number)"
-    ).eq("patient_id", user["user_id"]).in_("status", ["active", "pending"]).order("assigned_on", desc=True).limit(1).execute()
+    result = supabase.table("assignments").select("*").eq("patient_id", user["user_id"]).in_("status", ["active", "pending"]).order("assigned_on", desc=True).limit(1).execute()
     if result.data:
         row = result.data[0]
-        try:
-            pid = (row.get("profiles") or {}).get("id") or row.get("provider_id")
-            if pid:
-                u = supabase.auth.admin.get_user_by_id(pid)
-                if row.get("profiles"):
-                    row["profiles"]["email"] = u.user.email
-        except Exception:
-            pass
+        provider_id = row.get("provider_id")
+        if provider_id:
+            try:
+                prof = supabase.table("profiles").select("id, full_name, contact_number").eq("id", provider_id).single().execute()
+                row["profiles"] = prof.data or {}
+                u = supabase.auth.admin.get_user_by_id(provider_id)
+                row["profiles"]["email"] = u.user.email
+            except Exception:
+                row.setdefault("profiles", {})
         return SuccessResponse(data={"assigned": row["status"] == "active", "pending": row["status"] == "pending", "assignment": row})
     return SuccessResponse(data={"assigned": False, "pending": False, "assignment": None})
 

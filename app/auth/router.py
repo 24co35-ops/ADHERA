@@ -145,13 +145,15 @@ async def login(request: Request, credentials: UserLogin):
             log_audit_action("LOGIN_FAILED", None, {"email": credentials.email})
             raise HTTPException(status_code=401, detail="Invalid email or password.")
 
-        # Check profile approval status
+        # Check profile approval status and get role
+        user_role = (res.user.user_metadata or {}).get("role", "patient")
         if supabase:
             user_id = res.user.id if res.user else None
             if user_id:
-                prof = supabase.table("profiles").select("role, is_active").eq("id", user_id).execute()
+                prof = supabase.table("profiles").select("role, is_active, full_name").eq("id", user_id).execute()
                 if prof.data:
                     p = prof.data[0]
+                    user_role = p.get("role", user_role)
                     if p.get("role") == "provider" and not p.get("is_active", True):
                         raise HTTPException(
                             status_code=403,
@@ -165,8 +167,13 @@ async def login(request: Request, credentials: UserLogin):
 
         # Check if MFA is enabled
         user_metadata = res.user.user_metadata or {}
+        user_obj = {
+            "id": res.user.id,
+            "email": res.user.email,
+            "role": user_role,
+            "full_name": user_metadata.get("full_name", ""),
+        }
         if user_metadata.get("mfa_enabled"):
-            user_role = "patient"
             if supabase and res.user:
                 prof = supabase.table("profiles").select("role").eq("id", res.user.id).execute()
                 if prof.data:
@@ -206,13 +213,15 @@ async def login(request: Request, credentials: UserLogin):
         return SuccessResponse(data=Token(
             access_token=res.session.access_token,
             refresh_token=res.session.refresh_token,
-            token_type="bearer"
+            token_type="bearer",
+            user=user_obj,
         ))
     except HTTPException:
         raise
     except AuthApiError as e:
         log_audit_action("LOGIN_FAILED", None, {"email": credentials.email, "reason": str(e)})
         raise HTTPException(status_code=401, detail="Invalid email or password.")
+
 
 @router.post("/refresh", response_model=SuccessResponse[Token])
 @limiter.limit("10/minute")

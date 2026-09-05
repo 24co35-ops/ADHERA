@@ -7,27 +7,36 @@ from app.db.supabase import supabase
 
 router = APIRouter(tags=["assignments"])
 
+
+def _attach_provider_profile(row: dict) -> dict:
+    """Fetch provider profile separately (assignments.provider_id → auth.users, not profiles)."""
+    provider_id = row.get("provider_id")
+    if not provider_id:
+        return row
+    try:
+        prof = supabase.table("profiles").select("id, full_name, contact_number").eq("id", provider_id).single().execute()
+        row["profiles"] = prof.data or {}
+    except Exception:
+        row["profiles"] = {}
+    try:
+        u = supabase.auth.admin.get_user_by_id(provider_id)
+        row["profiles"]["email"] = u.user.email
+    except Exception:
+        row["profiles"].setdefault("email", "")
+    return row
+
+
 @router.get("/assignments/my-provider")
 async def get_my_provider(user=Depends(get_current_user)):
     try:
-        result = supabase.table("assignments").select(
-            "*, profiles!assignments_provider_id_fkey(id, full_name, contact_number)"
-        ).eq("patient_id", user["user_id"]).eq("status", "active").execute()
+        result = supabase.table("assignments").select("*").eq("patient_id", user["user_id"]).eq("status", "active").execute()
         if result.data:
-            row = result.data[0]
-            try:
-                pid = (row.get("profiles") or {}).get("id") or row.get("provider_id")
-                if pid:
-                    u = supabase.auth.admin.get_user_by_id(pid)
-                    if row.get("profiles"):
-                        row["profiles"]["email"] = u.user.email
-            except Exception:
-                if row.get("profiles"):
-                    row["profiles"]["email"] = ""
+            row = _attach_provider_profile(result.data[0])
             return {"success": True, "assigned": True, "data": row}
         return {"success": True, "assigned": False, "data": None}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/assignments/search-providers")
 async def search_providers(query: str = "", user=Depends(get_current_user)):
@@ -48,6 +57,7 @@ async def search_providers(query: str = "", user=Depends(get_current_user)):
         return {"success": True, "data": data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/assignments/request")
 async def request_provider(payload: dict, user=Depends(get_current_user)):
@@ -73,6 +83,7 @@ async def request_provider(payload: dict, user=Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.delete("/assignments/request")
 async def cancel_request(user=Depends(get_current_user)):
     try:
@@ -80,4 +91,3 @@ async def cancel_request(user=Depends(get_current_user)):
         return {"success": True, "message": "Request cancelled"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
