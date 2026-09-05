@@ -32,9 +32,25 @@ async def get_profile(request: Request, user: dict = Depends(get_current_user)):
         profile["email"] = u.user.email
     except Exception:
         pass
+    try:
+        cont_res = supabase.table("emergency_contacts").select("*").eq("user_id", user["user_id"]).execute()
+        if cont_res.data:
+            c = cont_res.data[0]
+            profile["emergency_contacts"] = [{
+                "name": c.get("full_name"),
+                "full_name": c.get("full_name"),
+                "email": c.get("email"),
+                "relationship": c.get("relationship"),
+                "phone": c.get("phone", "")
+            }]
+        else:
+            profile["emergency_contacts"] = []
+    except Exception:
+        profile["emergency_contacts"] = []
     return SuccessResponse(data=profile)
 
 @router.patch("/", response_model=SuccessResponse[dict])
+@router.put("/", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
 async def update_profile(request: Request, profile: ProfileUpdate, user: dict = Depends(get_current_user)):
     data = profile.model_dump(exclude_unset=True)
@@ -54,15 +70,30 @@ async def update_profile(request: Request, profile: ProfileUpdate, user: dict = 
 @limiter.limit("60/minute")
 async def get_emergency_contact(request: Request, user: dict = Depends(get_current_user)):
     res = supabase.table("emergency_contacts").select("*").eq("user_id", user["user_id"]).execute()
-    return SuccessResponse(data=res.data[0] if res.data else {})
+    if res.data:
+        c = res.data[0]
+        c["name"] = c.get("full_name")
+        return SuccessResponse(data=c)
+    return SuccessResponse(data={})
 
 @router.put("/emergency-contact", response_model=SuccessResponse[dict])
+@router.post("/emergency-contact", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
 async def update_emergency_contact(request: Request, contact: EmergencyContact, user: dict = Depends(get_current_user)):
-    data = contact.model_dump()
-    data["user_id"] = user["user_id"]
+    full_name = contact.full_name or contact.name or "Emergency Contact"
+    relationship = contact.relationship or "Family"
+    email = contact.email or "emergency@adhera.io"
+    data = {
+        "user_id": user["user_id"],
+        "full_name": full_name,
+        "relationship": relationship,
+        "email": email,
+        "verified": contact.verified
+    }
     res = supabase.table("emergency_contacts").upsert(data, on_conflict="user_id").execute()
-    return SuccessResponse(data=res.data[0])
+    result_data = res.data[0] if res.data else data
+    result_data["name"] = result_data.get("full_name")
+    return SuccessResponse(data=result_data)
 
 @router.delete("/emergency-contact", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")

@@ -182,7 +182,28 @@ export const Navbar: React.FC = () => {
               </NavLink>
             );
           })}
-          <div className="pt-3 border-t border-white/10 flex items-center justify-between">
+          {/* Mobile Language Switcher */}
+          <div className="pt-2 pb-1 border-t border-white/10 flex items-center justify-between">
+            <span className="text-xs text-on-surface-variant flex items-center gap-1">
+              <Globe className="w-3.5 h-3.5" /> Language:
+            </span>
+            <div className="flex gap-1">
+              {languages.map((l) => (
+                <button
+                  key={l.code}
+                  onClick={() => setLocale(l.code)}
+                  className={clsx(
+                    'px-2 py-1 text-xs rounded-lg font-medium transition-colors',
+                    locale === l.code ? 'bg-primary/20 text-primary font-bold' : 'text-on-surface hover:bg-white/5'
+                  )}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-white/10 flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">
                 {user?.full_name?.charAt(0) || 'U'}

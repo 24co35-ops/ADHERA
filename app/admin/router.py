@@ -369,6 +369,19 @@ async def update_user(request: Request, id: str, payload: UserUpdate, user: dict
     return SuccessResponse(data=res.data[0])
 
 
+@router.put("/users/{id}/status", response_model=SuccessResponse[dict])
+@router.patch("/users/{id}/status", response_model=SuccessResponse[dict])
+@limiter.limit("60/minute")
+async def toggle_user_status(request: Request, id: str, payload: dict, user: dict = Depends(require_role("admin"))):
+    is_active = payload.get("is_active", True)
+    res = supabase.table("profiles").update({"is_active": is_active}).eq("id", id).execute()
+    if not res.data:
+        raise HTTPException(404, "User not found")
+    action = "USER_REACTIVATED" if is_active else "USER_SUSPENDED"
+    log_audit_action(action, user["user_id"], {"target": id, "is_active": is_active})
+    return SuccessResponse(data=res.data[0])
+
+
 @router.patch("/users/{id}/suspend")
 @limiter.limit("60/minute")
 async def suspend_user(request: Request, id: str, user: dict = Depends(require_role("admin"))):
@@ -440,6 +453,7 @@ async def reject_user(request: Request, id: str, body: RejectBody, user: dict = 
 # ── Provider Approval (legacy aliases) ───────────────────────────────────────
 
 @router.get("/providers/pending", response_model=SuccessResponse[list])
+@router.get("/pending-providers", response_model=SuccessResponse[list])
 @limiter.limit("60/minute")
 async def pending_providers(request: Request, user: dict = Depends(require_role("admin"))):
     res = supabase.table("profiles").select("*").eq("role", "provider").eq("is_active", False).execute()
@@ -451,6 +465,16 @@ async def pending_providers(request: Request, user: dict = Depends(require_role(
     except Exception:
         pass
     return SuccessResponse(data=res.data)
+
+
+@router.get("/audit-logs", response_model=SuccessResponse[list])
+@limiter.limit("60/minute")
+async def get_audit_logs(request: Request, user: dict = Depends(require_role("admin"))):
+    try:
+        res = supabase.table("audit_log").select("*").order("created_at", desc=True).limit(50).execute()
+        return SuccessResponse(data=res.data or [])
+    except Exception:
+        return SuccessResponse(data=[])
 
 
 @router.post("/providers/{id}/approve", response_model=SuccessResponse[dict])

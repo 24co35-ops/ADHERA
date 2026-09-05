@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { fetchConfig, config } from '../../lib/config';
 import { useAuthStore } from '../../stores/authStore';
+import { useI18n } from '../../lib/i18n';
 import { GlassCard } from '../../components/GlassCard';
 import { ToastMessage, ToastContainer } from '../../components/Toast';
 import { Modal } from '../../components/Modal';
@@ -26,6 +27,7 @@ import { Profile, EmergencyContact, MyProviderResponse } from '../../types';
 
 export const ProfilePage: React.FC = () => {
   const { user, profile, setProfile } = useAuthStore();
+  const { t } = useI18n();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -71,9 +73,10 @@ export const ProfilePage: React.FC = () => {
   const loadProfileData = async () => {
     try {
       setLoading(true);
-      const [profRes, assignRes] = await Promise.all([
+      const [profRes, assignRes, contactRes] = await Promise.all([
         api.get<Profile>('/profile/'),
         api.get<MyProviderResponse>('/assignments/my-provider'),
+        api.get<any>('/profile/emergency-contact'),
       ]);
 
       if (profRes.success && profRes.data) {
@@ -85,7 +88,18 @@ export const ProfilePage: React.FC = () => {
         setTimezoneStr(d.timezone || 'UTC');
         setAllergies(d.allergies || []);
         setConditions(d.medical_conditions || []);
-        setContacts(d.emergency_contacts || []);
+        if (d.emergency_contacts && d.emergency_contacts.length > 0) {
+          setContacts(d.emergency_contacts);
+        }
+      }
+
+      if (contactRes.success && contactRes.data && (contactRes.data.full_name || contactRes.data.name)) {
+        setContacts([{
+          name: contactRes.data.full_name || contactRes.data.name,
+          phone: contactRes.data.phone || '',
+          email: contactRes.data.email,
+          relationship: contactRes.data.relationship,
+        }]);
       }
 
       if (assignRes.success && assignRes.data) {
@@ -158,13 +172,14 @@ export const ProfilePage: React.FC = () => {
     e.preventDefault();
     try {
       const payload = {
+        full_name: contactName,
         name: contactName,
         phone: contactPhone,
-        email: contactEmail || null,
-        relationship: contactRel || null,
+        email: contactEmail || 'emergency@adhera.io',
+        relationship: contactRel || 'Family',
       };
 
-      const res = await api.post<any>('/profile/emergency-contact', payload);
+      const res = await api.put<any>('/profile/emergency-contact', payload);
       if (res.success) {
         addToast('success', 'Emergency contact saved!');
         setContactModalOpen(false);
@@ -184,6 +199,7 @@ export const ProfilePage: React.FC = () => {
       const res = await api.delete('/profile/emergency-contact');
       if (res.success) {
         addToast('success', 'Emergency contact removed.');
+        setContacts([]);
         loadProfileData();
       }
     } catch (err: any) {
@@ -279,10 +295,10 @@ export const ProfilePage: React.FC = () => {
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
           <UserIcon className="w-7 h-7 text-primary" />
-          <span>Patient Profile & Settings</span>
+          <span>{t('profile.title')}</span>
         </h1>
         <p className="text-xs sm:text-sm text-on-surface-variant mt-1">
-          Personal medical info, emergency contacts, provider link, and alerts
+          {t('profile.subtitle')}
         </p>
       </div>
 
@@ -291,14 +307,14 @@ export const ProfilePage: React.FC = () => {
         <div className="lg:col-span-2 space-y-6">
           <GlassCard className="p-6">
             <h3 className="text-base font-bold text-white pb-3 border-b border-white/10 mb-4">
-              Personal Information
+              {t('profile.personal_info')}
             </h3>
 
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="profile-fullname" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
-                    Full Name
+                    {t('profile.full_name')}
                   </label>
                   <input
                     id="profile-fullname"
@@ -327,7 +343,7 @@ export const ProfilePage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label htmlFor="profile-dob" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
-                    Date of Birth
+                    {t('profile.dob')}
                   </label>
                   <input
                     id="profile-dob"
@@ -340,7 +356,7 @@ export const ProfilePage: React.FC = () => {
 
                 <div>
                   <label htmlFor="profile-bloodgroup" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
-                    Blood Group
+                    {t('profile.blood_group')}
                   </label>
                   <select
                     id="profile-bloodgroup"
@@ -362,7 +378,7 @@ export const ProfilePage: React.FC = () => {
 
                 <div>
                   <label htmlFor="profile-timezone" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
-                    Timezone
+                    {t('profile.timezone')}
                   </label>
                   <input
                     id="profile-timezone"
@@ -377,7 +393,7 @@ export const ProfilePage: React.FC = () => {
               {/* Known Allergies Tag Input */}
               <div>
                 <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
-                  Known Allergies (Press Enter to add)
+                  {t('profile.allergies')}
                 </label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {allergies.map((all, i) => (
@@ -409,7 +425,7 @@ export const ProfilePage: React.FC = () => {
               {/* Medical Conditions Tag Input */}
               <div>
                 <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
-                  Medical Conditions (Press Enter to add)
+                  {t('profile.conditions')}
                 </label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {conditions.map((cond, i) => (
@@ -445,7 +461,7 @@ export const ProfilePage: React.FC = () => {
                   className="btn-press inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-primary text-surface font-bold text-xs shadow-glow hover:bg-primary-container disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
-                  <span>{saving ? 'Saving...' : 'Save Profile Changes'}</span>
+                  <span>{saving ? t('btn.loading') : t('profile.save_btn')}</span>
                 </button>
               </div>
             </form>
@@ -455,9 +471,9 @@ export const ProfilePage: React.FC = () => {
           <GlassCard className="p-6">
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
               <div>
-                <h3 className="text-base font-bold text-white">Emergency Contacts</h3>
+                <h3 className="text-base font-bold text-white">{t('profile.emergency_contacts')}</h3>
                 <p className="text-xs text-on-surface-variant">
-                  Notified automatically in case of Level 4 emergency side effects
+                  {t('profile.emergency_subtitle')}
                 </p>
               </div>
               <button
@@ -465,13 +481,13 @@ export const ProfilePage: React.FC = () => {
                 className="btn-press inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-primary"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Add Contact</span>
+                <span>{t('profile.add_contact')}</span>
               </button>
             </div>
 
             {contacts.length === 0 ? (
               <p className="text-xs text-on-surface-variant py-4 text-center">
-                No emergency contacts configured yet.
+                {t('profile.no_contacts')}
               </p>
             ) : (
               <div className="space-y-3">
@@ -483,7 +499,7 @@ export const ProfilePage: React.FC = () => {
                     <div>
                       <span className="font-bold text-white text-sm block">{c.name}</span>
                       <div className="text-on-surface-variant flex items-center space-x-3 mt-0.5">
-                        <span>{c.phone}</span>
+                        {c.phone && <span>{c.phone}</span>}
                         {c.email && <span>&bull; {c.email}</span>}
                         {c.relationship && <span>&bull; {c.relationship}</span>}
                       </div>

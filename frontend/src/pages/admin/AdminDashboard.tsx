@@ -20,8 +20,10 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { Profile, UserRole } from '../../types';
+import { useI18n } from '../../lib/i18n';
 
 export const AdminDashboard: React.FC = () => {
+  const { t } = useI18n();
   const [users, setUsers] = useState<Profile[]>([]);
   const [pendingProviders, setPendingProviders] = useState<Profile[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
@@ -160,10 +162,10 @@ export const AdminDashboard: React.FC = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
             <ShieldCheck className="w-7 h-7 text-primary" />
-            <span>Adhera System Administration</span>
+            <span>{t('admin.title')}</span>
           </h1>
           <p className="text-xs sm:text-sm text-on-surface-variant mt-1">
-            Global governance, identity access management, and infrastructure telemetry
+            {t('admin.subtitle')}
           </p>
         </div>
 

@@ -22,9 +22,11 @@ class ProfileUpdate(BaseModel):
         return v
 
 class EmergencyContact(BaseModel):
-    full_name: str
-    relationship: str
-    email: str
+    full_name: Optional[str] = None
+    name: Optional[str] = None
+    relationship: Optional[str] = "Family"
+    email: Optional[str] = None
+    phone: Optional[str] = None
     verified: bool = False
 
 class PushKeys(BaseModel):

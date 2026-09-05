@@ -14,9 +14,11 @@ import {
   PhoneCall,
 } from 'lucide-react';
 import { Medicine, Feedback } from '../../types';
+import { useI18n } from '../../lib/i18n';
 import clsx from 'clsx';
 
 export const FeedbackPage: React.FC = () => {
+  const { t } = useI18n();
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,10 +149,10 @@ export const FeedbackPage: React.FC = () => {
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
           <MessageSquareWarning className="w-7 h-7 text-status-error" />
-          <span>Report Side Effect / Feedback</span>
+          <span>{t('feedback.heading')}</span>
         </h1>
         <p className="text-xs sm:text-sm text-on-surface-variant mt-1">
-          Log any symptoms or reactions to help your provider tune your prescription dosage
+          {t('feedback.subheading')}
         </p>
       </div>
 
