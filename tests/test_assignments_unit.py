@@ -33,13 +33,13 @@ class TestGetMyProviderAssignments:
 
     @patch("app.routers.assignments.supabase")
     def test_active_assignment_success(self, mock_sb):
-        row = {
-            "status": "active",
-            "provider_id": PROVIDER_ID,
-            "patient_id": TEST_USER_ID,
-            "profiles": {"id": PROVIDER_ID, "full_name": "Dr. House", "contact_number": "12345"}
-        }
-        mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[row])
+        row = {"status": "active", "provider_id": PROVIDER_ID, "patient_id": TEST_USER_ID}
+        prof_data = {"id": PROVIDER_ID, "full_name": "Dr. House", "contact_number": "12345"}
+        assignments_mock = MagicMock()
+        assignments_mock.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[row])
+        profiles_mock = MagicMock()
+        profiles_mock.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(data=prof_data)
+        mock_sb.table.side_effect = lambda t: assignments_mock if t == "assignments" else profiles_mock
         mock_sb.auth.admin.get_user_by_id.return_value = MagicMock(user=MagicMock(email="house@md.com"))
         response = client.get("/v1/assignments/my-provider", headers=make_token())
         assert response.status_code == 200
@@ -48,18 +48,18 @@ class TestGetMyProviderAssignments:
 
     @patch("app.routers.assignments.supabase")
     def test_active_assignment_exception_handled(self, mock_sb):
-        row = {
-            "status": "active",
-            "provider_id": PROVIDER_ID,
-            "patient_id": TEST_USER_ID,
-            "profiles": {"id": PROVIDER_ID, "full_name": "Dr. House", "contact_number": "12345"}
-        }
-        mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[row])
+        row = {"status": "active", "provider_id": PROVIDER_ID, "patient_id": TEST_USER_ID}
+        prof_data = {"id": PROVIDER_ID, "full_name": "Dr. House", "contact_number": "12345"}
+        assignments_mock = MagicMock()
+        assignments_mock.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[row])
+        profiles_mock = MagicMock()
+        profiles_mock.select.return_value.eq.return_value.single.return_value.execute.return_value = MagicMock(data=prof_data)
+        mock_sb.table.side_effect = lambda t: assignments_mock if t == "assignments" else profiles_mock
         mock_sb.auth.admin.get_user_by_id.side_effect = Exception("Auth fetch error")
         response = client.get("/v1/assignments/my-provider", headers=make_token())
         assert response.status_code == 200
         assert response.json()["assigned"] is True
-        assert response.json()["data"]["profiles"]["email"] == ""
+        assert response.json()["data"]["profiles"].get("email", "") == ""
 
 
 class TestSearchProvidersAssignments:
