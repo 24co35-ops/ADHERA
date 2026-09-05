@@ -38,12 +38,12 @@ This document describes every technology, library, and service used in the Adher
 │  Serverless Fn.     Supabase Edge Functions     (Deno runtime)        │
 │  Email              Resend                      (or SendGrid)         │
 │  Push Notif.        Web Push Protocol           W3C standard          │
-│  Frontend JS        Alpine.js                   3.x                   │
-│  Frontend CSS       Tailwind CSS                (CDN)                 │
-│  Charts             Chart.js                    4.x                   │
+│  Frontend           React 18, Vite, TypeScript  18.x, 6.x, 5.x        │
+│  Frontend CSS       Tailwind CSS                3.4.x                 │
+│  State & Query      Zustand, React Query        5.x                   │
+│  Charts             Chart.js, react-chartjs-2   4.x, 5.x              │
 │  Realtime           Supabase Realtime           (WebSocket)           │
-│  Deployment         Render / Railway            (FastAPI)             │
-│  Frontend Host      Vercel / Netlify            (static)              │
+│  Deployment         Vercel (FastAPI + React)    Serverless + Static   │
 │  CI/CD              GitHub Actions              —                     │
 │  Migrations         Supabase CLI                —                     │
 └──────────────────────────────────────────────────────────────────────┘
@@ -225,27 +225,33 @@ Attempt 1 → fail → +5 min → Attempt 2 → fail → +5 min → Attempt 3 �
 
 ## Frontend
 
-### Vanilla JavaScript + Alpine.js 3.x
+### React 18 + Vite + TypeScript
 
-**Why no React/Vue/Next.js:**
+**Why React + Vite + TypeScript:**
 
-- No build step or bundler required — the frontend can be opened as static HTML
-- Alpine.js provides reactive UI (x-data, x-bind, x-on) without a virtual DOM
-- Significantly reduces project setup complexity for an academic project
-- Full Supabase Realtime subscriptions work natively in vanilla JS
+- Modern Single Page Application (SPA) architecture with strict type safety across all models
+- Lightning-fast dev builds and optimized production bundling via Vite
+- Component-driven architecture ensuring maintainable, modular UI across all user roles
+- Strict TypeScript contract alignment with FastAPI backend response models
+- React Router DOM for client-side navigation with role-based protected route guards
 
-### Tailwind CSS (CDN)
+### Tailwind CSS
 
-Utility-first CSS framework loaded via CDN — no build pipeline. All standard base-stylesheet utility classes are available. Used for responsive layout, component styling, and dark/light theming.
+Utility-first CSS framework configured with custom dark theme tokens (`#111318`), glassmorphism card utilities, and cyan (`#00dbe7`) accents. Used for responsive layout, component styling, and WCAG 2.1 AA compliant contrast.
 
-### Chart.js 4.x
+### State Management & Data Fetching (Zustand + TanStack React Query)
+
+- **Zustand**: Lightweight global store for authentication state, user session, and active role.
+- **TanStack React Query**: Declarative server-state caching, automatic background refetching, and optimistic updates for medicines, doses, and clinical feedback.
+
+### Chart.js & react-chartjs-2
 
 **Why Chart.js:**
 
 - Supports `aria-label` and `aria-describedby` for WCAG 2.1 AA compliance
 - Chart data points are keyboard-navigable (Tab + Arrow keys)
-- Active community; well-documented; no build dependency
-- Renders line charts (adherence trend) and bar charts (period comparison) with the same API
+- Active community; well-documented; fast canvas rendering
+- Renders line charts (adherence trend) and bar charts (period comparison) with responsive resizing
 
 ### Supabase JS Client
 
@@ -408,9 +414,9 @@ locust>=2.28.0
 
 Celery and Redis add operational complexity: a separate broker service, worker processes, and persistence configuration. Supabase pg_cron + Edge Functions achieve the same result (persistent, restartable job queue) entirely within the Supabase platform — one fewer infrastructure component to manage and monitor.
 
-### Why not a SPA (React / Vue / Next.js)?
-
-An academic project with a team familiar with vanilla JS does not benefit from the added complexity of a build pipeline, bundler, and component lifecycle management. Alpine.js provides the necessary reactivity (conditional rendering, form binding, fetch-and-render) without a compilation step.
+### Why React 18 + Vite SPA?
+ 
+A modern medical compliance platform requires rapid interactive state transitions (one-click dose confirmations, interactive adherence trends, dynamic provider review tables, and role-based client routing). React 18 with Vite and TypeScript provides strict typing, instant HMR, modular component architecture, and high-performance bundle generation for static edge hosting on Vercel.
 
 ### Why Supabase Auth instead of a custom JWT system?
 

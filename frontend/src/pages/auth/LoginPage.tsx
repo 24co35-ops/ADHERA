@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { useAuthStore } from '../../stores/authStore';
+import { useAuthStore, parseJwt } from '../../stores/authStore';
+import { UserRole } from '../../types';
 import { api } from '../../lib/api';
 import { Activity, Lock, Mail, ArrowRight, ShieldCheck, UserCheck, Stethoscope } from 'lucide-react';
 import { GlassCard } from '../../components/GlassCard';
@@ -40,10 +41,18 @@ export const LoginPage: React.FC = () => {
     try {
       const res = await api.post<any>('/auth/login', { email, password });
       if (res.success && res.data) {
-        const { access_token, refresh_token, user } = res.data;
-        login(access_token, refresh_token, user, rememberMe);
+        const { access_token, refresh_token } = res.data;
+        const payload = parseJwt(access_token);
+        const userRole: UserRole = res.data.user?.role || payload?.user_metadata?.role || payload?.role || 'patient';
+        const userObj = res.data.user || {
+          id: payload?.sub || '',
+          email: payload?.email || email,
+          role: userRole,
+          full_name: payload?.user_metadata?.full_name || '',
+        };
 
-        const userRole = user.role;
+        login(access_token, refresh_token, userObj, rememberMe);
+
         if (userRole === 'admin') navigate('/admin');
         else if (userRole === 'provider') navigate('/provider');
         else navigate('/dashboard');

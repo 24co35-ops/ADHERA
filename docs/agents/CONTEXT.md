@@ -66,5 +66,5 @@ This configuration file defines project context, standards, issue tracking, desi
 
 - **Backend**: Python 3.13 / FastAPI, standard response models (`SuccessResponse`, `ErrorResponse`), pytest test suite.
 - **Database & Auth**: Supabase (PostgreSQL), strict Row Level Security (RLS), PostgREST schema cache reloads after DDL (`NOTIFY pgrst, 'reload schema';`).
-- **Frontend**: Glassmorphism dark UI (`#111318`), Alpine.js state management, Vanilla CSS (`adhera.css`), WCAG 2.1 AA contrast compliance (`axe_scan.js`).
+- **Frontend**: React 18, Vite, TypeScript, Tailwind CSS, Zustand, React Query, Glassmorphism dark UI (`#111318`), WCAG 2.1 AA contrast compliance (`axe_scan.js`).
 - **Verification Requirement**: Always run `pytest` and `node tests/axe_scan.js` before declaring completion.

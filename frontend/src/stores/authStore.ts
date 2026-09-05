@@ -14,8 +14,7 @@ interface AuthState {
   initialize: () => Promise<void>;
 }
 
-// Decode base64 JWT payload safely in browser
-function parseJwt(token: string): any {
+export function parseJwt(token: string): any {
   try {
     const base64Url = token.split('.')[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -41,9 +40,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   login: (accessToken, refreshToken, user, remember = true) => {
     setTokens(accessToken, refreshToken, remember);
+    
+    let resolvedUser = user;
+    if (!resolvedUser) {
+      const payload = parseJwt(accessToken);
+      const role: UserRole = payload?.user_metadata?.role || payload?.role || 'patient';
+      resolvedUser = {
+        id: payload?.sub || '',
+        email: payload?.email || '',
+        role: role,
+        full_name: payload?.user_metadata?.full_name || '',
+      };
+    }
+
     set({
-      user,
-      role: user.role,
+      user: resolvedUser,
+      role: resolvedUser.role,
       isAuthenticated: true,
       isLoading: false,
     });

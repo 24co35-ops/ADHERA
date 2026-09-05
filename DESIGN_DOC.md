@@ -70,7 +70,7 @@ Adhera uses a **layered architecture** with strict separation between tiers:
 
 | Tier | Technology | Responsibility |
 |---|---|---|
-| Presentation | HTML5, CSS3, JavaScript (Vanilla + Alpine.js) | UI rendering, user interaction, Supabase Realtime subscriptions |
+| Presentation | React 18, Vite, TypeScript, Tailwind CSS | Single Page App UI, client-side routing, state management, Supabase Realtime |
 | API | Python 3.10+, FastAPI | Business logic, request validation, orchestration |
 | Data | Supabase (PostgreSQL 15+) | Data persistence, RLS enforcement, scheduled jobs |
 | Notification | Supabase pg_cron + Edge Functions | Reminder dispatch, retry logic, email delivery |
@@ -784,11 +784,12 @@ NONE ──► UNVERIFIED ──► VERIFIED ──► ALERTS_ACTIVE
 
 | Concern | Choice | Rationale |
 |---|---|---|
-| Language | Vanilla JavaScript + Alpine.js | No build step; fast iteration; Alpine handles reactivity without bundler complexity |
-| Styling | Tailwind CSS (CDN) | Utility-first; no custom CSS build pipeline needed |
-| Charts | Chart.js | Accessible; supports `aria-label`; keyboard navigation; WCAG-compatible |
-| Realtime | Supabase JS client | Native Supabase Realtime subscriptions |
-| Icons | Heroicons (SVG inline) | Accessible; no font loading required |
+| Framework & Language | React 18, Vite, TypeScript | SPA architecture; strict type safety; instant HMR; high-performance bundling |
+| Styling | Tailwind CSS | Glassmorphism design system; dark mode tokens (`#111318`); WCAG 2.1 AA compliant contrast |
+| State & Cache | Zustand + TanStack React Query | Lightweight auth store + declarative server cache and refetching |
+| Charts | Chart.js & react-chartjs-2 | Accessible canvas charts; `aria-label`; keyboard navigation; responsive resizing |
+| Realtime | Supabase JS client | Native Supabase Realtime WebSocket subscriptions |
+| Icons | Lucide React | Accessible inline SVG icons; optimized tree-shaking |
 
 ### 8.2 Page Structure
 

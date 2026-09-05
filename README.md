@@ -315,7 +315,7 @@ adhera/
 ## Verified Stable State
 
 ✅ Registration and login via Supabase Auth (email confirmation disabled for development)
-✅ Patient dashboard with adherence charts (Chart.js / Alpine.js bug fixed)
+✅ Patient dashboard with adherence charts (Chart.js / React integration)
 ✅ Medicine management (add, edit, soft delete)
 ✅ Dose tracking (Taken / Missed / Snoozed)
 ✅ Side effect feedback with Severity 1–4
@@ -323,7 +323,8 @@ adhera/
 ✅ Admin module (user management, provider approval)
 ✅ Data export (JSON / CSV streamed directly, no Storage dependency)
 ✅ Browser push notifications (VAPID + service worker)
-✅ 27/27 backend unit tests passing locally
+✅ 261/261 unit & integration tests passing with 77% test coverage
+✅ WCAG 2.1 AA accessibility scans passing across all 8 SPA routes
 ✅ GitHub Actions CI passing
 ✅ Deployed on Vercel at https://adhera-seven.vercel.app
 
