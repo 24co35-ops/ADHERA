@@ -30,6 +30,7 @@ def _decode_with_jwks(token: str) -> dict:
         signing_key.key,
         algorithms=["ES256", "RS256"],
         audience="authenticated",
+        leeway=60,
     )
 
 
@@ -49,8 +50,25 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
                 options={"verify_exp": False},
             )
         else:
-            # Production path: asymmetric JWKS verification (ES256 / RS256)
-            payload = _decode_with_jwks(token)
+            # Production path: asymmetric JWKS verification with Supabase API fallback
+            try:
+                payload = _decode_with_jwks(token)
+            except Exception as jwks_err:
+                logger.info("JWKS verification missed, validating via Supabase Auth API: %r", jwks_err)
+                from app.db.supabase import supabase_auth
+                user_res = supabase_auth.auth.get_user(token)
+                if not user_res or not user_res.user:
+                    raise HTTPException(status_code=401, detail="Invalid token")
+                u = user_res.user
+                role = (
+                    (u.app_metadata or {}).get("role")
+                    or (u.user_metadata or {}).get("role")
+                    or "patient"
+                )
+                return {
+                    "user_id": u.id,
+                    "role": role,
+                }
 
         if payload.get("mfa_pending"):
             raise HTTPException(status_code=401, detail="MFA verification required")
