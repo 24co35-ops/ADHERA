@@ -361,7 +361,7 @@ export const PatientDashboard: React.FC = () => {
                         </button>
                         <button
                           onClick={() => handleDoseAction(item.reminders?.id || item.id, 'missed')}
-                          className="btn-press px-2.5 py-2 rounded-xl bg-status-error/10 hover:bg-status-error/20 text-status-error text-xs font-semibold"
+                          className="btn-press px-2.5 py-2 rounded-xl bg-status-error/10 hover:bg-status-error/20 text-red-300 text-xs font-semibold"
                         >
                           {t('btn.missed')}
                         </button>

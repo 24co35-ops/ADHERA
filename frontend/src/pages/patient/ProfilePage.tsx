@@ -297,10 +297,11 @@ export const ProfilePage: React.FC = () => {
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
+                  <label htmlFor="profile-fullname" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
                     Full Name
                   </label>
                   <input
+                    id="profile-fullname"
                     type="text"
                     required
                     value={fullName}
@@ -310,10 +311,11 @@ export const ProfilePage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
+                  <label htmlFor="profile-email" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
                     Email Address
                   </label>
                   <input
+                    id="profile-email"
                     type="email"
                     disabled
                     value={user?.email || ''}
@@ -324,10 +326,11 @@ export const ProfilePage: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
+                  <label htmlFor="profile-dob" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
                     Date of Birth
                   </label>
                   <input
+                    id="profile-dob"
                     type="date"
                     value={dateOfBirth}
                     onChange={(e) => setDateOfBirth(e.target.value)}
@@ -336,10 +339,11 @@ export const ProfilePage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
+                  <label htmlFor="profile-bloodgroup" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
                     Blood Group
                   </label>
                   <select
+                    id="profile-bloodgroup"
                     value={bloodGroup}
                     onChange={(e) => setBloodGroup(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl glass-input text-sm bg-surface-container"
@@ -357,10 +361,11 @@ export const ProfilePage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
+                  <label htmlFor="profile-timezone" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
                     Timezone
                   </label>
                   <input
+                    id="profile-timezone"
                     type="text"
                     value={timezoneStr}
                     onChange={(e) => setTimezoneStr(e.target.value)}
@@ -378,7 +383,7 @@ export const ProfilePage: React.FC = () => {
                   {allergies.map((all, i) => (
                     <span
                       key={i}
-                      className="px-2.5 py-1 rounded-lg bg-status-error/15 text-status-error text-xs flex items-center gap-1 border border-status-error/20"
+                      className="px-2.5 py-1 rounded-lg bg-status-error/15 text-red-300 text-xs flex items-center gap-1 border border-status-error/20"
                     >
                       <span>{all}</span>
                       <button
@@ -485,6 +490,7 @@ export const ProfilePage: React.FC = () => {
                     </div>
                     <button
                       onClick={handleDeleteContact}
+                      aria-label="Delete emergency contact"
                       className="p-1.5 text-status-error/80 hover:text-status-error rounded-lg"
                     >
                       <Trash2 className="w-4 h-4" />

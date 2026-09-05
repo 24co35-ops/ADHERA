@@ -184,7 +184,7 @@ export const RegisterPage: React.FC = () => {
 
             {role === 'patient' ? (
               <div>
-                <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
+                <label htmlFor="reg-dob" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
                   Date of Birth
                 </label>
                 <div className="relative">
@@ -192,6 +192,7 @@ export const RegisterPage: React.FC = () => {
                     <Calendar className="w-4 h-4" />
                   </div>
                   <input
+                    id="reg-dob"
                     type="date"
                     value={dateOfBirth}
                     onChange={(e) => setDateOfBirth(e.target.value)}

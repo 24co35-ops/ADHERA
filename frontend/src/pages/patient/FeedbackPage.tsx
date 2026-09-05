@@ -161,7 +161,7 @@ export const FeedbackPage: React.FC = () => {
             <form onSubmit={handleFormSubmit} className="space-y-6">
               {/* Medicine Select */}
               <div>
-                <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-2">
+                <label htmlFor="feedback-medicine" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-2">
                   Related Medicine *
                 </label>
                 <div className="relative">
@@ -169,6 +169,7 @@ export const FeedbackPage: React.FC = () => {
                     <Pill className="w-4 h-4" />
                   </div>
                   <select
+                    id="feedback-medicine"
                     value={selectedMedId}
                     onChange={(e) => setSelectedMedId(e.target.value)}
                     required
@@ -227,10 +228,11 @@ export const FeedbackPage: React.FC = () => {
 
               {/* Occurred At */}
               <div>
-                <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-2">
+                <label htmlFor="feedback-occurred-at" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-2">
                   Time of Occurrence
                 </label>
                 <input
+                  id="feedback-occurred-at"
                   type="datetime-local"
                   value={occurredAt}
                   onChange={(e) => setOccurredAt(e.target.value)}

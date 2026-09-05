@@ -45,6 +45,11 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Build React Frontend
+        run: |
+          npm --prefix frontend install
+          npm --prefix frontend run build
+
       - name: Install Playwright + axe dependencies
         run: |
           npm install --prefix tests playwright @playwright/test @axe-core/playwright

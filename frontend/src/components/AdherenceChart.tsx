@@ -141,8 +141,8 @@ export const AdherenceChart: React.FC<AdherenceChartProps> = ({
   };
 
   return (
-    <div className="w-full h-48 sm:h-64">
-      <Line data={chartData} options={options} />
+    <div className="w-full h-48 sm:h-64" role="img" aria-label="Weekly adherence trend chart showing daily medication completion rates over the last 7 days">
+      <Line data={chartData} options={options} aria-hidden="true" />
     </div>
   );
 };

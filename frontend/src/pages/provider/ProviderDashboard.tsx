@@ -177,7 +177,7 @@ export const ProviderDashboard: React.FC = () => {
                   </button>
                   <button
                     onClick={() => handleRejectRequest(req.id)}
-                    className="btn-press flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-status-error/10 text-status-error hover:bg-status-error/20 font-semibold text-xs"
+                    className="btn-press flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-status-error/10 text-red-300 hover:bg-status-error/20 font-semibold text-xs"
                   >
                     <X className="w-3.5 h-3.5" />
                     <span>Decline</span>
