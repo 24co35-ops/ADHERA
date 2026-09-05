@@ -70,7 +70,7 @@ async def get_dashboard(request: Request, patient_id: str = Query(None), user: d
         try:
             user_tz = ZoneInfo(user_tz_str)
         except Exception:
-            user_tz = timezone.utc
+            user_tz = ZoneInfo("UTC")
 
         now_local = datetime.now(user_tz)
         today_date = now_local.date()

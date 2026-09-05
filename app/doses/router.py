@@ -20,7 +20,7 @@ def get_scheduled_utc_for_today(reminder: dict) -> str:
     try:
         user_tz = ZoneInfo(user_tz_str)
     except Exception:
-        user_tz = timezone.utc
+        user_tz = ZoneInfo("UTC")
 
     now_local = datetime.now(user_tz)
     today_date = now_local.date()
@@ -91,7 +91,7 @@ async def doses_upcoming(request: Request, user: dict = Depends(get_current_user
     try:
         user_tz = ZoneInfo(user_tz_str)
     except Exception:
-        user_tz = timezone.utc
+        user_tz = ZoneInfo("UTC")
 
     now_local = datetime.now(user_tz)
     today_date = now_local.date()
