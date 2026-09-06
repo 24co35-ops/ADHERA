@@ -38,7 +38,7 @@ async def query_medical_chat(
         raise HTTPException(status_code=401, detail="Authentication required")
 
     # Fetch active user medicines to correlate side effects
-    user_medicines = []
+    user_medicines: list[dict] = []
     try:
         med_res = (
             supabase.table("medicines")
