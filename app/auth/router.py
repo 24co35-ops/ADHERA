@@ -1,9 +1,13 @@
+import asyncio
 import base64
 import hashlib
 import io
 import json
 import logging
+import secrets
 import time
+from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 try:
     import qrcode
@@ -12,15 +16,18 @@ except ImportError:
     _QR_AVAILABLE = False
 import pyotp
 from cryptography.fernet import Fernet
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from jose import jwt
 
+from app.auth.dependencies import get_current_user
 from app.auth.schemas import (
+    EmailConfirmRequest,
     ForgotPassword,
     MfaCode,
     MfaConfirm,
     RefreshRequest,
+    ResendConfirmRequest,
     ResetPassword,
     Token,
     UserLogin,
@@ -31,12 +38,12 @@ from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
 from app.db.supabase import supabase, supabase_auth
 from app.services.audit import log_audit_action
+from app.services.email import send_confirmation_email
 
 try:
     from supabase_auth.types import AdminUserAttributes
 except ImportError:
     AdminUserAttributes = dict
-from app.auth.dependencies import get_current_user
 
 logger = logging.getLogger("adhera.auth")
 router = APIRouter()
@@ -89,8 +96,8 @@ async def register(request: Request, user_data: UserRegister):
             logger.error("Supabase sign_up failed: %s", str(e))
             raise HTTPException(status_code=400, detail=str(e))
 
-        # Patient: auto-approved. Provider: pending approval.
-        is_active = user_data.role == "patient"
+        # Both patient (pending email confirmation) and provider (pending admin approval) start inactive
+        is_active = False
 
         if supabase:
             try:
@@ -113,15 +120,37 @@ async def register(request: Request, user_data: UserRegister):
         except Exception as audit_err:
             logger.warning("Audit log failed for USER_REGISTERED: %s", audit_err)
 
-        email_confirm_required = False
-        if user_data.role == "patient" and (not hasattr(res, "session") or res.session is None):
-            email_confirm_required = True
-
         if user_data.role == "provider":
             return SuccessResponse(data={"message": "Registration submitted. An admin will review your account within 24 hours.", "pending": True})
-        if email_confirm_required:
-            return SuccessResponse(data={"message": "Check your inbox to confirm your email.", "pending": False, "email_confirm_required": True})
-        return SuccessResponse(data={"message": "Registration successful.", "pending": False})
+
+        # Generate 30-minute confirmation token for patient
+        token = secrets.token_urlsafe(32)
+        expires_at = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+
+        if supabase:
+            try:
+                supabase.table("email_confirmations").insert({
+                    "user_id": res.user.id,
+                    "email": user_data.email,
+                    "token": token,
+                    "expires_at": expires_at,
+                    "used": False,
+                }).execute()
+            except Exception as ec_err:
+                logger.warning("Failed to create email_confirmations record: %r", ec_err)
+
+        # Dispatch confirmation email via Resend
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(send_confirmation_email(user_data.email, token, res.user.id))
+        except RuntimeError:
+            pass
+
+        return SuccessResponse(data={
+            "message": "Registration successful. Please check your email to confirm your account.",
+            "pending": True,
+            "email_confirm_required": True
+        })
     except HTTPException:
         raise
     except AuthApiError as e:
@@ -132,6 +161,7 @@ async def register(request: Request, user_data: UserRegister):
                 content={"success": False, "error": {"code": "USER_EXISTS", "message": "An account with this email already exists. Please log in instead."}}
             )
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @router.post("/login", response_model=SuccessResponse[Token])
 @limiter.limit("10/minute")
@@ -145,7 +175,7 @@ async def login(request: Request, credentials: UserLogin):
             log_audit_action("LOGIN_FAILED", None, {"email": credentials.email})
             raise HTTPException(status_code=401, detail="Invalid email or password.")
 
-        # Check profile approval status and get role
+        # Check profile approval / confirmation status and get role
         user_role = (res.user.user_metadata or {}).get("role", "patient")
         if supabase:
             user_id = res.user.id if res.user else None
@@ -159,7 +189,13 @@ async def login(request: Request, credentials: UserLogin):
                             status_code=403,
                             detail={"code": "ACCOUNT_PENDING_APPROVAL", "message": "Your account is pending admin approval."}
                         )
-                    if not p.get("is_active", True) and p.get("role") != "provider":
+                    if not p.get("is_active", True):
+                        # Determine if this is an unconfirmed patient account
+                        if p.get("role") == "patient":
+                            raise HTTPException(
+                                status_code=403,
+                                detail={"code": "EMAIL_NOT_CONFIRMED", "message": "Please confirm your email before logging in. Check your inbox for the confirmation link."}
+                            )
                         raise HTTPException(
                             status_code=403,
                             detail={"code": "ACCOUNT_DISABLED", "message": "Your account has been disabled."}
@@ -240,6 +276,7 @@ async def refresh(request: Request, body: RefreshRequest):
     except Exception:
         raise HTTPException(status_code=401, detail="Failed to refresh token.")
 
+
 @router.post("/logout", response_model=SuccessResponse[dict])
 @limiter.limit("10/minute")
 async def logout(request: Request):
@@ -248,6 +285,7 @@ async def logout(request: Request):
     except Exception:
         pass
     return SuccessResponse(data={"message": "Logged out."})
+
 
 @router.post("/forgot-password", response_model=SuccessResponse[dict])
 @router.post("/auth/forgot-password", response_model=SuccessResponse[dict])
@@ -262,6 +300,7 @@ async def forgot_password(request: Request, body: ForgotPassword):
         pass
     return SuccessResponse(data={"message": "Reset link sent if email exists."})
 
+
 @router.post("/reset-password", response_model=SuccessResponse[dict])
 @limiter.limit("10/minute")
 async def reset_password(request: Request, body: ResetPassword):
@@ -273,15 +312,108 @@ async def reset_password(request: Request, body: ResetPassword):
     except AuthApiError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
+@router.get("/confirm-email", response_model=SuccessResponse[dict])
+@router.post("/confirm-email", response_model=SuccessResponse[dict])
+@limiter.limit("20/minute")
+async def confirm_email(
+    request: Request,
+    token: Optional[str] = Query(None),
+    body: Optional[EmailConfirmRequest] = None
+):
+    token_val = token or (body.token if body else None)
+    if not token_val:
+        raise HTTPException(status_code=400, detail={"code": "INVALID_TOKEN", "message": "Token is required."})
+
+    if not supabase:
+        return SuccessResponse(data={"message": "Email confirmed successfully. You may now log in."})
+
+    try:
+        res = supabase.table("email_confirmations").select("*").eq("token", token_val).execute()
+        if not res.data or len(res.data) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail={"code": "INVALID_TOKEN", "message": "Invalid confirmation link."}
+            )
+
+        record = res.data[0]
+        if record.get("used"):
+            raise HTTPException(
+                status_code=400,
+                detail={"code": "INVALID_TOKEN", "message": "This confirmation link has already been used."}
+            )
+
+        # Check expiration
+        expires_at_str = record.get("expires_at")
+        if expires_at_str:
+            expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
+            if expires_at < datetime.now(timezone.utc):
+                raise HTTPException(
+                    status_code=400,
+                    detail={"code": "TOKEN_EXPIRED", "message": "Confirmation link has expired (30 minute limit). Please request a new one."}
+                )
+
+        # Mark token as used
+        supabase.table("email_confirmations").update({"used": True}).eq("id", record["id"]).execute()
+
+        # Activate user profile
+        user_id = record["user_id"]
+        supabase.table("profiles").update({"is_active": True}).eq("id", user_id).execute()
+
+        log_audit_action("EMAIL_CONFIRMED", user_id, {"email": record.get("email")})
+        return SuccessResponse(data={"message": "Email confirmed successfully. You can now sign in."})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error during email confirmation: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to confirm email.")
+
+
+@router.post("/resend-confirmation", response_model=SuccessResponse[dict])
+@limiter.limit("3/hour")
+async def resend_confirmation(request: Request, body: ResendConfirmRequest):
+    if not supabase:
+        return SuccessResponse(data={"message": "If an unconfirmed account exists with this email, a new confirmation link has been sent."})
+
+    try:
+        ec_res = supabase.table("email_confirmations").select("user_id, email, used").eq("email", body.email).order("created_at", desc=True).limit(1).execute()
+        if ec_res.data:
+            user_id = ec_res.data[0]["user_id"]
+            prof = supabase.table("profiles").select("is_active, role").eq("id", user_id).execute()
+            if prof.data and not prof.data[0].get("is_active", True) and prof.data[0].get("role") == "patient":
+                # Invalidate existing unused tokens for this user
+                supabase.table("email_confirmations").update({"used": True}).eq("user_id", user_id).execute()
+
+                # Generate new token
+                new_token = secrets.token_urlsafe(32)
+                expires_at = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+                supabase.table("email_confirmations").insert({
+                    "user_id": user_id,
+                    "email": body.email,
+                    "token": new_token,
+                    "expires_at": expires_at,
+                    "used": False,
+                }).execute()
+
+                try:
+                    await send_confirmation_email(body.email, new_token, user_id)
+                except Exception as ex:
+                    logger.warning("Failed to dispatch resend confirmation email: %s", ex)
+    except Exception as e:
+        logger.warning("Error processing resend confirmation for %s: %s", body.email, e)
+
+    return SuccessResponse(data={"message": "If an unconfirmed account exists with this email, a new confirmation link has been sent."})
+
+
 @router.get("/verify-email", response_model=SuccessResponse[dict])
-async def verify_email(token: str):
+async def verify_email(token: Optional[str] = None):
     return SuccessResponse(data={"message": "Email verified handled by Supabase client implicitly."})
+
 
 def get_mfa_cipher():
     # Use dedicated MFA_ENCRYPTION_KEY if set; fall back to deriving from JWT secret for backward compat
     if settings.MFA_ENCRYPTION_KEY:
         fernet_key = settings.MFA_ENCRYPTION_KEY.encode()
-        # Ensure it's valid base64url 32-byte key
         if len(fernet_key) < 44:  # Fernet keys are 44 base64url chars
             key_bytes = hashlib.sha256(settings.MFA_ENCRYPTION_KEY.encode()).digest()
             fernet_key = base64.urlsafe_b64encode(key_bytes)
@@ -290,12 +422,14 @@ def get_mfa_cipher():
         fernet_key = base64.urlsafe_b64encode(key_bytes)
     return Fernet(fernet_key)
 
+
 @router.get("/mfa/status", response_model=SuccessResponse[dict])
 async def mfa_status(current_user: dict = Depends(get_current_user)):
     user_id = current_user["user_id"]
     res = supabase.table("profiles").select("mfa_secret").eq("id", user_id).execute()
     enabled = bool(res.data and res.data[0].get("mfa_secret"))
     return SuccessResponse(data={"mfa_enabled": enabled})
+
 
 @router.post("/mfa/enable", response_model=SuccessResponse[dict])
 async def mfa_enable(request: Request, current_user: dict = Depends(get_current_user)):
@@ -343,6 +477,7 @@ async def mfa_enable(request: Request, current_user: dict = Depends(get_current_
         logger.error(f"MFA enable error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"MFA setup failed: {str(e)}")
 
+
 @router.post("/mfa/verify", response_model=SuccessResponse[dict])
 async def mfa_verify(request: Request, body: MfaCode, current_user: dict = Depends(get_current_user)):
     user_id = current_user["user_id"]
@@ -371,6 +506,7 @@ async def mfa_verify(request: Request, body: MfaCode, current_user: dict = Depen
     log_audit_action("MFA_ACTIVATED", user_id, {})
     return SuccessResponse(data={"message": "MFA activated successfully."})
 
+
 @router.post("/mfa/disable", response_model=SuccessResponse[dict])
 async def mfa_disable(request: Request, current_user: dict = Depends(get_current_user)):
     user_id = current_user["user_id"]
@@ -385,6 +521,7 @@ async def mfa_disable(request: Request, current_user: dict = Depends(get_current
 
     log_audit_action("MFA_DISABLED", user_id, {})
     return SuccessResponse(data={"message": "MFA disabled successfully."})
+
 
 @router.post("/mfa/confirm", response_model=SuccessResponse[Token])
 async def mfa_confirm(request: Request, body: MfaConfirm):

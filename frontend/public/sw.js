@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhera-v5';
+const CACHE_NAME = 'adhera-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -76,6 +76,8 @@ self.addEventListener('push', function (event) {
   }
 
   const title = data.title || 'Adhera Reminder';
+  const reminderTag = data.tag || (data.reminder_id ? `adhera-reminder-${data.reminder_id}` : `adhera-reminder-${Date.now()}`);
+
   const options = {
     body:
       data.body ||
@@ -84,11 +86,17 @@ self.addEventListener('push', function (event) {
         : 'Time to take your scheduled medication.'),
     icon: '/assets/favicons/favicon-180x180.png',
     badge: '/assets/favicons/favicon-32x32.png',
-    tag: 'adhera-reminder',
+    tag: reminderTag,
+    renotify: true,
     data: {
       reminder_id: data.reminder_id,
       url: data.url || '/dashboard',
     },
+    actions: data.actions || [
+      { action: 'taken', title: '✅ Taken' },
+      { action: 'missed', title: '❌ Missed' },
+      { action: 'snooze', title: '⏰ Snooze' },
+    ],
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
@@ -96,19 +104,30 @@ self.addEventListener('push', function (event) {
 
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
+
+  const reminderId = event.notification.data?.reminder_id;
+  let targetUrl = event.notification.data?.url || '/dashboard';
+
+  if (event.action === 'taken' && reminderId) {
+    targetUrl = `/dashboard?action=taken&reminder_id=${encodeURIComponent(reminderId)}`;
+  } else if (event.action === 'missed' && reminderId) {
+    targetUrl = `/dashboard?action=missed&reminder_id=${encodeURIComponent(reminderId)}`;
+  } else if (event.action === 'snooze' && reminderId) {
+    targetUrl = `/dashboard?action=snooze&reminder_id=${encodeURIComponent(reminderId)}`;
+  }
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
-      if (clientList.length > 0) {
-        let client = clientList[0];
-        for (let i = 0; i < clientList.length; i++) {
-          if (clientList[i].focused) {
-            client = clientList[i];
-            break;
-          }
+      for (let i = 0; i < clientList.length; i++) {
+        let client = clientList[i];
+        if (client.url && 'focus' in client) {
+          client.navigate(targetUrl);
+          return client.focus();
         }
-        return client.focus();
       }
-      return clients.openWindow(event.notification.data?.url || '/dashboard');
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
     })
   );
 });

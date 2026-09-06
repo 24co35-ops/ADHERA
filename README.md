@@ -287,7 +287,7 @@ adhera/
 │   │   └── types/               # TypeScript interfaces & API types
 │   ├── public/                  # Static assets, service worker
 │   └── index.html               # Vite SPA entry point
-├── tests/                       # 306 pytest unit & integration tests
+├── tests/                       # 317 pytest unit & integration tests
 ├── .env.example
 ├── requirements.txt
 ├── DESIGN_DOC.md
@@ -304,7 +304,7 @@ adhera/
 | --- | --- | --- |
 | v1.0 | ✅ Live | Core platform, all modules, Vercel deployment |
 | v1.1 | ✅ Live | Gemini AI health assistant, wellness tracking, adherence insights |
-| v1.2 | 🔧 In Progress | Push notification stability, email confirmation via Resend |
+| v1.2 | ✅ Live | Push notification stability, action buttons, token-based email confirmation via Resend |
 | v2.0 | 📋 Planned | Caregiver access, multi-language, native iOS/Android |
 | Future | 📋 Planned | EHR integration, drug interaction checking, telemedicine |
 
@@ -312,14 +312,15 @@ adhera/
 
 ## Verified Stable State
 
-✅ **Authentication & Session Management**: Supabase Auth integration with registration (`/auth/register`), login (`/auth/login`), silent refresh (`/auth/refresh`), and Two-Step TOTP Multi-Factor Authentication (MFA) step support. Resilient session handling against background transient 401s.
+✅ **Authentication & Session Management**: Supabase Auth integration with registration (`/auth/register`), login (`/auth/login`), silent refresh (`/auth/refresh`), 30-minute token-based email confirmation via Resend, and Two-Step TOTP Multi-Factor Authentication (MFA) step support. Resilient session handling against background transient 401s.
+✅ **Push Notifications & Reminders**: Reliable Web Push with VAPID, notification action buttons (Taken, Missed, Snooze), individual reminder tags, idempotency protection, and automated cleanup of expired push subscriptions.
 ✅ **Patient Dashboard & Health Tracking**: Real-time adherence rate calculations, medication scheduling, and Chart.js adherence trend visualization.
 ✅ **Medicine Management**: Full CRUD (add, edit, soft delete) with dosage, frequencies, and reminder time slots.
 ✅ **Dose & Adherence Tracking**: Log dose states (Taken, Missed, Snooze) with timestamp tracking and adherence percentage calculation.
 ✅ **Side-Effect Feedback**: Log side-effect records with 1–4 severity grading linked to specific medications and patient records.
 ✅ **Provider & Admin Dashboards**: Provider patient list with compliance alerts and admin user role approval workflows.
 ✅ **Data Export**: Direct JSON and CSV streaming for patient health and adherence records.
-✅ **Testing & Quality Assurance**: 306/306 passing pytest unit and integration tests across auth, medicines, doses, feedback, analytics, admin, insights, wellness, and chat modules; automated frontend build and type-checking.
+✅ **Testing & Quality Assurance**: 317/317 passing pytest unit and integration tests across auth, medicines, doses, feedback, analytics, admin, insights, wellness, and chat modules; automated frontend build and type-checking.
 ✅ **Accessibility & Design Standards**: Dark-themed UI with glassmorphism styling, high-contrast cyan accents, and WCAG 2.1 AA compliant accessibility foundations.
 ✅ **Live Deployment**: Hosted on Vercel at [https://adhera-seven.vercel.app](https://adhera-seven.vercel.app).
 

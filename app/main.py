@@ -146,6 +146,10 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         503: "SERVICE_UNAVAILABLE"
     }
     code = code_map.get(exc.status_code, "SERVICE_UNAVAILABLE")
+    if isinstance(exc.detail, dict):
+        custom_code = exc.detail.get("code", code)
+        custom_msg = exc.detail.get("message", str(exc.detail))
+        return create_error_response(exc.status_code, custom_code, custom_msg)
     return create_error_response(exc.status_code, code, str(exc.detail))
 
 @app.exception_handler(RequestValidationError)

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
-import { Activity, Mail, Lock, User as UserIcon, Calendar, Stethoscope, ArrowRight } from 'lucide-react';
+import { Activity, Mail, Lock, User as UserIcon, Calendar, Stethoscope, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { GlassCard } from '../../components/GlassCard';
 import clsx from 'clsx';
 
@@ -20,6 +20,7 @@ export const RegisterPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [emailConfirmPending, setEmailConfirmPending] = useState(false);
 
   const navigate = useNavigate();
   const { login } = useAuthStore();
@@ -52,9 +53,11 @@ export const RegisterPage: React.FC = () => {
           login(res.data.access_token, res.data.refresh_token, res.data.user);
           if (role === 'provider') navigate('/provider');
           else navigate('/dashboard');
+        } else if (res.data?.email_confirm_required) {
+          setEmailConfirmPending(true);
         } else if (res.data?.pending) {
           setSuccessMsg('Registration submitted! An admin will review your account within 24 hours.');
-          setTimeout(() => navigate('/login'), 3000);
+          setTimeout(() => navigate('/login'), 3500);
         } else {
           setSuccessMsg('Registration successful! Please check your email to verify your account, then sign in.');
           setTimeout(() => navigate('/login'), 2500);
@@ -77,10 +80,10 @@ export const RegisterPage: React.FC = () => {
             <Activity className="w-6 h-6 text-surface font-black" />
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-            Create your Adhera Account
+            {emailConfirmPending ? 'Check Your Inbox' : 'Create your Adhera Account'}
           </h2>
           <p className="mt-1 text-sm text-on-surface-variant">
-            Join the smart adherence ecosystem
+            {emailConfirmPending ? 'We sent a verification link to your email' : 'Join the smart adherence ecosystem'}
           </p>
         </div>
 
@@ -90,189 +93,213 @@ export const RegisterPage: React.FC = () => {
           </div>
         )}
 
-        {successMsg && (
+        {successMsg && !emailConfirmPending && (
           <div className="mt-4 p-3 rounded-xl bg-status-success/10 border border-status-success/30 text-status-success text-xs text-center">
             {successMsg}
           </div>
         )}
 
-        <GlassCard className="mt-6 sm:px-8 py-8 shadow-2xl">
-          {/* Role selector tabs */}
-          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-surface-container mb-6 border border-white/5">
-            <button
-              type="button"
-              onClick={() => setRole('patient')}
-              className={clsx(
-                'py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center space-x-2',
-                role === 'patient'
-                  ? 'bg-primary text-surface shadow-glow'
-                  : 'text-on-surface-variant hover:text-white'
-              )}
-            >
-              <UserIcon className="w-4 h-4" />
-              <span>I am a Patient</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole('provider')}
-              className={clsx(
-                'py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center space-x-2',
-                role === 'provider'
-                  ? 'bg-primary text-surface shadow-glow'
-                  : 'text-on-surface-variant hover:text-white'
-              )}
-            >
-              <Stethoscope className="w-4 h-4" />
-              <span>I am a Provider</span>
-            </button>
-          </div>
-
-          <form className="space-y-4" onSubmit={handleRegister}>
-            <div>
-              <label htmlFor="reg-fullname" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
-                Full Name
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
-                  <UserIcon className="w-4 h-4" />
-                </div>
-                <input
-                  id="reg-fullname"
-                  name="fullName"
-                  type="text"
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder={role === 'provider' ? 'Dr. Jane Doe' : 'Jane Doe'}
-                  autoComplete="name"
-                  className="w-full pl-10 pr-4 py-2 rounded-xl glass-input text-sm"
-                />
-              </div>
+        {emailConfirmPending ? (
+          <GlassCard className="mt-6 sm:px-8 py-8 shadow-2xl text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-2">
+              <Mail className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-white">Confirm Your Email Address</h3>
+            <p className="text-xs text-on-surface-variant leading-relaxed">
+              We've dispatched a confirmation link to <span className="text-primary font-bold">{email}</span>.
+              Please click the link in your email to activate your account and start receiving medication reminders.
+            </p>
+            <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-[11px] text-on-surface-variant">
+              ⏱️ The confirmation link expires in <strong>30 minutes</strong>.
+            </div>
+            <div className="pt-2">
+              <Link
+                to="/login"
+                className="inline-block w-full py-2.5 px-4 rounded-xl bg-primary text-surface font-bold text-xs shadow-glow hover:bg-primary-light transition-all"
+              >
+                Go to Sign In
+              </Link>
+            </div>
+          </GlassCard>
+        ) : (
+          <GlassCard className="mt-6 sm:px-8 py-8 shadow-2xl">
+            {/* Role selector tabs */}
+            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-surface-container mb-6 border border-white/5">
+              <button
+                type="button"
+                onClick={() => setRole('patient')}
+                className={clsx(
+                  'py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center space-x-2',
+                  role === 'patient'
+                    ? 'bg-primary text-surface shadow-glow'
+                    : 'text-on-surface-variant hover:text-white'
+                )}
+              >
+                <UserIcon className="w-4 h-4" />
+                <span>I am a Patient</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole('provider')}
+                className={clsx(
+                  'py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center space-x-2',
+                  role === 'provider'
+                    ? 'bg-primary text-surface shadow-glow'
+                    : 'text-on-surface-variant hover:text-white'
+                )}
+              >
+                <Stethoscope className="w-4 h-4" />
+                <span>I am a Provider</span>
+              </button>
             </div>
 
-            <div>
-              <label htmlFor="reg-email" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
-                Email Address
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
-                  <Mail className="w-4 h-4" />
-                </div>
-                <input
-                  id="reg-email"
-                  name="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  autoComplete="email"
-                  className="w-full pl-10 pr-4 py-2 rounded-xl glass-input text-sm"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="reg-password" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
-                Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
-                  <Lock className="w-4 h-4" />
-                </div>
-                <input
-                  id="reg-password"
-                  name="password"
-                  type="password"
-                  required
-                  minLength={8}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min 8 characters"
-                  autoComplete="new-password"
-                  className="w-full pl-10 pr-4 py-2 rounded-xl glass-input text-sm"
-                />
-              </div>
-            </div>
-
-            {role === 'patient' ? (
+            <form className="space-y-4" onSubmit={handleRegister}>
               <div>
-                <label htmlFor="reg-dob" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
-                  Date of Birth
+                <label htmlFor="reg-fullname" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
+                  Full Name
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
-                    <Calendar className="w-4 h-4" />
+                    <UserIcon className="w-4 h-4" />
                   </div>
                   <input
-                    id="reg-dob"
-                    name="dateOfBirth"
-                    type="date"
-                    value={dateOfBirth}
-                    onChange={(e) => setDateOfBirth(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 rounded-xl glass-input text-sm text-on-surface"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="reg-license" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
-                    License Number
-                  </label>
-                  <input
-                    id="reg-license"
-                    name="licenseNumber"
+                    id="reg-fullname"
+                    name="fullName"
                     type="text"
                     required
-                    value={licenseNumber}
-                    onChange={(e) => setLicenseNumber(e.target.value)}
-                    placeholder="MED-12345"
-                    className="w-full px-3 py-2 rounded-xl glass-input text-sm"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="reg-specialization" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
-                    Specialization
-                  </label>
-                  <input
-                    id="reg-specialization"
-                    name="specialization"
-                    type="text"
-                    value={specialization}
-                    onChange={(e) => setSpecialization(e.target.value)}
-                    placeholder="Cardiology"
-                    className="w-full px-3 py-2 rounded-xl glass-input text-sm"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder={role === 'provider' ? 'Dr. Jane Doe' : 'Jane Doe'}
+                    autoComplete="name"
+                    className="w-full pl-10 pr-4 py-2 rounded-xl glass-input text-sm"
                   />
                 </div>
               </div>
-            )}
 
-            <div>
-              <label htmlFor="reg-timezone" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
-                Timezone
-              </label>
-              <input
-                id="reg-timezone"
-                name="timezone"
-                type="text"
-                value={timezoneStr}
-                onChange={(e) => setTimezoneStr(e.target.value)}
-                placeholder="America/New_York"
-                className="w-full px-3 py-2 rounded-xl glass-input text-sm font-mono text-xs"
-              />
-            </div>
+              <div>
+                <label htmlFor="reg-email" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <input
+                    id="reg-email"
+                    name="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    autoComplete="email"
+                    className="w-full pl-10 pr-4 py-2 rounded-xl glass-input text-sm"
+                  />
+                </div>
+              </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full btn-press mt-2 flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-primary text-surface font-bold text-sm shadow-glow hover:bg-primary-container transition-colors disabled:opacity-50"
-            >
-              <span>{loading ? 'Creating Account...' : 'Register'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
-        </GlassCard>
+              <div>
+                <label htmlFor="reg-password" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <input
+                    id="reg-password"
+                    name="password"
+                    type="password"
+                    required
+                    minLength={8}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Min 8 characters"
+                    autoComplete="new-password"
+                    className="w-full pl-10 pr-4 py-2 rounded-xl glass-input text-sm"
+                  />
+                </div>
+              </div>
+
+              {role === 'patient' ? (
+                <div>
+                  <label htmlFor="reg-dob" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
+                    Date of Birth
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <input
+                      id="reg-dob"
+                      name="dateOfBirth"
+                      type="date"
+                      value={dateOfBirth}
+                      onChange={(e) => setDateOfBirth(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 rounded-xl glass-input text-sm text-on-surface"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="reg-license" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
+                      License Number
+                    </label>
+                    <input
+                      id="reg-license"
+                      name="licenseNumber"
+                      type="text"
+                      required
+                      value={licenseNumber}
+                      onChange={(e) => setLicenseNumber(e.target.value)}
+                      placeholder="MED-12345"
+                      className="w-full px-3 py-2 rounded-xl glass-input text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="reg-specialization" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
+                      Specialization
+                    </label>
+                    <input
+                      id="reg-specialization"
+                      name="specialization"
+                      type="text"
+                      value={specialization}
+                      onChange={(e) => setSpecialization(e.target.value)}
+                      placeholder="Cardiology"
+                      className="w-full px-3 py-2 rounded-xl glass-input text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label htmlFor="reg-timezone" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1.5">
+                  Timezone
+                </label>
+                <input
+                  id="reg-timezone"
+                  name="timezone"
+                  type="text"
+                  value={timezoneStr}
+                  onChange={(e) => setTimezoneStr(e.target.value)}
+                  placeholder="America/New_York"
+                  className="w-full px-3 py-2 rounded-xl glass-input text-sm font-mono text-xs"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full btn-press mt-2 flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-primary text-surface font-bold text-sm shadow-glow hover:bg-primary-container transition-colors disabled:opacity-50"
+              >
+                <span>{loading ? 'Creating Account...' : 'Register'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+          </GlassCard>
+        )}
 
         <p className="mt-6 text-center text-xs text-on-surface-variant">
           Already registered?{' '}

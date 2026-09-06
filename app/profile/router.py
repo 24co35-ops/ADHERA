@@ -118,6 +118,7 @@ async def save_push_subscription(request: Request, subscription: dict, user: dic
             "endpoint": endpoint,
             "auth": auth,
             "p256dh": p256dh,
+            "subscription": subscription,
             "updated_at": datetime.now(timezone.utc).isoformat()
         }
         res = supabase.table("push_subscriptions").upsert(data, on_conflict="user_id").execute()

@@ -42,3 +42,8 @@ class MfaConfirm(BaseModel):
 class RefreshRequest(BaseModel):
     refresh_token: str
 
+class EmailConfirmRequest(BaseModel):
+    token: str
+
+class ResendConfirmRequest(BaseModel):
+    email: EmailStr

@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuthStore, parseJwt } from '../../stores/authStore';
 import { UserRole } from '../../types';
 import { api } from '../../lib/api';
-import { Activity, Lock, Mail, ArrowRight, ShieldAlert, ChevronLeft } from 'lucide-react';
+import { Activity, Lock, Mail, ArrowRight, ShieldAlert, ChevronLeft, Send } from 'lucide-react';
 import { GlassCard } from '../../components/GlassCard';
 
 export const LoginPage: React.FC = () => {
@@ -13,6 +13,9 @@ export const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [sessionExpiredNotice, setSessionExpiredNotice] = useState(false);
+  const [isEmailUnconfirmed, setIsEmailUnconfirmed] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const [resendStatus, setResendStatus] = useState<string | null>(null);
 
   // MFA step state
   const [mfaPartialToken, setMfaPartialToken] = useState<string | null>(null);
@@ -51,6 +54,8 @@ export const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+    setIsEmailUnconfirmed(false);
+    setResendStatus(null);
     setSessionExpiredNotice(false);
     setLoading(true);
 
@@ -89,9 +94,29 @@ export const LoginPage: React.FC = () => {
         setErrorMessage('Invalid credentials');
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Login failed. Please check your credentials.');
+      const msg = err.message || 'Login failed. Please check your credentials.';
+      setErrorMessage(msg);
+      if (err.code === 'EMAIL_NOT_CONFIRMED' || msg.toLowerCase().includes('confirm your email')) {
+        setIsEmailUnconfirmed(true);
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendConfirm = async () => {
+    if (!email) return;
+    try {
+      setResendingEmail(true);
+      setResendStatus(null);
+      const res = await api.post<any>('/auth/resend-confirmation', { email });
+      if (res.success) {
+        setResendStatus('Confirmation link sent! Please check your inbox.');
+      }
+    } catch (err: any) {
+      setResendStatus(err.message || 'Failed to send confirmation email.');
+    } finally {
+      setResendingEmail(false);
     }
   };
 
@@ -138,8 +163,8 @@ export const LoginPage: React.FC = () => {
         setTimeout(() => backToLogin(), 2500);
       } else {
         setMfaError(msg || 'Invalid code. Please try again.');
+        setMfaCode('');
       }
-      setMfaCode('');
     } finally {
       setMfaLoading(false);
     }
@@ -153,20 +178,17 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-surface flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Background Decorative Glow Circles */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-[400px] h-[400px] bg-secondary-container/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md z-10 px-4">
-        {/* Brand Header */}
         <div className="flex flex-col items-center text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary-dark via-primary to-primary-light flex items-center justify-center shadow-glow mb-4">
-            <Activity className="w-8 h-8 text-surface font-black" />
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-primary-dark via-primary to-primary-light flex items-center justify-center shadow-glow mb-3">
+            <Activity className="w-6 h-6 text-surface font-black" />
           </div>
-          <h2 className="text-3xl font-extrabold tracking-tight text-white">
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
             Welcome to Adhera
           </h2>
-          <p className="mt-2 text-sm text-on-surface-variant">
+          <p className="mt-1 text-sm text-on-surface-variant">
             Intelligent Medication Adherence Platform
           </p>
         </div>
@@ -244,7 +266,25 @@ export const LoginPage: React.FC = () => {
 
             {errorMessage && (
               <div className="mt-4 p-3 rounded-xl bg-status-error/10 border border-status-error/30 text-status-error text-xs text-center">
-                {errorMessage}
+                <p>{errorMessage}</p>
+                {isEmailUnconfirmed && (
+                  <div className="mt-2 pt-2 border-t border-status-error/20 flex flex-col items-center space-y-1.5">
+                    <button
+                      type="button"
+                      onClick={handleResendConfirm}
+                      disabled={resendingEmail || !email}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1 bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary font-bold text-[11px] rounded-lg transition-all"
+                    >
+                      <Send className="w-3 h-3" />
+                      <span>{resendingEmail ? 'Sending...' : 'Resend confirmation link'}</span>
+                    </button>
+                    {resendStatus && (
+                      <span className="text-[11px] text-status-success font-normal">
+                        {resendStatus}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

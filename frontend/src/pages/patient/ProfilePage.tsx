@@ -61,6 +61,7 @@ export const ProfilePage: React.FC = () => {
   // Web Push
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | 'unsupported'>('default');
 
   const addToast = (type: 'success' | 'warning' | 'error' | 'info', message: string) => {
     setToasts((prev) => [...prev, { id: Math.random().toString(36).substring(2, 9), type, message }]);
@@ -68,6 +69,21 @@ export const ProfilePage: React.FC = () => {
 
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const syncPushState = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      setPushPermission('unsupported');
+      return;
+    }
+    setPushPermission(Notification.permission);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      setPushSubscribed(!!sub);
+    } catch {
+      // ignore
+    }
   };
 
   const loadProfileData = async () => {
@@ -106,12 +122,7 @@ export const ProfilePage: React.FC = () => {
         setAssignment(assignRes.data);
       }
 
-      // Check Push Subscription Status
-      if ('serviceWorker' in navigator && 'PushManager' in window) {
-        const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.getSubscription();
-        setPushSubscribed(!!sub);
-      }
+      await syncPushState();
     } catch (err: any) {
       addToast('error', err.message || 'Failed to load profile');
     } finally {
@@ -121,6 +132,17 @@ export const ProfilePage: React.FC = () => {
 
   useEffect(() => {
     loadProfileData();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        syncPushState();
+      }
+    };
+    window.addEventListener('focus', syncPushState);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', syncPushState);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -210,8 +232,14 @@ export const ProfilePage: React.FC = () => {
   const togglePushSubscription = async () => {
     try {
       setPushLoading(true);
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
         addToast('warning', 'Push notifications not supported on this browser.');
+        return;
+      }
+
+      if (Notification.permission === 'denied') {
+        setPushPermission('denied');
+        addToast('warning', 'Notifications are blocked in your browser settings. Please allow notifications in site permissions.');
         return;
       }
 
@@ -227,6 +255,7 @@ export const ProfilePage: React.FC = () => {
         addToast('info', 'Push notifications disabled.');
       } else {
         const permission = await Notification.requestPermission();
+        setPushPermission(permission);
         if (permission !== 'granted') {
           addToast('warning', 'Notification permission was denied.');
           return;
@@ -541,13 +570,25 @@ export const ProfilePage: React.FC = () => {
               </div>
             </div>
 
+            {pushPermission === 'denied' && (
+              <div className="mb-3 p-2.5 rounded-xl bg-status-warning/10 border border-status-warning/30 text-status-warning text-[11px] leading-relaxed">
+                ⚠️ Notifications are blocked in your browser settings. Click the site settings icon in your browser URL bar to allow notifications.
+              </div>
+            )}
+
             <div className="flex items-center justify-between py-2">
               <div className="space-y-1">
                 <span className="text-xs font-semibold text-white block">
-                  {pushSubscribed ? 'Alerts Active' : 'Alerts Disabled'}
+                  {pushPermission === 'denied'
+                    ? 'Permission Blocked'
+                    : pushSubscribed
+                    ? 'Alerts Active'
+                    : 'Alerts Disabled'}
                 </span>
                 <span className="text-[11px] text-on-surface-variant block">
-                  {pushSubscribed
+                  {pushPermission === 'denied'
+                    ? 'Unblock in browser settings'
+                    : pushSubscribed
                     ? 'Receiving reminders on this device'
                     : 'Enable to receive dose reminders'}
                 </span>
@@ -556,12 +597,14 @@ export const ProfilePage: React.FC = () => {
                 onClick={togglePushSubscription}
                 disabled={pushLoading}
                 className={`btn-press px-3 py-1.5 rounded-xl font-bold text-xs transition-colors ${
-                  pushSubscribed
+                  pushPermission === 'denied'
+                    ? 'bg-white/10 text-on-surface-variant cursor-not-allowed'
+                    : pushSubscribed
                     ? 'bg-status-success/20 text-status-success border border-status-success/40'
                     : 'bg-primary text-surface shadow-glow'
                 }`}
               >
-                {pushLoading ? '...' : pushSubscribed ? 'Subscribed' : 'Enable'}
+                {pushLoading ? '...' : pushPermission === 'denied' ? 'Blocked' : pushSubscribed ? 'Subscribed' : 'Enable'}
               </button>
             </div>
           </GlassCard>
