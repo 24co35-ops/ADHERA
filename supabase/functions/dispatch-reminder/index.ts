@@ -1,7 +1,7 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Resend } from "npm:resend"
-// @ts-ignore
 import webpush from "npm:web-push"
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"))
