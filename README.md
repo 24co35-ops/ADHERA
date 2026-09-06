@@ -88,18 +88,19 @@ Adhera is a web-based medication adherence platform that:
 The system is deployed on three tiers:
 
 - **Frontend:** deployed on Vercel (static)
-- **Backend:** FastAPI deployed as Vercel Serverless Functions via api/index.py
+- **Backend:** FastAPI deployed as Vercel Serverless Functions via `api/index.py`
 - **Database:** Supabase (PostgreSQL 15+)
 - **Email:** Resend via custom SMTP
 - **Notifications:** Web Push API with VAPID keys + Supabase Edge Functions
 
 | Tier | Technology | Responsibility |
 | --- | --- | --- |
-| **Presentation** | React 18, Vite, TypeScript, Tailwind CSS | SPA UI rendering, client-side routing, state management |
+| **Presentation** | React 18, Vite, TypeScript, Vanilla CSS | SPA UI rendering, client-side routing, state management |
 | **API** | Python 3.10+, FastAPI | Business logic, request validation, orchestration |
 | **Data** | Supabase (PostgreSQL 15+) | Persistence, RLS enforcement, scheduled jobs |
 | **Notification** | pg_cron + Edge Functions | Reminder dispatch, retry logic, email delivery |
 | **Auth** | Supabase Auth | Token lifecycle, MFA, password hashing |
+| **AI Chat** | Gemini API | In-app health assistant with medication context |
 
 ---
 
@@ -213,6 +214,9 @@ All endpoints are versioned under `/v1`. Full interactive documentation is avail
 | Doses | `/v1/doses` | Mark Taken / Missed / Snooze, view history |
 | Feedback | `/v1/feedback` | Side-effect reports |
 | Analytics | `/v1/analytics` | Dashboard data, adherence rates, trends |
+| Insights | `/v1/insights` | AI-generated adherence insights and alerts |
+| Wellness | `/v1/wellness` | Wellness sessions and lifestyle tracking |
+| Chat | `/v1/chat` | In-app AI health assistant (Gemini) |
 | Provider | `/v1/provider` | Patient monitoring, report export |
 | Admin | `/v1/admin` | User management, assignments, approvals |
 
@@ -256,46 +260,35 @@ adhera/
 │   └── index.py                 # Vercel Serverless entry point
 ├── app/
 │   ├── main.py                  # FastAPI app entry point
-│   ├── auth/
-│   │   └── dependencies.py      # JWT validation, role guards
-│   ├── routers/
-│   │   ├── auth.py
-│   │   ├── profile.py
-│   │   ├── medicines.py
-│   │   ├── reminders.py
-│   │   ├── doses.py
-│   │   ├── feedback.py
-│   │   ├── analytics.py
-│   │   ├── provider.py
-│   │   └── admin.py
-│   ├── models/                  # Pydantic request/response schemas
-│   ├── services/                # Business logic layer
+│   ├── auth/                    # JWT validation, login, registration
+│   ├── medicines/               # Medicine CRUD, schemas, validators
+│   ├── reminders/               # Reminder slot management
+│   ├── doses/                   # Dose logging and adherence calc
+│   ├── feedback/                # Side-effect report submission
+│   ├── analytics/               # Dashboard stats, trend computation
+│   ├── insights/                # AI-generated adherence insights
+│   ├── wellness/                # Wellness session tracking
+│   ├── chat/                    # Gemini-powered health assistant
+│   ├── profile/                 # Profile management, emergency contacts
+│   ├── provider/                # Provider patient views and exports
+│   ├── admin/                   # Admin directory, approvals, audit log
+│   ├── services/                # Shared services (email, audit, push)
+│   ├── core/                    # Shared utils, response models
 │   └── db/                      # Supabase client setup
 ├── supabase/
 │   ├── migrations/              # Numbered SQL migrations
-│   └── functions/
-│       └── dispatch-reminder/   # Edge Function for notification dispatch
+│   └── functions/               # Edge Functions (reminders, emergency alerts)
 ├── frontend/
-│   ├── src/                     # React application source code
+│   ├── src/
 │   │   ├── components/          # Reusable UI & layout components
 │   │   ├── pages/               # Patient, Provider, Admin & Auth pages
-│   │   ├── stores/              # Zustand auth & app state stores
-│   │   ├── lib/                 # API client, Supabase client, config
-│   │   ├── styles/              # Global CSS & theme tokens
+│   │   ├── stores/              # Zustand auth & app state
+│   │   ├── lib/                 # API client, config loader
 │   │   └── types/               # TypeScript interfaces & API types
-│   ├── public/                  # Static assets, favicons, service worker
-│   ├── index.html               # Vite SPA entry point
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── vite.config.ts
-├── tests/
-│   ├── test_auth.py
-│   ├── test_medicines.py
-│   ├── test_doses.py
-│   ├── test_feedback.py
-│   ├── test_analytics.py
-│   └── test_timezone.py
-├── .env.example                 # Template — copy to .env and fill in values
+│   ├── public/                  # Static assets, service worker
+│   └── index.html               # Vite SPA entry point
+├── tests/                       # 306 pytest unit & integration tests
+├── .env.example
 ├── requirements.txt
 ├── DESIGN_DOC.md
 ├── PRD.md
@@ -310,7 +303,8 @@ adhera/
 | Version | Status | Additions |
 | --- | --- | --- |
 | v1.0 | ✅ Live | Core platform, all modules, Vercel deployment |
-| v1.1 | 🔧 In Progress | Email confirmation via Resend SMTP, push notifications stable |
+| v1.1 | ✅ Live | Gemini AI health assistant, wellness tracking, adherence insights |
+| v1.2 | 🔧 In Progress | Push notification stability, email confirmation via Resend |
 | v2.0 | 📋 Planned | Caregiver access, multi-language, native iOS/Android |
 | Future | 📋 Planned | EHR integration, drug interaction checking, telemedicine |
 
@@ -325,7 +319,7 @@ adhera/
 ✅ **Side-Effect Feedback**: Log side-effect records with 1–4 severity grading linked to specific medications and patient records.
 ✅ **Provider & Admin Dashboards**: Provider patient list with compliance alerts and admin user role approval workflows.
 ✅ **Data Export**: Direct JSON and CSV streaming for patient health and adherence records.
-✅ **Testing & Quality Assurance**: 261/261 passing pytest unit and integration tests; automated frontend build and type-checking.
+✅ **Testing & Quality Assurance**: 306/306 passing pytest unit and integration tests across auth, medicines, doses, feedback, analytics, admin, insights, wellness, and chat modules; automated frontend build and type-checking.
 ✅ **Accessibility & Design Standards**: Dark-themed UI with glassmorphism styling, high-contrast cyan accents, and WCAG 2.1 AA compliant accessibility foundations.
 ✅ **Live Deployment**: Hosted on Vercel at [https://adhera-seven.vercel.app](https://adhera-seven.vercel.app).
 
