@@ -35,20 +35,20 @@ export const Navbar: React.FC = () => {
   const patientLinks = [
     { to: '/dashboard', label: t('nav.dashboard'), icon: Activity },
     { to: '/medicines', label: t('nav.medicines'), icon: Pill },
-    { to: '/patient/wellness', label: 'Wellness', icon: Wind },
-    { to: '/patient/chat', label: 'Ask AI', icon: Bot },
+    { to: '/patient/wellness', label: t('nav.wellness'), icon: Wind },
+    { to: '/patient/chat', label: t('nav.chat'), icon: Bot },
     { to: '/feedback', label: t('nav.feedback'), icon: MessageSquareWarning },
     { to: '/profile', label: t('nav.profile'), icon: UserIcon },
   ];
 
   const providerLinks = [
-    { to: '/provider', label: t('nav.provider') || 'Provider Roster', icon: Users },
-    { to: '/provider/chat', label: 'Clinical AI', icon: Bot },
+    { to: '/provider', label: t('nav.provider'), icon: Users },
+    { to: '/provider/chat', label: t('nav.clinical_ai'), icon: Bot },
     { to: '/profile', label: t('nav.profile'), icon: UserIcon },
   ];
 
   const adminLinks = [
-    { to: '/admin', label: t('nav.admin') || 'Admin Console', icon: Shield },
+    { to: '/admin', label: t('nav.admin'), icon: Shield },
     { to: '/profile', label: t('nav.profile'), icon: UserIcon },
   ];
 

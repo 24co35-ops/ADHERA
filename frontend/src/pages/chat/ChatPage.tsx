@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
+import { useI18n } from '../../lib/i18n';
 import { GlassCard } from '../../components/GlassCard';
 import {
   MessageSquare,
@@ -50,6 +51,7 @@ const SAMPLE_QUESTIONS = [
 
 export const ChatPage: React.FC = () => {
   const { user, role } = useAuthStore();
+  const { t } = useI18n();
   const navigate = useNavigate();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -154,13 +156,13 @@ export const ChatPage: React.FC = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
             <Bot className="w-7 h-7 text-primary" />
-            <span>Clinical Knowledge Assistant</span>
+            <span>{t('chat.title')}</span>
             <span className="text-xs uppercase font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/20">
               RAG Grounded
             </span>
           </h1>
           <p className="text-xs sm:text-sm text-on-surface-variant mt-1">
-            Grounded medication advice, side-effect guidance, and adherence protocols with zero hallucination.
+            {t('chat.subtitle')}
           </p>
         </div>
       </div>
@@ -171,7 +173,7 @@ export const ChatPage: React.FC = () => {
         <div className="bg-primary/5 border-b border-primary/10 px-4 py-2.5 flex items-center gap-2 text-xs text-primary shrink-0">
           <ShieldCheck className="w-4 h-4 shrink-0" />
           <span>
-            Answers are retrieved strictly from uploaded medical guidelines. This does not replace professional medical evaluation.
+            {t('chat.disclaimer')}
           </span>
         </div>
 
@@ -314,7 +316,7 @@ export const ChatPage: React.FC = () => {
               type="text"
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}
-              placeholder="Ask about medications, side-effects, missed doses..."
+              placeholder={t('chat.input_placeholder')}
               disabled={loading}
               className="flex-1 px-4 py-3 rounded-xl glass-input text-xs sm:text-sm placeholder:text-on-surface-variant/50"
             />
@@ -323,7 +325,7 @@ export const ChatPage: React.FC = () => {
               disabled={loading || !inputQuery.trim()}
               className="btn-press px-5 py-3 rounded-xl bg-primary text-surface font-bold text-sm hover:bg-primary-container disabled:opacity-40 transition-colors shadow-glow flex items-center gap-2"
             >
-              <span>Ask</span>
+              <span>{t('chat.send')}</span>
               <Send className="w-4 h-4" />
             </button>
           </form>

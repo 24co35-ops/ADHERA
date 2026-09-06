@@ -149,11 +149,11 @@ export const PatientDashboard: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
-            <span>Hello, {user?.full_name?.split(' ')[0] || 'Patient'}</span>
+            <span>{t('dashboard.hello')}, {user?.full_name?.split(' ')[0] || t('dashboard.patient')}</span>
             <span className="text-xl">👋</span>
           </h1>
           <p className="text-xs sm:text-sm text-on-surface-variant mt-1">
-            Track your daily prescription adherence and insights
+            {t('dashboard.subtitle')}
           </p>
         </div>
 
@@ -164,7 +164,7 @@ export const PatientDashboard: React.FC = () => {
             className="btn-press flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-status-error/10 hover:bg-status-error/20 text-status-error text-xs font-semibold border border-status-error/20"
           >
             <AlertTriangle className="w-3.5 h-3.5" />
-            <span>Report Side Effect</span>
+            <span>{t('feedback.report_new')}</span>
           </Link>
           <button
             onClick={() => handleExport('csv')}
@@ -172,7 +172,7 @@ export const PatientDashboard: React.FC = () => {
             className="btn-press flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-on-surface text-xs font-semibold border border-white/10"
           >
             <Download className="w-3.5 h-3.5 text-primary" />
-            <span>{exporting ? 'Exporting...' : 'Export Data'}</span>
+            <span>{exporting ? t('dashboard.exporting') : t('dashboard.export_data')}</span>
           </button>
         </div>
       </div>
@@ -183,10 +183,10 @@ export const PatientDashboard: React.FC = () => {
           <AlertTriangle className="w-5 h-5 text-status-warning shrink-0 mt-0.5" />
           <div className="text-xs">
             <span className="font-bold text-status-warning block text-sm">
-              Adherence Warning (&lt; 70%)
+              {t('dashboard.adherence_warning_title')}
             </span>
             <p className="text-on-surface mt-0.5">
-              Your weekly adherence is at {stats.weekly_percentage}%. Please follow your daily schedule to stay on track with your doctor's recommendations.
+              {t('dashboard.adherence_warning_msg')} {stats.weekly_percentage}{t('dashboard.adherence_warning_msg_end')}
             </p>
           </div>
         </div>
@@ -206,7 +206,7 @@ export const PatientDashboard: React.FC = () => {
             <span className="text-3xl font-extrabold text-white tracking-tight">
               {stats?.weekly_adherence ?? 100}%
             </span>
-            <span className="text-[11px] text-primary font-medium">Weekly rate</span>
+            <span className="text-[11px] text-primary font-medium">{t('stat.weekly_rate')}</span>
           </div>
           <div className="mt-2 w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
             <div
@@ -228,11 +228,11 @@ export const PatientDashboard: React.FC = () => {
             <span className="text-3xl font-extrabold text-white tracking-tight">
               {stats?.streak ?? 0}
             </span>
-            <span className="text-[11px] text-on-surface-variant">Consecutive days</span>
+            <span className="text-[11px] text-on-surface-variant">{t('stat.consecutive_days')}</span>
           </div>
           <span className="text-[11px] text-status-warning font-semibold mt-2 flex items-center gap-1">
             <Sparkles className="w-3 h-3" />
-            Keep it going!
+            {t('stat.keep_it_up')}
           </span>
         </GlassCard>
 
@@ -248,10 +248,10 @@ export const PatientDashboard: React.FC = () => {
             <span className="text-3xl font-extrabold text-white tracking-tight">
               {stats?.missed_this_month ?? 0}
             </span>
-            <span className="text-[11px] text-on-surface-variant">Doses missed</span>
+            <span className="text-[11px] text-on-surface-variant">{t('stat.doses_missed')}</span>
           </div>
           <span className="text-[11px] text-on-surface-variant mt-2">
-            This calendar month
+            {t('stat.this_month')}
           </span>
         </GlassCard>
 
@@ -267,7 +267,7 @@ export const PatientDashboard: React.FC = () => {
             <span className="text-3xl font-extrabold text-white tracking-tight">
               {stats?.today_taken ?? 0}/{stats?.today_total ?? 0}
             </span>
-            <span className="text-[11px] text-secondary font-medium">Completed</span>
+            <span className="text-[11px] text-secondary font-medium">{t('stat.completed')}</span>
           </div>
           <div className="mt-2 w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
             <div
@@ -296,14 +296,14 @@ export const PatientDashboard: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-white">{t('schedule.title')}</h2>
-                  <p className="text-xs text-on-surface-variant">Scheduled doses for today</p>
+                  <p className="text-xs text-on-surface-variant">{t('schedule.scheduled_today')}</p>
                 </div>
               </div>
               <Link
                 to="/medicines"
                 className="text-xs text-primary font-semibold hover:underline flex items-center gap-1"
               >
-                <span>Manage Medicines</span>
+                <span>{t('schedule.manage_medicines')}</span>
                 <ChevronRight className="w-3.5 h-3.5" />
               </Link>
             </div>
@@ -380,7 +380,7 @@ export const PatientDashboard: React.FC = () => {
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
               <div>
                 <h3 className="text-base font-bold text-white">{t('chart.weekly_adherence')}</h3>
-                <p className="text-xs text-on-surface-variant">Daily completion rates over the last 7 days</p>
+                <p className="text-xs text-on-surface-variant">{t('chart.weekly_adherence_sub')}</p>
               </div>
             </div>
             <AdherenceChart trendData={trendData} />
@@ -396,8 +396,8 @@ export const PatientDashboard: React.FC = () => {
                 <Stethoscope className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">Healthcare Provider</h3>
-                <p className="text-xs text-on-surface-variant">Clinical care team</p>
+                <h3 className="text-sm font-bold text-white">{t('provider.care_team_title')}</h3>
+                <p className="text-xs text-on-surface-variant">{t('provider.care_team_sub')}</p>
               </div>
             </div>
 
@@ -406,7 +406,7 @@ export const PatientDashboard: React.FC = () => {
                 <div className="space-y-2">
                   <span className="text-xs text-status-success font-semibold flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-status-success animate-pulse" />
-                    Connected
+                    {t('provider.connected')}
                   </span>
                   <p className="text-sm font-bold text-white">
                     {providerInfo.data.profiles.full_name || 'Dr. Physician'}
@@ -421,13 +421,13 @@ export const PatientDashboard: React.FC = () => {
               ) : (
                 <div className="text-center py-4 space-y-2">
                   <p className="text-xs text-on-surface-variant">
-                    No active provider assigned yet.
+                    {t('provider.no_provider')}
                   </p>
                   <Link
                     to="/profile"
                     className="inline-block text-xs text-primary font-semibold hover:underline"
                   >
-                    Request Provider &rarr;
+                    {t('provider.request_provider')} &rarr;
                   </Link>
                 </div>
               )}
@@ -441,21 +441,21 @@ export const PatientDashboard: React.FC = () => {
                 <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
                   <Wind className="w-4 h-4" />
                 </div>
-                <h3 className="text-sm font-bold text-white">Mental Wellness</h3>
+                <h3 className="text-sm font-bold text-white">{t('wellness.card_title')}</h3>
               </div>
               <span className="text-[10px] font-bold uppercase text-primary bg-primary/10 px-2 py-0.5 rounded">
-                3D Resonance
+                {t('wellness.resonance_badge')}
               </span>
             </div>
             <p className="text-xs text-on-surface-variant mb-4">
-              Calm your nervous system and reinforce treatment adherence with guided 3D resonance breathing.
+              {t('wellness.card_desc')}
             </p>
             <Link
               to="/patient/wellness"
               className="btn-press flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-primary text-surface font-bold text-xs shadow-glow hover:bg-primary-container transition-all"
             >
               <Wind className="w-3.5 h-3.5" />
-              <span>Start Breathing Exercise</span>
+              <span>{t('wellness.start_btn')}</span>
             </Link>
           </GlassCard>
 

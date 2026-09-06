@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
+import { useI18n } from '../../lib/i18n';
 import { GlassCard } from '../../components/GlassCard';
 import { BreathingSphere, BreathingPhase } from '../../components/BreathingSphere';
 import { ToastMessage, ToastContainer } from '../../components/Toast';
@@ -84,6 +85,7 @@ interface WellnessSession {
 
 export const WellnessPage: React.FC = () => {
   const { user } = useAuthStore();
+  const { t } = useI18n();
   const [selectedPattern, setSelectedPattern] = useState<BreathingPattern>(PRESET_PATTERNS[0]);
   const [isCustom, setIsCustom] = useState(false);
   const [customPattern, setCustomPattern] = useState({
@@ -258,11 +260,11 @@ export const WellnessPage: React.FC = () => {
   };
 
   const getPhaseInstruction = () => {
-    if (!isActive) return sessionCompleted ? 'Session Complete' : 'Press Start to Begin';
-    if (phase === 'inhale') return 'Inhale Deeply...';
-    if (phase === 'hold_in') return 'Hold Breath...';
-    if (phase === 'exhale') return 'Exhale Slowly...';
-    if (phase === 'hold_out') return 'Rest & Hold...';
+    if (!isActive) return sessionCompleted ? t('wellness.session_complete') : t('wellness.press_start');
+    if (phase === 'inhale') return t('wellness.inhale');
+    if (phase === 'hold_in') return t('wellness.hold');
+    if (phase === 'exhale') return t('wellness.exhale');
+    if (phase === 'hold_out') return t('wellness.rest');
     return 'Breathe';
   };
 
@@ -277,10 +279,10 @@ export const WellnessPage: React.FC = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
             <Wind className="w-7 h-7 text-primary" />
-            <span>Mental Wellness & Breathing</span>
+            <span>{t('wellness.page_title')}</span>
           </h1>
           <p className="text-xs sm:text-sm text-on-surface-variant mt-1">
-            Grounded 3D resonance breathing to lower anxiety, improve focus, and reinforce treatment adherence.
+            {t('wellness.page_subtitle')}
           </p>
         </div>
 
@@ -311,7 +313,7 @@ export const WellnessPage: React.FC = () => {
             {/* Top Phase Header */}
             <div className="text-center z-10">
               <span className="text-xs uppercase tracking-widest text-primary font-bold">
-                {isCustom ? 'Custom Pattern' : selectedPattern.name}
+                {isCustom ? t('wellness.custom_pattern') : selectedPattern.name}
               </span>
               <h2 className="text-2xl sm:text-3xl font-black text-white mt-1 transition-all">
                 {getPhaseInstruction()}
@@ -378,12 +380,12 @@ export const WellnessPage: React.FC = () => {
                   {isActive ? (
                     <>
                       <Pause className="w-4 h-4 fill-current" />
-                      <span>Pause</span>
+                      <span>{t('wellness.pause')}</span>
                     </>
                   ) : (
                     <>
                       <Play className="w-4 h-4 fill-current" />
-                      <span>{remainingTime < targetDuration ? 'Resume' : 'Start Session'}</span>
+                      <span>{remainingTime < targetDuration ? t('wellness.resume') : t('wellness.start_session')}</span>
                     </>
                   )}
                 </button>
@@ -394,7 +396,7 @@ export const WellnessPage: React.FC = () => {
                   className="btn-press flex items-center gap-1.5 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-on-surface text-sm font-semibold border border-white/10 transition-colors"
                 >
                   <RotateCcw className="w-4 h-4" />
-                  <span>Reset</span>
+                  <span>{t('wellness.reset')}</span>
                 </button>
               </div>
             </div>
@@ -404,7 +406,7 @@ export const WellnessPage: React.FC = () => {
           <div>
             <h3 className="text-base font-bold text-white mb-3 flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary" />
-              <span>Breathing Patterns</span>
+              <span>{t('wellness.patterns')}</span>
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {PRESET_PATTERNS.map((p) => {
@@ -445,7 +447,7 @@ export const WellnessPage: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-sm text-white flex items-center gap-2">
                 <Sliders className="w-4 h-4 text-primary" />
-                <span>Custom Pattern</span>
+                <span>{t('wellness.custom_pattern')}</span>
               </h3>
               <button
                 type="button"
@@ -498,7 +500,7 @@ export const WellnessPage: React.FC = () => {
           <GlassCard className="p-6">
             <h3 className="font-bold text-sm text-white mb-4 flex items-center gap-2">
               <History className="w-4 h-4 text-primary" />
-              <span>Your Recent Sessions</span>
+              <span>{t('wellness.recent_sessions')}</span>
             </h3>
 
             {loadingSessions ? (
@@ -510,8 +512,7 @@ export const WellnessPage: React.FC = () => {
             ) : recentSessions.length === 0 ? (
               <div className="text-center py-6 text-on-surface-variant text-xs">
                 <Heart className="w-6 h-6 mx-auto mb-2 text-primary/60" />
-                <p>No completed sessions logged yet.</p>
-                <p className="mt-1">Complete your first 1-minute breathing exercise today!</p>
+                <p>{t('wellness.no_sessions')}</p>
               </div>
             ) : (
               <div className="space-y-2.5">

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
+import { useI18n } from '../lib/i18n';
 import { GlassCard } from './GlassCard';
 import {
   MessageSquare,
@@ -50,6 +51,7 @@ const QUICK_PROMPTS = [
 
 export const ChatDrawer: React.FC = () => {
   const { user, role } = useAuthStore();
+  const { t } = useI18n();
   const navigate = useNavigate();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -192,13 +194,13 @@ export const ChatDrawer: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-bold text-sm text-white flex items-center gap-1.5">
-                    <span>Adhera Medical Assistant</span>
+                    <span>{t('chat.title')}</span>
                     <span className="text-[10px] uppercase font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
                       RAG Verified
                     </span>
                   </h3>
                   <p className="text-[11px] text-on-surface-variant">
-                    Grounded strictly in clinical adherence guidelines
+                    {t('chat.subtitle')}
                   </p>
                 </div>
               </div>
@@ -216,7 +218,7 @@ export const ChatDrawer: React.FC = () => {
             {/* Safety Banner */}
             <div className="bg-primary/5 border-b border-primary/10 px-4 py-2 flex items-center gap-2 text-[11px] text-primary">
               <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-              <span>Grounded in curated medical literature. Not a replacement for a doctor.</span>
+              <span>{t('chat.disclaimer')}</span>
             </div>
 
             {/* Chat Messages Stream */}
@@ -349,7 +351,7 @@ export const ChatDrawer: React.FC = () => {
                   type="text"
                   value={inputQuery}
                   onChange={(e) => setInputQuery(e.target.value)}
-                  placeholder="Ask about medications, side-effects, or timing..."
+                  placeholder={t('chat.input_placeholder')}
                   disabled={loading}
                   className="flex-1 px-4 py-2.5 rounded-xl glass-input text-xs sm:text-sm placeholder:text-on-surface-variant/50"
                 />
