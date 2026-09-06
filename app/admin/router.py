@@ -19,7 +19,7 @@ from app.auth.dependencies import require_role
 from app.config import settings
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
-from app.core.utils import calculate_age
+from app.core.utils import calculate_age, safe_csv_cell
 from app.db.supabase import supabase, supabase_auth
 from app.services.audit import log_audit_action
 
@@ -244,29 +244,31 @@ async def admin_export(request: Request, report: str = "adherence", user: dict =
         writer.writerow(["patient_name", "medicine_name", "status", "date"])
         for r in data:
             writer.writerow([
-                (r.get("profiles") or {}).get("full_name", ""),
-                (r.get("medicines") or {}).get("name", ""),
-                r.get("status", ""),
-                (r.get("created_at") or "")[:10],
+                safe_csv_cell((r.get("profiles") or {}).get("full_name", "")),
+                safe_csv_cell((r.get("medicines") or {}).get("name", "")),
+                safe_csv_cell(r.get("status", "")),
+                safe_csv_cell((r.get("created_at") or "")[:10]),
             ])
     elif report == "feedback":
         data = supabase.table("feedback").select("*, profiles(full_name)").execute().data or []
         writer.writerow(["patient_name", "severity", "description", "date"])
         for r in data:
             writer.writerow([
-                (r.get("profiles") or {}).get("full_name", ""),
-                r.get("severity", ""),
-                r.get("description", ""),
-                (r.get("created_at") or "")[:10],
+                safe_csv_cell((r.get("profiles") or {}).get("full_name", "")),
+                safe_csv_cell(r.get("severity", "")),
+                safe_csv_cell(r.get("description", "")),
+                safe_csv_cell((r.get("created_at") or "")[:10]),
             ])
     elif report == "users":
         data = supabase.table("profiles").select("full_name, email, role, is_active, created_at").execute().data or []
         writer.writerow(["full_name", "email", "role", "status", "joined"])
         for r in data:
             writer.writerow([
-                r.get("full_name"), r.get("email"), r.get("role"),
-                "active" if r.get("is_active") else "inactive",
-                (r.get("created_at") or "")[:10],
+                safe_csv_cell(r.get("full_name")),
+                safe_csv_cell(r.get("email")),
+                safe_csv_cell(r.get("role")),
+                safe_csv_cell("active" if r.get("is_active") else "inactive"),
+                safe_csv_cell((r.get("created_at") or "")[:10]),
             ])
     else:
         raise HTTPException(400, "Invalid report type. Use: adherence, feedback, users")
@@ -1204,11 +1206,11 @@ async def export_directory_user_adherence(
 
         for r in records:
             writer.writerow([
-                r.get("date", ""),
-                med_map.get(r.get("medicine_id"), "Unknown"),
-                r.get("scheduled_time", ""),
-                r.get("status", ""),
-                r.get("logged_at") or r.get("created_at") or "",
+                safe_csv_cell(r.get("date", "")),
+                safe_csv_cell(med_map.get(r.get("medicine_id"), "Unknown")),
+                safe_csv_cell(r.get("scheduled_time", "")),
+                safe_csv_cell(r.get("status", "")),
+                safe_csv_cell(r.get("logged_at") or r.get("created_at") or ""),
             ])
 
         output.seek(0)

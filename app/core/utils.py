@@ -48,3 +48,14 @@ def format_utc_to_iana(dt: datetime | str | None, iana_tz: str) -> str | None:
         return local_dt.isoformat()
     except Exception:
         return dt.isoformat()
+
+
+def safe_csv_cell(value: object) -> str:
+    """Neutralize spreadsheet formula injection (CWE-1236) by prefixing leading formula chars with '."""
+    if value is None:
+        return ""
+    val_str = str(value)
+    if val_str.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return "'" + val_str
+    return val_str
+

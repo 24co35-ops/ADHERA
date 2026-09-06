@@ -3,7 +3,7 @@ Unit tests for app.core.utils — calculate_age and format_utc_to_iana.
 """
 from datetime import date, datetime
 
-from app.core.utils import calculate_age, format_utc_to_iana
+from app.core.utils import calculate_age, format_utc_to_iana, safe_csv_cell
 
 
 class TestCalculateAge:
@@ -93,3 +93,37 @@ class TestFormatUtcToIana:
         dt = datetime(2024, 6, 15, 12, 0, 0, tzinfo=ZoneInfo("UTC"))
         result = format_utc_to_iana(dt, "US/Eastern")
         assert result is not None
+
+
+class TestSafeCsvCell:
+    def test_none_returns_empty_string(self):
+        assert safe_csv_cell(None) == ""
+
+    def test_normal_string_unchanged(self):
+        assert safe_csv_cell("Lisinopril 10mg") == "Lisinopril 10mg"
+        assert safe_csv_cell("taken") == "taken"
+        assert safe_csv_cell("2026-09-01") == "2026-09-01"
+
+    def test_formula_equals_prefixed_with_quote(self):
+        assert safe_csv_cell("=1+1") == "'=1+1"
+        assert safe_csv_cell("=HYPERLINK(\"http://evil.com\")") == "'=HYPERLINK(\"http://evil.com\")"
+
+    def test_formula_plus_prefixed_with_quote(self):
+        assert safe_csv_cell("+cmd|' /C calc'!A0") == "'+cmd|' /C calc'!A0"
+        assert safe_csv_cell("+123") == "'+123"
+
+    def test_formula_minus_prefixed_with_quote(self):
+        assert safe_csv_cell("-2+3") == "'-2+3"
+        assert safe_csv_cell("-5") == "'-5"
+
+    def test_formula_at_prefixed_with_quote(self):
+        assert safe_csv_cell("@SUM(A1:A10)") == "'@SUM(A1:A10)"
+
+    def test_tab_and_carriage_return_prefixed_with_quote(self):
+        assert safe_csv_cell("\t=1+1") == "'\t=1+1"
+        assert safe_csv_cell("\r=1+1") == "'\r=1+1"
+
+    def test_numeric_types(self):
+        assert safe_csv_cell(42) == "42"
+        assert safe_csv_cell(-5) == "'-5"
+

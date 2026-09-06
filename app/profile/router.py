@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from app.auth.dependencies import get_current_user
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
+from app.core.utils import safe_csv_cell
 from app.db.supabase import supabase
 from app.profile.schemas import EmergencyContact, ProfileUpdate
 
@@ -190,11 +191,11 @@ async def export_data(
             rem = row.get("reminders") or {}
             med = rem.get("medicines") or {} if isinstance(rem, dict) else {}
             writer.writerow({
-                "date": (row.get("scheduled_utc") or "")[:10],
-                "medicine_name": med.get("name", "") if isinstance(med, dict) else "",
-                "dose_label": rem.get("dose_label", "") if isinstance(rem, dict) else "",
-                "status": row.get("status", ""),
-                "notes": row.get("notes", "") or "",
+                "date": safe_csv_cell((row.get("scheduled_utc") or "")[:10]),
+                "medicine_name": safe_csv_cell(med.get("name", "") if isinstance(med, dict) else ""),
+                "dose_label": safe_csv_cell(rem.get("dose_label", "") if isinstance(rem, dict) else ""),
+                "status": safe_csv_cell(row.get("status", "")),
+                "notes": safe_csv_cell(row.get("notes", "") or ""),
             })
         content = buf.getvalue()
         return StreamingResponse(

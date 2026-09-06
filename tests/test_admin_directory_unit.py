@@ -246,6 +246,58 @@ class TestDirectoryAdherenceAndExport:
         assert "Date,Medicine,Scheduled Time,Status,Logged At" in content
         assert "Lisinopril" in content
 
+    @patch("app.admin.router.supabase")
+    def test_export_directory_adherence_csv_formula_injection_neutralized(self, mock_sb):
+        def table_side_effect(table_name):
+            chain = MagicMock()
+            if table_name == "profiles":
+                chain.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[{"id": PATIENT_ID}])
+            elif table_name == "adherence":
+                chain.select.return_value.eq.return_value.order.return_value.execute.return_value = MagicMock(
+                    data=[
+                        {
+                            "date": "2026-09-01",
+                            "medicine_id": "m1",
+                            "scheduled_time": "2026-09-01T08:00:00Z",
+                            "status": "taken",
+                            "logged_at": "2026-09-01T08:05:00Z"
+                        },
+                        {
+                            "date": "2026-09-02",
+                            "medicine_id": "m2",
+                            "scheduled_time": "2026-09-02T08:00:00Z",
+                            "status": "taken",
+                            "logged_at": "2026-09-02T08:05:00Z"
+                        },
+                        {
+                            "date": "2026-09-03",
+                            "medicine_id": "m3",
+                            "scheduled_time": "2026-09-03T08:00:00Z",
+                            "status": "taken",
+                            "logged_at": "2026-09-03T08:05:00Z"
+                        }
+                    ]
+                )
+            elif table_name == "medicines":
+                chain.select.return_value.in_.return_value.execute.return_value = MagicMock(
+                    data=[
+                        {"id": "m1", "name": "+cmd|' /C calc'!A0"},
+                        {"id": "m2", "name": "=1+1"},
+                        {"id": "m3", "name": "@SUM(1,2)"},
+                    ]
+                )
+            return chain
+
+        mock_sb.table.side_effect = table_side_effect
+        response = client.get(f"/v1/admin/directory/{PATIENT_ID}/adherence/export", headers=make_token("admin"))
+        assert response.status_code == 200
+        content = response.text
+        # Assert each formula injection payload begins with a single quote
+        assert "'+cmd|' /C calc'!A0" in content
+        assert "'=1+1" in content
+        assert "'@SUM(1,2)" in content
+        assert "Date,Medicine,Scheduled Time,Status,Logged At" in content
+
 
 class TestDirectoryStatusChange:
     @patch("app.admin.router.supabase")
