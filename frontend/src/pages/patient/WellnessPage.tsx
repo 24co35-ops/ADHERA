@@ -107,6 +107,7 @@ export const WellnessPage: React.FC = () => {
 
   const cycleStartRef = useRef<number>(0);
   const timerIntervalRef = useRef<any>(null);
+  const remainingRef = useRef<number>(remainingTime);
 
   const addToast = (type: 'success' | 'warning' | 'error' | 'info', message: string) => {
     setToasts((prev) => [...prev, { id: Math.random().toString(36).substring(2, 9), type, message }]);
@@ -151,6 +152,7 @@ export const WellnessPage: React.FC = () => {
   // Handle duration changes when not active
   useEffect(() => {
     if (!isActive) {
+      remainingRef.current = targetDuration;
       setRemainingTime(targetDuration);
     }
   }, [targetDuration, isActive]);
@@ -165,13 +167,15 @@ export const WellnessPage: React.FC = () => {
       return;
     }
 
+    // Anchor both clocks to NOW, accounting for time already elapsed
+    const alreadyElapsed = (targetDuration - remainingRef.current) * 1000;
+    const sessionStartTime = Date.now() - alreadyElapsed;
     cycleStartRef.current = Date.now();
-    const sessionStartTime = Date.now();
-    const initialRemaining = remainingTime;
 
     timerIntervalRef.current = setInterval(() => {
       const elapsedTotalSec = Math.floor((Date.now() - sessionStartTime) / 1000);
-      const currentRemaining = Math.max(0, initialRemaining - elapsedTotalSec);
+      const currentRemaining = Math.max(0, targetDuration - elapsedTotalSec);
+      remainingRef.current = currentRemaining;
       setRemainingTime(currentRemaining);
 
       if (currentRemaining <= 0) {
@@ -212,7 +216,7 @@ export const WellnessPage: React.FC = () => {
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
-  }, [isActive, totalCycleSeconds, activeTiming]);
+  }, [isActive, totalCycleSeconds, activeTiming, targetDuration]);
 
   const handleSessionComplete = async () => {
     setIsActive(false);
@@ -243,6 +247,7 @@ export const WellnessPage: React.FC = () => {
     setIsActive(false);
     setPhase('idle');
     setProgressInPhase(0);
+    remainingRef.current = targetDuration;
     setRemainingTime(targetDuration);
     setSessionCompleted(false);
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
