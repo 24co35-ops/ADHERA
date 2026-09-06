@@ -85,7 +85,7 @@ def test_register_duplicate_email(mock_supabase, mock_supabase_auth):
 
 def test_register_missing_fields():
     response = client.post("/v1/auth/register", json={"email": "test@demo.com"})
-    assert response.status_code == 400
+    assert response.status_code in (400, 422)
 
 @patch("app.auth.router.supabase_auth")
 @patch("app.auth.router.supabase")

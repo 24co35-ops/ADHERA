@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Generic, Optional, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -18,6 +18,7 @@ class ErrorDetail(BaseModel):
     code: str
     message: str
     field: Optional[str] = None
+    details: Optional[list[dict[str, Any]]] = None
 
 class ErrorResponse(BaseModel):
     success: bool = False

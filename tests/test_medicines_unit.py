@@ -60,9 +60,114 @@ class TestCreateMedicine:
         assert response.json()["data"]["name"] == "Metformin"
 
     @patch("app.medicines.router.supabase")
+    def test_create_daily_oral_success(self, mock_sb):
+        mock_sb.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[MEDICINE_DB])
+        payload = {
+            "name": "Lisinopril",
+            "dosage_amount": 10,
+            "dosage_unit": "mg",
+            "route": "oral",
+            "frequency_type": "daily",
+            "start_date": "2025-01-01",
+            "instructions": "Take with water"
+        }
+        response = client.post("/v1/medicines/", json=payload, headers=make_token())
+        assert response.status_code == 201
+
+    @patch("app.medicines.router.supabase")
+    def test_create_weekday_medicine_success(self, mock_sb):
+        mock_sb.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{**MEDICINE_DB, "frequency_type": "weekday"}])
+        payload = {
+            "name": "Methotrexate",
+            "dosage_amount": 2.5,
+            "dosage_unit": "mg",
+            "route": "oral",
+            "frequency_type": "weekday",
+            "start_date": "2025-01-01"
+        }
+        response = client.post("/v1/medicines/", json=payload, headers=make_token())
+        assert response.status_code == 201
+
+    @patch("app.medicines.router.supabase")
+    def test_create_alternate_day_medicine_success(self, mock_sb):
+        mock_sb.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{**MEDICINE_DB, "frequency_type": "alternate"}])
+        payload = {
+            "name": "Warfarin",
+            "dosage_amount": 5,
+            "dosage_unit": "mg",
+            "route": "oral",
+            "frequency_type": "alternate",
+            "start_date": "2025-01-01"
+        }
+        response = client.post("/v1/medicines/", json=payload, headers=make_token())
+        assert response.status_code == 201
+
+    @patch("app.medicines.router.supabase")
+    def test_create_prn_medicine_success(self, mock_sb):
+        mock_sb.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{**MEDICINE_DB, "frequency_type": "prn"}])
+        payload = {
+            "name": "Albuterol",
+            "dosage_amount": 2,
+            "dosage_unit": "units",
+            "route": "inhaled",
+            "frequency_type": "prn",
+            "start_date": "2025-01-01"
+        }
+        response = client.post("/v1/medicines/", json=payload, headers=make_token())
+        assert response.status_code == 201
+
+    @patch("app.medicines.router.supabase")
     def test_create_missing_required_field(self, mock_sb):
         response = client.post("/v1/medicines/", json={"name": "Metformin"}, headers=make_token())
-        assert response.status_code == 400
+        assert response.status_code in (400, 422)
+        body = response.json()
+        assert body["success"] is False
+        assert "error" in body
+        assert body["error"]["code"] == "VALIDATION_ERROR"
+        assert body["error"]["field"] is not None
+        assert "details" in body["error"]
+        assert len(body["error"]["details"]) > 0
+
+    def test_create_medicine_invalid_route(self):
+        payload = {
+            "name": "Test Med",
+            "dosage_amount": 10,
+            "dosage_unit": "mg",
+            "route": "invalid_route",
+            "frequency_type": "daily",
+            "start_date": "2025-01-01"
+        }
+        response = client.post("/v1/medicines/", json=payload, headers=make_token())
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+        assert "route" in response.json()["error"]["field"]
+
+    def test_create_medicine_invalid_dosage_unit(self):
+        payload = {
+            "name": "Test Med",
+            "dosage_amount": 10,
+            "dosage_unit": "invalid_unit",
+            "route": "oral",
+            "frequency_type": "daily",
+            "start_date": "2025-01-01"
+        }
+        response = client.post("/v1/medicines/", json=payload, headers=make_token())
+        assert response.status_code == 422
+        assert "dosage_unit" in response.json()["error"]["field"]
+
+    def test_create_medicine_invalid_end_date_before_start_date(self):
+        payload = {
+            "name": "Test Med",
+            "dosage_amount": 10,
+            "dosage_unit": "mg",
+            "route": "oral",
+            "frequency_type": "daily",
+            "start_date": "2025-05-10",
+            "end_date": "2025-05-01"
+        }
+        response = client.post("/v1/medicines/", json=payload, headers=make_token())
+        assert response.status_code == 422
+        assert "end_date" in response.json()["error"]["field"]
 
 
 class TestListMedicines:

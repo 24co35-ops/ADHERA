@@ -111,14 +111,47 @@ export async function adheraFetch(url: string, options: RequestInit = {}): Promi
   return response;
 }
 
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  field?: string;
+  details?: { field: string; message: string; type?: string }[];
+  data?: any;
+
+  constructor(message: string, status: number, errorData?: any) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = errorData?.code;
+    this.field = errorData?.field;
+    this.details = errorData?.details;
+    this.data = errorData;
+  }
+}
+
+async function handleResponse<T>(res: Response): Promise<ApiResponse<T>> {
+  let json: any = null;
+  try {
+    json = await res.json();
+  } catch (e) {
+    // Ignore non-JSON body
+  }
+
+  if (!res.ok) {
+    const errMsg =
+      json?.error?.message ||
+      (typeof json?.detail === 'string' ? json.detail : null) ||
+      (Array.isArray(json?.detail) && json.detail[0]?.msg ? `${json.detail[0]?.loc?.slice(-1)}: ${json.detail[0]?.msg}` : null) ||
+      `HTTP ${res.status}`;
+    throw new ApiError(errMsg, res.status, json?.error || json);
+  }
+  return json;
+}
+
 export const api = {
   async get<T>(url: string, options?: RequestInit): Promise<ApiResponse<T>> {
     const res = await adheraFetch(url, { ...options, method: 'GET' });
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json?.error?.message || json?.detail || `HTTP ${res.status}`);
-    }
-    return json;
+    return handleResponse<T>(res);
   },
 
   async post<T>(url: string, body?: any, options?: RequestInit): Promise<ApiResponse<T>> {
@@ -127,11 +160,7 @@ export const api = {
       method: 'POST',
       body: body instanceof FormData ? body : JSON.stringify(body),
     });
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json?.error?.message || json?.detail || `HTTP ${res.status}`);
-    }
-    return json;
+    return handleResponse<T>(res);
   },
 
   async put<T>(url: string, body?: any, options?: RequestInit): Promise<ApiResponse<T>> {
@@ -140,11 +169,7 @@ export const api = {
       method: 'PUT',
       body: body instanceof FormData ? body : JSON.stringify(body),
     });
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json?.error?.message || json?.detail || `HTTP ${res.status}`);
-    }
-    return json;
+    return handleResponse<T>(res);
   },
 
   async patch<T>(url: string, body?: any, options?: RequestInit): Promise<ApiResponse<T>> {
@@ -153,19 +178,11 @@ export const api = {
       method: 'PATCH',
       body: body instanceof FormData ? body : JSON.stringify(body),
     });
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json?.error?.message || json?.detail || `HTTP ${res.status}`);
-    }
-    return json;
+    return handleResponse<T>(res);
   },
 
   async delete<T>(url: string, options?: RequestInit): Promise<ApiResponse<T>> {
     const res = await adheraFetch(url, { ...options, method: 'DELETE' });
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json?.error?.message || json?.detail || `HTTP ${res.status}`);
-    }
-    return json;
+    return handleResponse<T>(res);
   },
 };
