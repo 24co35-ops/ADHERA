@@ -108,6 +108,7 @@ export const WellnessPage: React.FC = () => {
   const cycleStartRef = useRef<number>(0);
   const timerIntervalRef = useRef<any>(null);
   const remainingRef = useRef<number>(remainingTime);
+  const sessionStartRef = useRef<number>(0);
 
   const addToast = (type: 'success' | 'warning' | 'error' | 'info', message: string) => {
     setToasts((prev) => [...prev, { id: Math.random().toString(36).substring(2, 9), type, message }]);
@@ -117,18 +118,12 @@ export const WellnessPage: React.FC = () => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Active pattern timings
-  const activeTiming = isCustom
-    ? customPattern
-    : {
-        inhale: selectedPattern.inhale,
-        holdIn: selectedPattern.holdIn,
-        exhale: selectedPattern.exhale,
-        holdOut: selectedPattern.holdOut,
-      };
-
-  const totalCycleSeconds =
-    activeTiming.inhale + activeTiming.holdIn + activeTiming.exhale + activeTiming.holdOut || 1;
+  // Active pattern timings — destructured to primitives so effect deps use value comparison
+  const tIn = isCustom ? customPattern.inhale : selectedPattern.inhale;
+  const tHoldIn_ = isCustom ? customPattern.holdIn : selectedPattern.holdIn;
+  const tEx_ = isCustom ? customPattern.exhale : selectedPattern.exhale;
+  const tHoldOut_ = isCustom ? customPattern.holdOut : selectedPattern.holdOut;
+  const totalCycleSeconds = (tIn + tHoldIn_ + tEx_ + tHoldOut_) || 1;
 
   // Load recent sessions
   const loadRecentSessions = async () => {
@@ -164,16 +159,20 @@ export const WellnessPage: React.FC = () => {
       setProgressInPhase(0);
       setPhaseCountdown(0);
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      sessionStartRef.current = 0; // reset so next start anchors fresh
       return;
     }
 
-    // Anchor both clocks to NOW, accounting for time already elapsed
-    const alreadyElapsed = (targetDuration - remainingRef.current) * 1000;
-    const sessionStartTime = Date.now() - alreadyElapsed;
-    cycleStartRef.current = Date.now();
+    // Anchor session clock only once per activation — not on every re-run
+    if (!sessionStartRef.current) {
+      const alreadyElapsed = (targetDuration - remainingRef.current) * 1000;
+      sessionStartRef.current = Date.now() - alreadyElapsed;
+      cycleStartRef.current = Date.now();
+    }
 
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     timerIntervalRef.current = setInterval(() => {
-      const elapsedTotalSec = Math.floor((Date.now() - sessionStartTime) / 1000);
+      const elapsedTotalSec = Math.floor((Date.now() - sessionStartRef.current) / 1000);
       const currentRemaining = Math.max(0, targetDuration - elapsedTotalSec);
       remainingRef.current = currentRemaining;
       setRemainingTime(currentRemaining);
@@ -183,40 +182,39 @@ export const WellnessPage: React.FC = () => {
         return;
       }
 
-      // Calculate position within current cycle
+      // Calculate position within current breathing cycle
       const cycleElapsedMs = (Date.now() - cycleStartRef.current) % (totalCycleSeconds * 1000);
       const cycleSec = cycleElapsedMs / 1000;
+      const tInEnd = tIn;
+      const tHoldInEnd = tIn + tHoldIn_;
+      const tExEnd = tHoldInEnd + tEx_;
 
-      const tIn = activeTiming.inhale;
-      const tHoldIn = tIn + activeTiming.holdIn;
-      const tEx = tHoldIn + activeTiming.exhale;
-
-      if (cycleSec < tIn) {
+      if (cycleSec < tInEnd) {
         setPhase('inhale');
         setProgressInPhase(cycleSec / (tIn || 1));
         setPhaseCountdown(Math.ceil(tIn - cycleSec));
-      } else if (cycleSec < tHoldIn) {
+      } else if (cycleSec < tHoldInEnd) {
         setPhase('hold_in');
-        const holdElapsed = cycleSec - tIn;
-        setProgressInPhase(holdElapsed / (activeTiming.holdIn || 1));
-        setPhaseCountdown(Math.ceil(activeTiming.holdIn - holdElapsed));
-      } else if (cycleSec < tEx) {
+        const elapsed = cycleSec - tInEnd;
+        setProgressInPhase(elapsed / (tHoldIn_ || 1));
+        setPhaseCountdown(Math.ceil(tHoldIn_ - elapsed));
+      } else if (cycleSec < tExEnd) {
         setPhase('exhale');
-        const exElapsed = cycleSec - tHoldIn;
-        setProgressInPhase(exElapsed / (activeTiming.exhale || 1));
-        setPhaseCountdown(Math.ceil(activeTiming.exhale - exElapsed));
+        const elapsed = cycleSec - tHoldInEnd;
+        setProgressInPhase(elapsed / (tEx_ || 1));
+        setPhaseCountdown(Math.ceil(tEx_ - elapsed));
       } else {
         setPhase('hold_out');
-        const holdOutElapsed = cycleSec - tEx;
-        setProgressInPhase(holdOutElapsed / (activeTiming.holdOut || 1));
-        setPhaseCountdown(Math.ceil(activeTiming.holdOut - holdOutElapsed));
+        const elapsed = cycleSec - tExEnd;
+        setProgressInPhase(elapsed / (tHoldOut_ || 1));
+        setPhaseCountdown(Math.ceil(tHoldOut_ - elapsed));
       }
     }, 50);
 
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
-  }, [isActive, totalCycleSeconds, activeTiming, targetDuration]);
+  }, [isActive, totalCycleSeconds, tIn, tHoldIn_, tEx_, tHoldOut_, targetDuration]);
 
   const handleSessionComplete = async () => {
     setIsActive(false);
