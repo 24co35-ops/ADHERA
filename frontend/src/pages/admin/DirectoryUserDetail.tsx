@@ -164,7 +164,7 @@ export const DirectoryUserDetail: React.FC = () => {
     if (!userId) return;
     try {
       setAuditLoading(true);
-      const res = await api.get<AuditLogEntry[]>(`/admin/audit-logs?user_id=${userId}&limit=50`);
+      const res = await api.get<AuditLogEntry[]>(`/admin/directory/${userId}/audit?limit=50`);
       if (res.success && res.data) {
         setAuditLogs(res.data);
       }
@@ -541,9 +541,34 @@ export const DirectoryUserDetail: React.FC = () => {
               </div>
 
               <div>
-                <span className="text-on-surface-variant block mb-1.5 font-medium">Emergency Contacts</span>
-                {/* Check if user has emergency contacts */}
-                <span className="text-white/40 italic">Managed via Patient profile portal</span>
+                <span className="text-on-surface-variant block mb-1.5 font-medium">Emergency Contact</span>
+                {user.emergency_contact ? (
+                  <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-1.5 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-white">{user.emergency_contact.full_name || '—'}</span>
+                      {user.emergency_contact.is_verified && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-status-success/10 text-status-success border border-status-success/30 text-[10px] font-semibold">Verified</span>
+                      )}
+                    </div>
+                    {user.emergency_contact.relationship && (
+                      <div className="text-on-surface-variant">Relationship: <span className="text-white">{user.emergency_contact.relationship}</span></div>
+                    )}
+                    {user.emergency_contact.phone && (
+                      <div className="flex items-center gap-1 text-on-surface-variant">
+                        <Phone className="w-3 h-3" />
+                        <span className="text-white">{user.emergency_contact.phone}</span>
+                      </div>
+                    )}
+                    {user.emergency_contact.email && (
+                      <div className="flex items-center gap-1 text-on-surface-variant">
+                        <Mail className="w-3 h-3" />
+                        <span className="text-white">{user.emergency_contact.email}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-white/40 italic">No emergency contact on file</span>
+                )}
               </div>
             </div>
           </GlassCard>
@@ -644,8 +669,10 @@ export const DirectoryUserDetail: React.FC = () => {
                   <tr className="border-b border-white/10 text-on-surface-variant uppercase text-[10px] tracking-wider">
                     <th className="py-2.5 px-3">Date / Scheduled</th>
                     <th className="py-2.5 px-3">Prescription</th>
+                    <th className="py-2.5 px-3">Dose Slot</th>
                     <th className="py-2.5 px-3">Status</th>
                     <th className="py-2.5 px-3">Logged At</th>
+                    <th className="py-2.5 px-3">Notes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -659,6 +686,9 @@ export const DirectoryUserDetail: React.FC = () => {
                         </td>
                         <td className="py-3 px-3 text-white">
                           {r.medicine_name || 'Prescription Dose'}
+                        </td>
+                        <td className="py-3 px-3 text-on-surface-variant">
+                          {r.dose_label || '—'}
                         </td>
                         <td className="py-3 px-3">
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
@@ -674,6 +704,9 @@ export const DirectoryUserDetail: React.FC = () => {
                         </td>
                         <td className="py-3 px-3 text-on-surface-variant whitespace-nowrap">
                           {formatDate(r.logged_at || r.outcome_utc || r.created_at)}
+                        </td>
+                        <td className="py-3 px-3 text-on-surface-variant max-w-[160px] truncate" title={r.notes || ''}>
+                          {r.notes || '—'}
                         </td>
                       </tr>
                     );

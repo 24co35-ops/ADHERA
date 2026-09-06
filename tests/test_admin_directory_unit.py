@@ -323,3 +323,131 @@ class TestDirectoryStatusChange:
         payload = {"is_active": False, "reason": "Verification failed"}
         response = client.patch(f"/v1/admin/directory/{PATIENT_ID}/status", json=payload, headers=make_token("admin"))
         assert response.status_code == 404
+
+
+class TestDirectoryAudit:
+    @patch("app.admin.router.supabase")
+    def test_get_audit_logs_success(self, mock_sb):
+        log_entry = {
+            "id": "log1",
+            "action": "USER_VIEWED",
+            "actor_id": ADMIN_ID,
+            "target_id": PATIENT_ID,
+            "details": {"target_user_id": PATIENT_ID},
+            "created_at": "2026-09-06T10:00:00Z",
+        }
+
+        def table_side_effect(table_name):
+            chain = MagicMock()
+            if table_name == "profiles":
+                chain.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[{"id": PATIENT_ID}])
+            elif table_name == "audit_log":
+                audit_mock = MagicMock(data=[log_entry])
+                chain.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = audit_mock
+            return chain
+
+        mock_sb.table.side_effect = table_side_effect
+        response = client.get(f"/v1/admin/directory/{PATIENT_ID}/audit", headers=make_token("admin"))
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert isinstance(data["data"], list)
+
+    @patch("app.admin.router.supabase")
+    def test_get_audit_logs_user_not_found(self, mock_sb):
+        mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+        response = client.get(f"/v1/admin/directory/{PATIENT_ID}/audit", headers=make_token("admin"))
+        assert response.status_code == 404
+
+    def test_get_audit_logs_forbidden_non_admin(self):
+        response = client.get(f"/v1/admin/directory/{PATIENT_ID}/audit", headers=make_token("patient", PATIENT_ID))
+        assert response.status_code == 403
+
+
+class TestDirectoryEmergencyContact:
+    @patch("app.admin.router.supabase")
+    def test_patient_detail_includes_emergency_contact(self, mock_sb):
+        mock_auth_user = MagicMock()
+        mock_auth_user.user = MagicMock(email="patient@example.com", last_sign_in_at=None)
+        mock_sb.auth.admin.get_user_by_id.return_value = mock_auth_user
+
+        ec_data = {
+            "full_name": "Jane Doe Emergency",
+            "email": "emergency@example.com",
+            "phone": "+1234567890",
+            "relationship": "Spouse",
+            "is_verified": True,
+        }
+
+        def table_side_effect(table_name):
+            chain = MagicMock()
+            if table_name == "profiles":
+                def eq_mock(col, val):
+                    eq_chain = MagicMock()
+                    eq_chain.execute.return_value = MagicMock(
+                        data=[{"id": PATIENT_ID, "full_name": "Jane Patient", "role": "patient", "is_active": True, "created_at": "2026-01-01T00:00:00Z"}]
+                    )
+                    return eq_chain
+                chain.select.return_value.eq.side_effect = eq_mock
+            elif table_name == "emergency_contacts":
+                chain.select.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(data=[ec_data])
+            elif table_name == "medicines":
+                chain.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(count=0)
+            elif table_name == "adherence":
+                chain.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+            elif table_name == "assignments":
+                chain.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+            elif table_name == "audit_log":
+                chain.insert.return_value.execute.return_value = MagicMock()
+            return chain
+
+        mock_sb.table.side_effect = table_side_effect
+        response = client.get(f"/v1/admin/directory/{PATIENT_ID}", headers=make_token("admin"))
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert "emergency_contact" in data
+        ec = data["emergency_contact"]
+        assert ec["full_name"] == "Jane Doe Emergency"
+        assert ec["relationship"] == "Spouse"
+        assert ec["is_verified"] is True
+        assert "mfa_secret" not in data
+
+
+class TestDirectoryAdherenceDoseLabel:
+    @patch("app.admin.router.supabase")
+    def test_adherence_includes_dose_label_and_notes(self, mock_sb):
+        def table_side_effect(table_name):
+            chain = MagicMock()
+            if table_name == "profiles":
+                chain.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[{"id": PATIENT_ID}])
+            elif table_name == "adherence":
+                chain.select.return_value.eq.return_value.order.return_value.range.return_value.execute.return_value = MagicMock(
+                    count=1,
+                    data=[{
+                        "id": "a1",
+                        "medicine_id": "m1",
+                        "reminder_id": "rem1",
+                        "status": "taken",
+                        "scheduled_time": "2026-09-01T08:00:00Z",
+                        "correction_note": "Took 30 min late",
+                    }]
+                )
+            elif table_name == "medicines":
+                chain.select.return_value.in_.return_value.execute.return_value = MagicMock(
+                    data=[{"id": "m1", "name": "Metformin"}]
+                )
+            elif table_name == "reminders":
+                chain.select.return_value.in_.return_value.execute.return_value = MagicMock(
+                    data=[{"id": "rem1", "dose_label": "Morning Dose", "medicine_id": "m1"}]
+                )
+            return chain
+
+        mock_sb.table.side_effect = table_side_effect
+        response = client.get(f"/v1/admin/directory/{PATIENT_ID}/adherence?page=1&limit=10", headers=make_token("admin"))
+        assert response.status_code == 200
+        items = response.json()["data"]["items"]
+        assert len(items) == 1
+        assert items[0]["dose_label"] == "Morning Dose"
+        assert items[0]["notes"] == "Took 30 min late"
+        assert items[0]["medicine_name"] == "Metformin"
+

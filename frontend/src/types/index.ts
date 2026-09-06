@@ -169,6 +169,14 @@ export interface DirectoryUserDetail extends DirectoryUser {
   overall_adherence_rate?: number;
   assigned_provider?: Profile | null;
   assigned_patients?: { id: string; full_name: string; is_active: boolean; email?: string }[];
+  emergency_contact?: {
+    full_name?: string;
+    email?: string;
+    phone?: string;
+    relationship?: string;
+    is_verified?: boolean;
+  } | null;
+  approval_notes?: string | null;
 }
 
 export interface DirectoryPage<T> {

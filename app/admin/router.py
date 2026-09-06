@@ -1040,6 +1040,15 @@ async def get_directory_user_detail(
 
         profile["email"] = email
         profile["last_activity"] = last_sign_in or profile.get("updated_at") or profile.get("created_at")
+        profile.pop("mfa_secret", None)
+
+        # Emergency contact (patients)
+        if user_role == "patient":
+            try:
+                ec_res = supabase.table("emergency_contacts").select("full_name, email, phone, relationship, is_verified").eq("user_id", user_id).limit(1).execute()
+                profile["emergency_contact"] = ec_res.data[0] if ec_res.data else None
+            except Exception:
+                profile["emergency_contact"] = None
 
         if user_role == "patient":
             profile["age"] = calculate_age(profile.get("date_of_birth"))
@@ -1161,8 +1170,21 @@ async def get_directory_user_adherence(
             except Exception:
                 pass
 
+        # Enrich with dose_label from reminders
+        reminder_ids = list(set(r.get("reminder_id") for r in records if r.get("reminder_id")))
+        reminder_map: dict = {}
+        if reminder_ids:
+            try:
+                rem_res = supabase.table("reminders").select("id, dose_label, medicine_id").in_("id", reminder_ids).execute()
+                reminder_map = {rem["id"]: rem for rem in (rem_res.data or [])}
+            except Exception:
+                pass
+
         for r in records:
             r["medicine_name"] = med_map.get(r.get("medicine_id"), "Unknown Medicine")
+            rem = reminder_map.get(r.get("reminder_id"), {})
+            r["dose_label"] = rem.get("dose_label", "")
+            r["notes"] = r.get("correction_note", "")
 
         return SuccessResponse(data={
             "items": records,
@@ -1332,6 +1354,31 @@ async def change_directory_user_status(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/directory/{user_id}/audit", response_model=SuccessResponse[list])
+@limiter.limit("60/minute")
+async def get_directory_user_audit(
+    request: Request,
+    user_id: str,
+    limit: int = Query(50, ge=1, le=200),
+    user: dict = Depends(require_role("admin")),
+):
+    try:
+        p_res = supabase.table("profiles").select("id").eq("id", user_id).execute()
+        if not p_res.data:
+            raise HTTPException(status_code=404, detail="User not found")
 
+        # Events where this user is actor OR target
+        actor_res = supabase.table("audit_log").select("*").eq("actor_id", user_id).order("created_at", desc=True).limit(limit).execute()
+        target_res = supabase.table("audit_log").select("*").eq("target_id", user_id).order("created_at", desc=True).limit(limit).execute()
 
+        merged = {r["id"]: r for r in (actor_res.data or [])}
+        for r in (target_res.data or []):
+            merged.setdefault(r["id"], r)
+
+        sorted_logs = sorted(merged.values(), key=lambda x: x.get("created_at", ""), reverse=True)[:limit]
+        return SuccessResponse(data=sorted_logs)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
