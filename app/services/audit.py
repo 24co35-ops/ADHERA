@@ -16,25 +16,39 @@ def _is_valid_uuid(value: str) -> bool:
 
 
 def _do_insert(action: str, user_id: str | None, details: dict):
-    """Synchronous insert executed in a background thread."""
-    try:
-        data = {
-            "action_code": action,
-            "actor_id": user_id,
-            "reason": str(details) if details else None,
-        }
-        if supabase:
+    """Synchronous insert executed in a background thread with retry on transient network errors."""
+    if not supabase:
+        return
+
+    data = {
+        "action_code": action,
+        "actor_id": user_id,
+        "reason": str(details) if details else None,
+    }
+
+    for attempt in range(2):
+        try:
             supabase.table("audit_log").insert(data).execute()
-    except Exception as e:
-        err = str(e)
-        # FK violation: actor_id not yet in profiles (e.g. registration race).
-        if "23503" in err or "audit_log_actor_id_fkey" in err:
-            logger.warning(
-                "Audit insert skipped — actor not yet in profiles. action=%s user=%s",
-                action, user_id,
+            return
+        except Exception as e:
+            err = str(e)
+            # FK violation: actor_id not yet in profiles (e.g. registration race).
+            if "23503" in err or "audit_log_actor_id_fkey" in err:
+                logger.warning(
+                    "Audit insert skipped — actor not yet in profiles. action=%s user=%s",
+                    action, user_id,
+                )
+                return
+
+            is_transient = any(
+                sub in err.lower()
+                for sub in ["ssl", "eof", "connection", "timeout", "protocol", "reset", "broken pipe"]
             )
-        else:
-            logger.error("Failed to log audit action %s for user %s: %s", action, user_id, e)
+            if attempt == 0 and is_transient:
+                continue
+
+            logger.warning("Failed to log audit action %s for user %s: %s", action, user_id, e)
+            return
 
 
 def log_audit_action(action: str, user_id: str | None, details: dict):
