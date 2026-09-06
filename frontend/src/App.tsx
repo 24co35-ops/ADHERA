@@ -15,7 +15,9 @@ import { ConfirmAuthPage } from './pages/auth/ConfirmAuthPage';
 import { PatientDashboard } from './pages/patient/PatientDashboard';
 import { MedicinesPage } from './pages/patient/MedicinesPage';
 import { FeedbackPage } from './pages/patient/FeedbackPage';
+import { WellnessPage } from './pages/patient/WellnessPage';
 import { ProfilePage } from './pages/patient/ProfilePage';
+import { ChatPage } from './pages/chat/ChatPage';
 
 // Provider Pages
 import { ProviderDashboard } from './pages/provider/ProviderDashboard';
@@ -106,6 +108,26 @@ export const App: React.FC = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/patient/wellness"
+          element={
+            <ProtectedRoute allowedRoles={['patient']}>
+              <AppLayout>
+                <WellnessPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/patient/chat"
+          element={
+            <ProtectedRoute allowedRoles={['patient']}>
+              <AppLayout>
+                <ChatPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
         {/* Provider Routes */}
         <Route
@@ -114,6 +136,16 @@ export const App: React.FC = () => {
             <ProtectedRoute allowedRoles={['provider']}>
               <AppLayout>
                 <ProviderDashboard />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/provider/chat"
+          element={
+            <ProtectedRoute allowedRoles={['provider']}>
+              <AppLayout>
+                <ChatPage />
               </AppLayout>
             </ProtectedRoute>
           }

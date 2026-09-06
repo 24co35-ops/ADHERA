@@ -36,6 +36,7 @@ from app.admin.router import router as admin_router
 from app.analytics.router import router as analytics_router
 from app.auth.dependencies import get_current_user
 from app.auth.router import router as auth_router
+from app.chat.router import router as chat_router
 from app.config import settings
 from app.core.exceptions import create_error_response, global_exception_handler
 from app.core.rate_limit import limiter
@@ -48,6 +49,7 @@ from app.profile.router import router as profile_router
 from app.provider.router import router as provider_router
 from app.reminders.router import router as reminders_router
 from app.routers.assignments import router as assignments_router
+from app.wellness.router import router as wellness_router
 
 request_id_ctx = contextvars.ContextVar("request_id", default="-")
 
@@ -200,3 +202,5 @@ app.include_router(provider_router, prefix="/v1/provider", tags=["provider"])
 app.include_router(admin_router, prefix="/v1/admin", tags=["admin"])
 app.include_router(reminders_router, prefix="/v1/reminders", tags=["reminders"])
 app.include_router(assignments_router, prefix="/v1")
+app.include_router(wellness_router, prefix="/v1/wellness", tags=["wellness"])
+app.include_router(chat_router, prefix="/v1/chat", tags=["chat"])

@@ -18,10 +18,12 @@ import {
   TrendingUp,
   Calendar,
   Sparkles,
+  Wind,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DashboardStats, UpcomingDose, Feedback, MyProviderResponse } from '../../types';
 import { adheraFetch } from '../../lib/api';
+import { ChatDrawer } from '../../components/ChatDrawer';
 
 export const PatientDashboard: React.FC = () => {
   const { user } = useAuthStore();
@@ -432,6 +434,31 @@ export const PatientDashboard: React.FC = () => {
             </div>
           </GlassCard>
 
+          {/* Mental Wellness Breathing Card */}
+          <GlassCard className="p-6 border-primary/20 bg-gradient-to-br from-primary/5 via-surface-container to-surface">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                  <Wind className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-bold text-white">Mental Wellness</h3>
+              </div>
+              <span className="text-[10px] font-bold uppercase text-primary bg-primary/10 px-2 py-0.5 rounded">
+                3D Resonance
+              </span>
+            </div>
+            <p className="text-xs text-on-surface-variant mb-4">
+              Calm your nervous system and reinforce treatment adherence with guided 3D resonance breathing.
+            </p>
+            <Link
+              to="/patient/wellness"
+              className="btn-press flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-primary text-surface font-bold text-xs shadow-glow hover:bg-primary-container transition-all"
+            >
+              <Wind className="w-3.5 h-3.5" />
+              <span>Start Breathing Exercise</span>
+            </Link>
+          </GlassCard>
+
           {/* Recent Side Effects / Feedback */}
           <GlassCard className="p-6">
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
@@ -473,6 +500,9 @@ export const PatientDashboard: React.FC = () => {
           </GlassCard>
         </div>
       </div>
+
+      {/* Floating Medical AI Assistant */}
+      <ChatDrawer />
     </div>
   );
 };

@@ -14,6 +14,8 @@ import {
   Bell,
   Menu,
   X,
+  Wind,
+  Bot,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -33,12 +35,15 @@ export const Navbar: React.FC = () => {
   const patientLinks = [
     { to: '/dashboard', label: t('nav.dashboard'), icon: Activity },
     { to: '/medicines', label: t('nav.medicines'), icon: Pill },
+    { to: '/patient/wellness', label: 'Wellness', icon: Wind },
+    { to: '/patient/chat', label: 'Ask AI', icon: Bot },
     { to: '/feedback', label: t('nav.feedback'), icon: MessageSquareWarning },
     { to: '/profile', label: t('nav.profile'), icon: UserIcon },
   ];
 
   const providerLinks = [
     { to: '/provider', label: t('nav.provider') || 'Provider Roster', icon: Users },
+    { to: '/provider/chat', label: 'Clinical AI', icon: Bot },
     { to: '/profile', label: t('nav.profile'), icon: UserIcon },
   ];
 
