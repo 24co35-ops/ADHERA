@@ -28,3 +28,6 @@ class InviteUser(BaseModel):
     role: str # 'provider' or 'patient'
     full_name: Optional[str] = None
 
+class StatusChange(BaseModel):
+    is_active: bool
+    reason: str  # mandatory — written to audit_log

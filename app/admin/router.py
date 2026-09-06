@@ -8,11 +8,18 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
-from app.admin.schemas import AssignmentUpdate, InviteUser, RejectBody, UserUpdate
+from app.admin.schemas import (
+    AssignmentUpdate,
+    InviteUser,
+    RejectBody,
+    StatusChange,
+    UserUpdate,
+)
 from app.auth.dependencies import require_role
 from app.config import settings
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
+from app.core.utils import calculate_age
 from app.db.supabase import supabase, supabase_auth
 from app.services.audit import log_audit_action
 
@@ -479,9 +486,17 @@ async def pending_providers(request: Request, user: dict = Depends(require_role(
 
 @router.get("/audit-logs", response_model=SuccessResponse[list])
 @limiter.limit("60/minute")
-async def get_audit_logs(request: Request, user: dict = Depends(require_role("admin"))):
+async def get_audit_logs(
+    request: Request,
+    user_id: str = Query(""),
+    limit: int = Query(50, le=200),
+    user: dict = Depends(require_role("admin")),
+):
     try:
-        res = supabase.table("audit_log").select("*").order("created_at", desc=True).limit(50).execute()
+        q = supabase.table("audit_log").select("*").order("created_at", desc=True)
+        if user_id:
+            q = q.eq("actor_id", user_id)
+        res = q.limit(limit).execute()
         return SuccessResponse(data=res.data or [])
     except Exception:
         return SuccessResponse(data=[])
@@ -892,6 +907,429 @@ async def admin_invite_user(request: Request, payload: InviteUser, user: dict = 
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Platform Identity Directory ───────────────────────────────────────────────
+
+@router.get("/directory", response_model=SuccessResponse[dict])
+@limiter.limit("60/minute")
+async def list_directory_users(
+    request: Request,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    role: str = Query(""),
+    status: str = Query(""),
+    search: str = Query(""),
+    user: dict = Depends(require_role("admin")),
+):
+    try:
+        # 1. Fetch auth users email map
+        try:
+            auth_users = supabase.auth.admin.list_users()
+            email_map = {u.id: (u.email or "") for u in auth_users}
+            last_sign_in_map = {u.id: getattr(u, "last_sign_in_at", None) for u in auth_users}
+        except Exception:
+            email_map = {}
+            last_sign_in_map = {}
+
+        # 2. Base query for non-admin profiles
+        q = supabase.table("profiles").select("*").neq("role", "admin")
+        if role in ("patient", "provider"):
+            q = q.eq("role", role)
+        if status == "active":
+            q = q.eq("is_active", True)
+        elif status == "inactive":
+            q = q.eq("is_active", False)
+
+        profiles_res = q.order("created_at", desc=True).execute()
+        all_profiles = profiles_res.data or []
+
+        # 3. Active assignments for patient -> provider mapping
+        assignments_res = supabase.table("assignments").select("patient_id, provider_id").eq("status", "active").execute()
+        assigned_map = {a["patient_id"]: a["provider_id"] for a in (assignments_res.data or [])}
+
+        provider_ids = list(set(assigned_map.values()))
+        provider_names = {}
+        if provider_ids:
+            p_res = supabase.table("profiles").select("id, full_name").in_("id", provider_ids).execute()
+            provider_names = {p["id"]: p.get("full_name") for p in (p_res.data or [])}
+
+        # 4. Filter and enrich
+        search_lower = search.strip().lower()
+        enriched = []
+        for p in all_profiles:
+            uid = p["id"]
+            email = email_map.get(uid, "")
+            full_name = p.get("full_name") or ""
+
+            # Filter by search
+            if search_lower:
+                if search_lower not in full_name.lower() and search_lower not in email.lower():
+                    continue
+
+            assigned_prov_id = assigned_map.get(uid)
+            assigned_prov_name = provider_names.get(assigned_prov_id) if assigned_prov_id else None
+
+            last_act = last_sign_in_map.get(uid) or p.get("updated_at") or p.get("created_at")
+
+            enriched.append({
+                "id": uid,
+                "full_name": full_name,
+                "email": email,
+                "role": p.get("role"),
+                "is_active": p.get("is_active", True),
+                "created_at": p.get("created_at"),
+                "assigned_provider_name": assigned_prov_name,
+                "license_number": p.get("license_number"),
+                "specialization": p.get("specialization"),
+                "last_activity": last_act,
+            })
+
+        total = len(enriched)
+        offset = (page - 1) * limit
+        paged_items = enriched[offset : offset + limit]
+
+        return SuccessResponse(data={
+            "items": paged_items,
+            "total": total,
+            "page": page,
+            "limit": limit,
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/directory/{user_id}", response_model=SuccessResponse[dict])
+@limiter.limit("60/minute")
+async def get_directory_user_detail(
+    request: Request,
+    user_id: str,
+    user: dict = Depends(require_role("admin")),
+):
+    try:
+        p_res = supabase.table("profiles").select("*").eq("id", user_id).execute()
+        if not p_res.data:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        profile = p_res.data[0]
+        user_role = profile.get("role")
+
+        # Auth details
+        email = ""
+        last_sign_in = None
+        try:
+            auth_user = supabase.auth.admin.get_user_by_id(user_id)
+            if auth_user and hasattr(auth_user, "user") and auth_user.user:
+                email = auth_user.user.email or ""
+                last_sign_in = getattr(auth_user.user, "last_sign_in_at", None)
+            elif auth_user and hasattr(auth_user, "email"):
+                email = getattr(auth_user, "email", "")
+                last_sign_in = getattr(auth_user, "last_sign_in_at", None)
+        except Exception:
+            try:
+                auth_users = supabase.auth.admin.list_users()
+                for u in auth_users:
+                    if u.id == user_id:
+                        email = u.email or ""
+                        last_sign_in = getattr(u, "last_sign_in_at", None)
+                        break
+            except Exception:
+                pass
+
+        profile["email"] = email
+        profile["last_activity"] = last_sign_in or profile.get("updated_at") or profile.get("created_at")
+
+        if user_role == "patient":
+            profile["age"] = calculate_age(profile.get("date_of_birth"))
+
+            # Active meds count
+            try:
+                med_res = supabase.table("medicines").select("id", count="exact").eq("user_id", user_id).eq("is_active", True).execute()
+                profile["active_medicines_count"] = med_res.count or 0
+            except Exception:
+                profile["active_medicines_count"] = 0
+
+            # Overall adherence rate
+            try:
+                adh_res = supabase.table("adherence").select("status").eq("user_id", user_id).execute()
+                adh_records = adh_res.data or []
+                if adh_records:
+                    taken_count = sum(1 for r in adh_records if r.get("status") == "taken")
+                    profile["overall_adherence_rate"] = round((taken_count / len(adh_records)) * 100, 1)
+                else:
+                    profile["overall_adherence_rate"] = 0.0
+            except Exception:
+                profile["overall_adherence_rate"] = 0.0
+
+            # Assigned provider details
+            try:
+                assign_res = supabase.table("assignments").select("provider_id").eq("patient_id", user_id).eq("status", "active").execute()
+                if assign_res.data:
+                    prov_id = assign_res.data[0].get("provider_id")
+                    prov_p = supabase.table("profiles").select("*").eq("id", prov_id).execute()
+                    if prov_p.data:
+                        prov_data = prov_p.data[0]
+                        # get provider email
+                        try:
+                            prov_auth = supabase.auth.admin.get_user_by_id(prov_id)
+                            prov_data["email"] = getattr(getattr(prov_auth, "user", prov_auth), "email", "")
+                        except Exception:
+                            prov_data["email"] = ""
+                        profile["assigned_provider"] = prov_data
+                    else:
+                        profile["assigned_provider"] = None
+                else:
+                    profile["assigned_provider"] = None
+            except Exception:
+                profile["assigned_provider"] = None
+
+        elif user_role == "provider":
+            # Assigned patients list
+            try:
+                assign_res = supabase.table("assignments").select("patient_id").eq("provider_id", user_id).eq("status", "active").execute()
+                patient_ids = [a["patient_id"] for a in (assign_res.data or []) if a.get("patient_id")]
+                if patient_ids:
+                    pat_res = supabase.table("profiles").select("id, full_name, is_active").in_("id", patient_ids).execute()
+                    profile["assigned_patients"] = pat_res.data or []
+                else:
+                    profile["assigned_patients"] = []
+            except Exception:
+                profile["assigned_patients"] = []
+
+        # Audit log for viewing
+        log_audit_action("USER_VIEWED", user["user_id"], {"target_user_id": user_id, "target_role": user_role})
+
+        return SuccessResponse(data=profile)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/directory/{user_id}/medicines", response_model=SuccessResponse[list])
+@limiter.limit("60/minute")
+async def get_directory_user_medicines(
+    request: Request,
+    user_id: str,
+    user: dict = Depends(require_role("admin")),
+):
+    try:
+        p_res = supabase.table("profiles").select("id").eq("id", user_id).execute()
+        if not p_res.data:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        meds = supabase.table("medicines").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+        return SuccessResponse(data=meds.data or [])
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/directory/{user_id}/adherence", response_model=SuccessResponse[dict])
+@limiter.limit("60/minute")
+async def get_directory_user_adherence(
+    request: Request,
+    user_id: str,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    status: str = Query(""),
+    user: dict = Depends(require_role("admin")),
+):
+    try:
+        p_res = supabase.table("profiles").select("id").eq("id", user_id).execute()
+        if not p_res.data:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        q = supabase.table("adherence").select("*", count="exact").eq("user_id", user_id)
+        if status in ("taken", "missed", "skipped"):
+            q = q.eq("status", status)
+
+        offset = (page - 1) * limit
+        res = q.order("scheduled_time", desc=True).range(offset, offset + limit - 1).execute()
+
+        # Enrich with medicine names
+        records = res.data or []
+        med_ids = list(set(r.get("medicine_id") for r in records if r.get("medicine_id")))
+        med_map = {}
+        if med_ids:
+            try:
+                med_res = supabase.table("medicines").select("id, name").in_("id", med_ids).execute()
+                med_map = {m["id"]: m["name"] for m in (med_res.data or [])}
+            except Exception:
+                pass
+
+        for r in records:
+            r["medicine_name"] = med_map.get(r.get("medicine_id"), "Unknown Medicine")
+
+        return SuccessResponse(data={
+            "items": records,
+            "total": res.count or len(records),
+            "page": page,
+            "limit": limit,
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/directory/{user_id}/adherence/export")
+@limiter.limit("30/minute")
+async def export_directory_user_adherence(
+    request: Request,
+    user_id: str,
+    user: dict = Depends(require_role("admin")),
+):
+    try:
+        p_res = supabase.table("profiles").select("id").eq("id", user_id).execute()
+        if not p_res.data:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        res = supabase.table("adherence").select("*").eq("user_id", user_id).order("scheduled_time", desc=True).execute()
+        records = res.data or []
+
+        med_ids = list(set(r.get("medicine_id") for r in records if r.get("medicine_id")))
+        med_map = {}
+        if med_ids:
+            try:
+                med_res = supabase.table("medicines").select("id, name").in_("id", med_ids).execute()
+                med_map = {m["id"]: m["name"] for m in (med_res.data or [])}
+            except Exception:
+                pass
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["Date", "Medicine", "Scheduled Time", "Status", "Logged At"])
+
+        for r in records:
+            writer.writerow([
+                r.get("date", ""),
+                med_map.get(r.get("medicine_id"), "Unknown"),
+                r.get("scheduled_time", ""),
+                r.get("status", ""),
+                r.get("logged_at") or r.get("created_at") or "",
+            ])
+
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="adherence_{user_id}.csv"'},
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/directory/{user_id}/feedback", response_model=SuccessResponse[list])
+@limiter.limit("60/minute")
+async def get_directory_user_feedback(
+    request: Request,
+    user_id: str,
+    user: dict = Depends(require_role("admin")),
+):
+    try:
+        p_res = supabase.table("profiles").select("id").eq("id", user_id).execute()
+        if not p_res.data:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        feedbacks = supabase.table("feedback").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+        return SuccessResponse(data=feedbacks.data or [])
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/directory/{user_id}/assignments", response_model=SuccessResponse[list])
+@limiter.limit("60/minute")
+async def get_directory_user_assignments(
+    request: Request,
+    user_id: str,
+    user: dict = Depends(require_role("admin")),
+):
+    try:
+        p_res = supabase.table("profiles").select("id, role").eq("id", user_id).execute()
+        if not p_res.data:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Query assignments where user is patient or provider
+        res_patient = supabase.table("assignments").select("*").eq("patient_id", user_id).order("created_at", desc=True).execute().data or []
+        res_provider = supabase.table("assignments").select("*").eq("provider_id", user_id).order("created_at", desc=True).execute().data or []
+
+        all_assignments = res_patient + res_provider
+        # Deduplicate
+        seen_ids = set()
+        deduped = []
+        for a in all_assignments:
+            if a["id"] not in seen_ids:
+                seen_ids.add(a["id"])
+                deduped.append(a)
+
+        # Enrich with other party's profile name and email
+        other_ids = list(set([a["patient_id"] for a in deduped] + [a["provider_id"] for a in deduped]))
+        profiles_map = {}
+        if other_ids:
+            p_data = supabase.table("profiles").select("id, full_name, role").in_("id", other_ids).execute().data or []
+            profiles_map = {p["id"]: p for p in p_data}
+
+        try:
+            auth_users = supabase.auth.admin.list_users()
+            email_map = {u.id: (u.email or "") for u in auth_users}
+        except Exception:
+            email_map = {}
+
+        for a in deduped:
+            pid = a.get("patient_id")
+            prid = a.get("provider_id")
+            a["patient_name"] = profiles_map.get(pid, {}).get("full_name", "Unknown")
+            a["patient_email"] = email_map.get(pid, "")
+            a["provider_name"] = profiles_map.get(prid, {}).get("full_name", "Unknown")
+            a["provider_email"] = email_map.get(prid, "")
+
+        return SuccessResponse(data=deduped)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/directory/{user_id}/status", response_model=SuccessResponse[dict])
+@limiter.limit("30/minute")
+async def change_directory_user_status(
+    request: Request,
+    user_id: str,
+    payload: StatusChange,
+    user: dict = Depends(require_role("admin")),
+):
+    try:
+        reason = (payload.reason or "").strip()
+        if not reason:
+            raise HTTPException(status_code=400, detail="Reason is required for status change")
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        res = supabase.table("profiles").update({
+            "is_active": payload.is_active,
+            "updated_at": now_iso,
+        }).eq("id", user_id).execute()
+
+        if not res.data:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        log_audit_action("USER_STATUS_CHANGED", user["user_id"], {
+            "target_user_id": user_id,
+            "is_active": payload.is_active,
+            "reason": reason,
+        })
+
+        return SuccessResponse(data=res.data[0])
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 

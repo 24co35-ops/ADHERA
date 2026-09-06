@@ -326,10 +326,12 @@ export const MedicinesPage: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
+              <label htmlFor="med-name" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
                 Medicine Name *
               </label>
               <input
+                id="med-name"
+                name="name"
                 type="text"
                 required
                 value={name}
@@ -340,10 +342,12 @@ export const MedicinesPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
+              <label htmlFor="med-dosage" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
                 Dosage Amount *
               </label>
               <input
+                id="med-dosage"
+                name="dosage"
                 type="text"
                 required
                 value={dosage}
@@ -356,10 +360,12 @@ export const MedicinesPage: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
+              <label htmlFor="med-route" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
                 Route
               </label>
               <select
+                id="med-route"
+                name="route"
                 value={route}
                 onChange={(e) => setRoute(e.target.value as any)}
                 className="w-full px-3 py-2 rounded-xl glass-input text-sm bg-surface-container"
@@ -374,10 +380,12 @@ export const MedicinesPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
+              <label htmlFor="med-frequency" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
                 Frequency
               </label>
               <input
+                id="med-frequency"
+                name="frequency"
                 type="text"
                 value={frequency}
                 onChange={(e) => setFrequency(e.target.value)}
@@ -389,10 +397,12 @@ export const MedicinesPage: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
+              <label htmlFor="med-start-date" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
                 Start Date
               </label>
               <input
+                id="med-start-date"
+                name="startDate"
                 type="date"
                 required
                 value={startDate}
@@ -402,10 +412,12 @@ export const MedicinesPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
+              <label htmlFor="med-end-date" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
                 End Date (Optional)
               </label>
               <input
+                id="med-end-date"
+                name="endDate"
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
@@ -415,10 +427,12 @@ export const MedicinesPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
+            <label htmlFor="med-instructions" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
               Special Instructions
             </label>
             <textarea
+              id="med-instructions"
+              name="instructions"
               rows={2}
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
@@ -448,6 +462,8 @@ export const MedicinesPage: React.FC = () => {
                 <div key={idx} className="p-3 rounded-xl bg-surface-container border border-white/5 space-y-2">
                   <div className="grid grid-cols-3 gap-2">
                     <input
+                      id={`timing-label-${idx}`}
+                      name={`timing_label_${idx}`}
                       type="text"
                       placeholder="Label (e.g. Morning)"
                       value={timing.dose_label}
@@ -459,6 +475,8 @@ export const MedicinesPage: React.FC = () => {
                       className="px-2.5 py-1.5 rounded-lg glass-input text-xs"
                     />
                     <input
+                      id={`timing-time-${idx}`}
+                      name={`timing_time_${idx}`}
                       type="time"
                       value={timing.dose_time}
                       onChange={(e) => {
@@ -470,6 +488,8 @@ export const MedicinesPage: React.FC = () => {
                     />
                     <div className="flex items-center space-x-1">
                       <select
+                        id={`timing-recurrence-${idx}`}
+                        name={`timing_recurrence_${idx}`}
                         value={timing.recurrence_type}
                         onChange={(e) => {
                           const newT = [...timings];
@@ -495,8 +515,10 @@ export const MedicinesPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <label className="flex items-center space-x-2 text-[11px] text-on-surface-variant cursor-pointer">
+                  <label htmlFor={`timing-advance-${idx}`} className="flex items-center space-x-2 text-[11px] text-on-surface-variant cursor-pointer">
                     <input
+                      id={`timing-advance-${idx}`}
+                      name={`timing_advance_${idx}`}
                       type="checkbox"
                       checked={timing.advance_notification}
                       onChange={(e) => {

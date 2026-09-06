@@ -143,3 +143,48 @@ export interface ApiResponse<T> {
     field?: string;
   };
 }
+
+export interface DirectoryUser {
+  id: string;
+  full_name: string;
+  email?: string;
+  role: UserRole;
+  is_active: boolean;
+  created_at?: string;
+  assigned_provider_name?: string | null;
+  license_number?: string | null;
+  specialization?: string | null;
+  last_activity?: string | null;
+}
+
+export interface DirectoryUserDetail extends DirectoryUser {
+  date_of_birth?: string | null;
+  blood_group?: string | null;
+  timezone?: string;
+  age?: number | null;
+  contact_number?: string | null;
+  allergies?: string[];
+  medical_conditions?: string[];
+  active_medicines_count?: number;
+  overall_adherence_rate?: number;
+  assigned_provider?: Profile | null;
+  assigned_patients?: { id: string; full_name: string; is_active: boolean; email?: string }[];
+}
+
+export interface DirectoryPage<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  action: string;
+  actor_id: string;
+  target_id?: string | null;
+  details?: Record<string, any>;
+  ip_address?: string;
+  created_at: string;
+}
+

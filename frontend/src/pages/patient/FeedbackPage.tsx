@@ -172,6 +172,7 @@ export const FeedbackPage: React.FC = () => {
                   </div>
                   <select
                     id="feedback-medicine"
+                    name="medicineId"
                     value={selectedMedId}
                     onChange={(e) => setSelectedMedId(e.target.value)}
                     required
@@ -215,10 +216,12 @@ export const FeedbackPage: React.FC = () => {
 
               {/* Description */}
               <div>
-                <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-2">
+                <label htmlFor="feedback-description" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-2">
                   Detailed Description *
                 </label>
                 <textarea
+                  id="feedback-description"
+                  name="description"
                   rows={4}
                   required
                   value={description}
@@ -235,6 +238,7 @@ export const FeedbackPage: React.FC = () => {
                 </label>
                 <input
                   id="feedback-occurred-at"
+                  name="occurredAt"
                   type="datetime-local"
                   value={occurredAt}
                   onChange={(e) => setOccurredAt(e.target.value)}
