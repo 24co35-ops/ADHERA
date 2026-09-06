@@ -150,7 +150,31 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    return create_error_response(400, "VALIDATION_ERROR", "Validation failed", str(exc.errors()[0]['loc']))
+    errors = exc.errors()
+    details = []
+    first_field = None
+    first_msg = "Validation failed"
+    if errors:
+        first_err = errors[0]
+        loc = first_err.get("loc", ())
+        first_field = str(loc[-1]) if loc else None
+        msg = first_err.get("msg", "Validation failed")
+        first_msg = f"{first_field}: {msg}" if first_field else msg
+        for err in errors:
+            err_loc = err.get("loc", ())
+            f_name = str(err_loc[-1]) if err_loc else ""
+            details.append({
+                "field": f_name,
+                "message": err.get("msg", "Invalid value"),
+                "type": err.get("type", "value_error"),
+            })
+    return create_error_response(
+        status_code=422,
+        code="VALIDATION_ERROR",
+        message=first_msg,
+        field=first_field,
+        details=details,
+    )
 
 app.add_exception_handler(Exception, global_exception_handler)
 

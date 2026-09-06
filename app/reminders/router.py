@@ -25,6 +25,7 @@ def _check_reminder_access(user: dict, reminder_id: str):
     return rem
 
 @router.patch("/{id}", response_model=SuccessResponse[dict])
+@router.put("/{id}", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
 async def update_reminder(request: Request, id: str, payload: ReminderUpdate, user: dict = Depends(get_current_user)):
     _check_reminder_access(user, id)

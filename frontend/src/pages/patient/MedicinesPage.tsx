@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { useI18n } from '../../lib/i18n';
+import { useAuthStore } from '../../stores/authStore';
 import { GlassCard } from '../../components/GlassCard';
 import { Modal } from '../../components/Modal';
 import { ToastMessage, ToastContainer } from '../../components/Toast';
@@ -10,36 +11,37 @@ import {
   Edit2,
   Trash2,
   Clock,
-  Calendar,
   AlertCircle,
-  Check,
   X,
-  Bell,
 } from 'lucide-react';
-import { Medicine, Reminder } from '../../types';
+import { Medicine } from '../../types';
 
 export const MedicinesPage: React.FC = () => {
   const { t } = useI18n();
+  const { user, profile } = useAuthStore();
 
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingMed, setEditingMed] = useState<Medicine | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
   // Form State
   const [name, setName] = useState('');
-  const [dosage, setDosage] = useState('');
-  const [route, setRoute] = useState<'oral' | 'injection' | 'topical' | 'inhalation' | 'drops' | 'other'>('oral');
-  const [frequency, setFrequency] = useState('Once daily');
+  const [dosageAmount, setDosageAmount] = useState('');
+  const [dosageUnit, setDosageUnit] = useState<'mg' | 'ml' | 'units'>('mg');
+  const [route, setRoute] = useState<'oral' | 'topical' | 'injection' | 'inhaled' | 'other'>('oral');
+  const [frequencyType, setFrequencyType] = useState<'daily' | 'weekday' | 'alternate' | 'prn'>('daily');
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [endDate, setEndDate] = useState('');
   const [instructions, setInstructions] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Reminder / Timing slots for new/edit medicine
   const [timings, setTimings] = useState<
-    { id?: string; dose_label: string; dose_time: string; recurrence_type: 'daily' | 'weekday' | 'alternate' | 'prn'; advance_notification: boolean }[]
-  >([{ dose_label: 'Morning', dose_time: '08:00', recurrence_type: 'daily', advance_notification: true }]);
+    { id?: string; dose_label: 'morning' | 'afternoon' | 'evening' | 'night'; dose_time: string; recurrence_type: 'daily' | 'weekday' | 'alternate' | 'prn'; advance_notification: boolean }[]
+  >([{ dose_label: 'morning', dose_time: '08:00', recurrence_type: 'daily', advance_notification: true }]);
 
   const addToast = (type: 'success' | 'warning' | 'error' | 'info', message: string) => {
     setToasts((prev) => [...prev, { id: Math.random().toString(36).substring(2, 9), type, message }]);
@@ -70,38 +72,81 @@ export const MedicinesPage: React.FC = () => {
   const openAddModal = () => {
     setEditingMed(null);
     setName('');
-    setDosage('');
+    setDosageAmount('');
+    setDosageUnit('mg');
     setRoute('oral');
-    setFrequency('Once daily');
+    setFrequencyType('daily');
     setStartDate(new Date().toISOString().slice(0, 10));
     setEndDate('');
     setInstructions('');
-    setTimings([{ dose_label: 'Morning', dose_time: '08:00', recurrence_type: 'daily', advance_notification: true }]);
+    setFieldErrors({});
+    setTimings([{ dose_label: 'morning', dose_time: '08:00', recurrence_type: 'daily', advance_notification: true }]);
     setModalOpen(true);
   };
 
   const openEditModal = (med: Medicine) => {
     setEditingMed(med);
     setName(med.name);
-    setDosage(med.dosage);
-    setRoute(med.route);
-    setFrequency(med.frequency);
+
+    // Parse dosage amount and unit
+    if (med.dosage_amount !== undefined && med.dosage_amount !== null) {
+      setDosageAmount(String(med.dosage_amount));
+    } else if (med.dosage) {
+      const match = med.dosage.match(/^([0-9.]+)\s*([a-zA-Z]+)?/);
+      if (match) {
+        setDosageAmount(match[1]);
+        if (match[2] && ['mg', 'ml', 'units'].includes(match[2].toLowerCase())) {
+          setDosageUnit(match[2].toLowerCase() as any);
+        }
+      } else {
+        setDosageAmount(med.dosage);
+      }
+    } else {
+      setDosageAmount('');
+    }
+
+    if (med.dosage_unit && ['mg', 'ml', 'units'].includes(med.dosage_unit)) {
+      setDosageUnit(med.dosage_unit as any);
+    }
+
+    // Route normalization
+    const r = (med.route || 'oral').toLowerCase();
+    if (r === 'inhalation') setRoute('inhaled');
+    else if (['oral', 'topical', 'injection', 'inhaled', 'other'].includes(r)) setRoute(r as any);
+    else setRoute('other');
+
+    // Frequency type normalization
+    const f = (med.frequency_type || med.frequency || 'daily').toLowerCase();
+    if (['daily', 'weekday', 'alternate', 'prn'].includes(f)) setFrequencyType(f as any);
+    else if (f.includes('week')) setFrequencyType('weekday');
+    else if (f.includes('alt')) setFrequencyType('alternate');
+    else if (f.includes('prn') || f.includes('need')) setFrequencyType('prn');
+    else setFrequencyType('daily');
+
     setStartDate(med.start_date || new Date().toISOString().slice(0, 10));
     setEndDate(med.end_date || '');
     setInstructions(med.instructions || '');
+    setFieldErrors({});
 
     if (med.reminders && med.reminders.length > 0) {
       setTimings(
-        med.reminders.map((r) => ({
-          id: r.id,
-          dose_label: r.dose_label,
-          dose_time: r.dose_time_utc?.slice(0, 5) || '08:00',
-          recurrence_type: r.recurrence_type,
-          advance_notification: (r.advance_notification_minutes || 0) > 0,
-        }))
+        med.reminders.map((r) => {
+          let dl: 'morning' | 'afternoon' | 'evening' | 'night' = 'morning';
+          const lowerDl = (r.dose_label || '').toLowerCase();
+          if (['morning', 'afternoon', 'evening', 'night'].includes(lowerDl)) {
+            dl = lowerDl as any;
+          }
+          return {
+            id: r.id,
+            dose_label: dl,
+            dose_time: r.dose_time_utc ? r.dose_time_utc.slice(0, 5) : '08:00',
+            recurrence_type: r.recurrence_type || 'daily',
+            advance_notification: r.advance_notify ?? ((r.advance_notification_minutes || 0) > 0),
+          };
+        })
       );
     } else {
-      setTimings([{ dose_label: 'Morning', dose_time: '08:00', recurrence_type: 'daily', advance_notification: true }]);
+      setTimings([{ dose_label: 'morning', dose_time: '08:00', recurrence_type: 'daily', advance_notification: true }]);
     }
     setModalOpen(true);
   };
@@ -109,7 +154,7 @@ export const MedicinesPage: React.FC = () => {
   const handleAddTimingRow = () => {
     setTimings((prev) => [
       ...prev,
-      { dose_label: 'Evening', dose_time: '20:00', recurrence_type: 'daily', advance_notification: true },
+      { dose_label: 'evening', dose_time: '20:00', recurrence_type: frequencyType, advance_notification: true },
     ]);
   };
 
@@ -119,22 +164,60 @@ export const MedicinesPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFieldErrors({});
+
+    // Client-side validation
+    const errors: Record<string, string> = {};
+    if (!name.trim()) {
+      errors.name = 'Medicine name is required';
+    }
+    const dNum = parseFloat(dosageAmount);
+    if (!dosageAmount || isNaN(dNum) || dNum <= 0) {
+      errors.dosage_amount = 'Dosage amount must be a positive number';
+    } else if (dNum > 9999.99) {
+      errors.dosage_amount = 'Dosage amount cannot exceed 9999.99';
+    }
+    if (!dosageUnit) {
+      errors.dosage_unit = 'Dosage unit is required';
+    }
+    if (!route) {
+      errors.route = 'Route is required';
+    }
+    if (!frequencyType) {
+      errors.frequency_type = 'Frequency type is required';
+    }
+    if (!startDate) {
+      errors.start_date = 'Start date is required';
+    }
+    if (endDate && startDate && endDate < startDate) {
+      errors.end_date = 'End date must be on or after start date';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      const firstError = Object.values(errors)[0];
+      addToast('error', firstError);
+      return;
+    }
+
     try {
+      setSubmitting(true);
       const medPayload = {
-        name,
-        dosage,
+        name: name.trim(),
+        dosage_amount: parseFloat(dosageAmount),
+        dosage_unit: dosageUnit,
         route,
-        frequency,
+        frequency_type: frequencyType,
         start_date: startDate,
         end_date: endDate || null,
-        instructions: instructions || null,
+        instructions: instructions.trim() || null,
         is_active: true,
       };
 
       let medId = editingMed?.id;
 
       if (editingMed) {
-        const updateRes = await api.put<Medicine>(`/medicines/${editingMed.id}`, medPayload);
+        const updateRes = await api.patch<Medicine>(`/medicines/${editingMed.id}`, medPayload);
         if (!updateRes.success) throw new Error('Failed to update medicine');
       } else {
         const createRes = await api.post<Medicine>('/medicines/', medPayload);
@@ -143,30 +226,47 @@ export const MedicinesPage: React.FC = () => {
       }
 
       // Sync Reminders / Timing slots
-      if (medId) {
+      const userTimezone = profile?.timezone || user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      if (medId && timings.length > 0) {
         for (const timing of timings) {
           const reminderPayload = {
-            medicine_id: medId,
-            dose_label: timing.dose_label,
-            dose_time_utc: `${timing.dose_time}:00`,
-            recurrence_type: timing.recurrence_type,
-            advance_notification_minutes: timing.advance_notification ? 10 : 0,
+            dose_label: timing.dose_label.toLowerCase(),
+            dose_time_utc: timing.dose_time.length === 5 ? `${timing.dose_time}:00` : timing.dose_time,
+            timezone: userTimezone,
+            recurrence_type: timing.recurrence_type || frequencyType,
+            advance_notify: timing.advance_notification,
             is_active: true,
           };
 
           if (timing.id) {
-            await api.put(`/reminders/${timing.id}`, reminderPayload).catch(() => {});
+            await api.patch(`/reminders/${timing.id}`, reminderPayload).catch((err) => {
+              console.warn('Failed to update reminder:', err);
+            });
           } else {
-            await api.post('/reminders/', reminderPayload).catch(() => {});
+            await api.post(`/medicines/${medId}/reminders`, reminderPayload).catch((err) => {
+              console.warn('Failed to create reminder:', err);
+            });
           }
         }
       }
 
       addToast('success', editingMed ? 'Medicine updated successfully!' : 'Medicine added successfully!');
       setModalOpen(false);
+      setFieldErrors({});
       loadMedicines();
     } catch (err: any) {
+      const backendErrors: Record<string, string> = {};
+      if (err.details && Array.isArray(err.details)) {
+        err.details.forEach((d: any) => {
+          if (d.field) backendErrors[d.field] = d.message;
+        });
+      } else if (err.field) {
+        backendErrors[err.field] = err.message;
+      }
+      setFieldErrors(backendErrors);
       addToast('error', err.message || 'Error saving medicine');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -241,7 +341,11 @@ export const MedicinesPage: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-white tracking-tight">{med.name}</h3>
-                      <span className="text-xs text-primary font-semibold">{med.dosage}</span>
+                      <span className="text-xs text-primary font-semibold">
+                        {med.dosage_amount !== undefined && med.dosage_unit
+                          ? `${med.dosage_amount} ${med.dosage_unit}`
+                          : med.dosage || 'Prescribed'}
+                      </span>
                     </div>
                   </div>
                   <span className="capitalize text-[11px] px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-on-surface-variant">
@@ -252,12 +356,18 @@ export const MedicinesPage: React.FC = () => {
                 <div className="mt-4 pt-3 border-t border-white/5 space-y-2 text-xs text-on-surface-variant">
                   <div className="flex items-center justify-between">
                     <span>Frequency</span>
-                    <span className="font-semibold text-white">{med.frequency}</span>
+                    <span className="font-semibold text-white capitalize">{med.frequency_type || med.frequency || 'Daily'}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Start Date</span>
                     <span className="text-white">{med.start_date}</span>
                   </div>
+                  {med.end_date && (
+                    <div className="flex items-center justify-between">
+                      <span>End Date</span>
+                      <span className="text-white">{med.end_date}</span>
+                    </div>
+                  )}
                   {med.instructions && (
                     <div className="mt-2 p-2.5 rounded-xl bg-white/5 text-[11px] text-on-surface">
                       <span className="font-semibold block text-primary/80 mb-0.5">Instructions:</span>
@@ -279,7 +389,7 @@ export const MedicinesPage: React.FC = () => {
                           className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-surface-container border border-white/5 text-xs text-white"
                         >
                           <Clock className="w-3 h-3 text-secondary" />
-                          <span>{r.dose_label}:</span>
+                          <span className="capitalize">{r.dose_label}:</span>
                           <span className="font-mono text-primary font-semibold">
                             {r.dose_time_utc?.slice(0, 5)}
                           </span>
@@ -324,6 +434,23 @@ export const MedicinesPage: React.FC = () => {
         maxWidth="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Error Summary Banner */}
+          {Object.keys(fieldErrors).length > 0 && (
+            <div className="p-3 rounded-xl bg-status-error/15 border border-status-error/30 text-xs text-status-error space-y-1">
+              <div className="font-bold flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>Please fix the following error{Object.keys(fieldErrors).length > 1 ? 's' : ''}:</span>
+              </div>
+              <ul className="list-disc list-inside space-y-0.5 pl-1">
+                {Object.entries(fieldErrors).map(([f, msg]) => (
+                  <li key={f}>
+                    <span className="font-semibold capitalize">{f.replace('_', ' ')}:</span> {msg}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label htmlFor="med-name" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
@@ -335,70 +462,140 @@ export const MedicinesPage: React.FC = () => {
                 type="text"
                 required
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: '' }));
+                }}
                 placeholder="e.g. Lisinopril"
-                className="w-full px-3 py-2 rounded-xl glass-input text-sm"
+                className={`w-full px-3 py-2 rounded-xl glass-input text-sm ${
+                  fieldErrors.name ? 'border-status-error focus:ring-status-error' : ''
+                }`}
               />
+              {fieldErrors.name && (
+                <p className="text-xs text-status-error mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>{fieldErrors.name}</span>
+                </p>
+              )}
             </div>
 
             <div>
-              <label htmlFor="med-dosage" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
-                Dosage Amount *
+              <label htmlFor="med-dosage-amount" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
+                Dosage *
               </label>
-              <input
-                id="med-dosage"
-                name="dosage"
-                type="text"
-                required
-                value={dosage}
-                onChange={(e) => setDosage(e.target.value)}
-                placeholder="e.g. 10mg / 1 tablet"
-                className="w-full px-3 py-2 rounded-xl glass-input text-sm"
-              />
+              <div className="flex gap-2">
+                <input
+                  id="med-dosage-amount"
+                  name="dosage_amount"
+                  type="number"
+                  step="any"
+                  min="0.01"
+                  required
+                  value={dosageAmount}
+                  onChange={(e) => {
+                    setDosageAmount(e.target.value);
+                    if (fieldErrors.dosage_amount) setFieldErrors((prev) => ({ ...prev, dosage_amount: '' }));
+                  }}
+                  placeholder="e.g. 10"
+                  className={`w-2/3 px-3 py-2 rounded-xl glass-input text-sm ${
+                    fieldErrors.dosage_amount ? 'border-status-error focus:ring-status-error' : ''
+                  }`}
+                />
+                <select
+                  id="med-dosage-unit"
+                  name="dosage_unit"
+                  value={dosageUnit}
+                  onChange={(e) => {
+                    setDosageUnit(e.target.value as any);
+                    if (fieldErrors.dosage_unit) setFieldErrors((prev) => ({ ...prev, dosage_unit: '' }));
+                  }}
+                  className="w-1/3 px-3 py-2 rounded-xl glass-input text-sm bg-surface-container"
+                >
+                  <option value="mg">mg</option>
+                  <option value="ml">ml</option>
+                  <option value="units">units</option>
+                </select>
+              </div>
+              {fieldErrors.dosage_amount && (
+                <p className="text-xs text-status-error mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>{fieldErrors.dosage_amount}</span>
+                </p>
+              )}
+              {fieldErrors.dosage_unit && (
+                <p className="text-xs text-status-error mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>{fieldErrors.dosage_unit}</span>
+                </p>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label htmlFor="med-route" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
-                Route
+                Route *
               </label>
               <select
                 id="med-route"
                 name="route"
                 value={route}
-                onChange={(e) => setRoute(e.target.value as any)}
-                className="w-full px-3 py-2 rounded-xl glass-input text-sm bg-surface-container"
+                onChange={(e) => {
+                  setRoute(e.target.value as any);
+                  if (fieldErrors.route) setFieldErrors((prev) => ({ ...prev, route: '' }));
+                }}
+                className={`w-full px-3 py-2 rounded-xl glass-input text-sm bg-surface-container ${
+                  fieldErrors.route ? 'border-status-error focus:ring-status-error' : ''
+                }`}
               >
                 <option value="oral">Oral</option>
-                <option value="injection">Injection</option>
                 <option value="topical">Topical</option>
-                <option value="inhalation">Inhalation</option>
-                <option value="drops">Drops</option>
+                <option value="injection">Injection</option>
+                <option value="inhaled">Inhaled</option>
                 <option value="other">Other</option>
               </select>
+              {fieldErrors.route && (
+                <p className="text-xs text-status-error mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>{fieldErrors.route}</span>
+                </p>
+              )}
             </div>
 
             <div>
               <label htmlFor="med-frequency" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
-                Frequency
+                Frequency *
               </label>
-              <input
+              <select
                 id="med-frequency"
-                name="frequency"
-                type="text"
-                value={frequency}
-                onChange={(e) => setFrequency(e.target.value)}
-                placeholder="e.g. Once daily"
-                className="w-full px-3 py-2 rounded-xl glass-input text-sm"
-              />
+                name="frequency_type"
+                value={frequencyType}
+                onChange={(e) => {
+                  setFrequencyType(e.target.value as any);
+                  if (fieldErrors.frequency_type) setFieldErrors((prev) => ({ ...prev, frequency_type: '' }));
+                }}
+                className={`w-full px-3 py-2 rounded-xl glass-input text-sm bg-surface-container ${
+                  fieldErrors.frequency_type ? 'border-status-error focus:ring-status-error' : ''
+                }`}
+              >
+                <option value="daily">Daily</option>
+                <option value="weekday">Weekday (Mon–Fri)</option>
+                <option value="alternate">Alternate Days</option>
+                <option value="prn">PRN (As Needed)</option>
+              </select>
+              {fieldErrors.frequency_type && (
+                <p className="text-xs text-status-error mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>{fieldErrors.frequency_type}</span>
+                </p>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label htmlFor="med-start-date" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
-                Start Date
+                Start Date *
               </label>
               <input
                 id="med-start-date"
@@ -406,9 +603,20 @@ export const MedicinesPage: React.FC = () => {
                 type="date"
                 required
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl glass-input text-sm text-white"
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  if (fieldErrors.start_date) setFieldErrors((prev) => ({ ...prev, start_date: '' }));
+                }}
+                className={`w-full px-3 py-2 rounded-xl glass-input text-sm text-white ${
+                  fieldErrors.start_date ? 'border-status-error focus:ring-status-error' : ''
+                }`}
               />
+              {fieldErrors.start_date && (
+                <p className="text-xs text-status-error mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>{fieldErrors.start_date}</span>
+                </p>
+              )}
             </div>
 
             <div>
@@ -420,9 +628,20 @@ export const MedicinesPage: React.FC = () => {
                 name="endDate"
                 type="date"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl glass-input text-sm text-white"
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  if (fieldErrors.end_date) setFieldErrors((prev) => ({ ...prev, end_date: '' }));
+                }}
+                className={`w-full px-3 py-2 rounded-xl glass-input text-sm text-white ${
+                  fieldErrors.end_date ? 'border-status-error focus:ring-status-error' : ''
+                }`}
               />
+              {fieldErrors.end_date && (
+                <p className="text-xs text-status-error mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>{fieldErrors.end_date}</span>
+                </p>
+              )}
             </div>
           </div>
 
@@ -435,10 +654,19 @@ export const MedicinesPage: React.FC = () => {
               name="instructions"
               rows={2}
               value={instructions}
-              onChange={(e) => setInstructions(e.target.value)}
+              onChange={(e) => {
+                setInstructions(e.target.value);
+                if (fieldErrors.instructions) setFieldErrors((prev) => ({ ...prev, instructions: '' }));
+              }}
               placeholder="e.g. Take with food or a glass of water"
               className="w-full px-3 py-2 rounded-xl glass-input text-sm"
             />
+            {fieldErrors.instructions && (
+              <p className="text-xs text-status-error mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>{fieldErrors.instructions}</span>
+              </p>
+            )}
           </div>
 
           {/* Timings & Reminders Builder */}
@@ -461,19 +689,23 @@ export const MedicinesPage: React.FC = () => {
               {timings.map((timing, idx) => (
                 <div key={idx} className="p-3 rounded-xl bg-surface-container border border-white/5 space-y-2">
                   <div className="grid grid-cols-3 gap-2">
-                    <input
+                    <select
                       id={`timing-label-${idx}`}
                       name={`timing_label_${idx}`}
-                      type="text"
-                      placeholder="Label (e.g. Morning)"
-                      value={timing.dose_label}
+                      value={timing.dose_label.toLowerCase()}
                       onChange={(e) => {
                         const newT = [...timings];
-                        newT[idx].dose_label = e.target.value;
+                        newT[idx].dose_label = e.target.value as any;
                         setTimings(newT);
                       }}
-                      className="px-2.5 py-1.5 rounded-lg glass-input text-xs"
-                    />
+                      className="px-2.5 py-1.5 rounded-lg glass-input text-xs bg-surface-container capitalize"
+                    >
+                      <option value="morning">Morning</option>
+                      <option value="afternoon">Afternoon</option>
+                      <option value="evening">Evening</option>
+                      <option value="night">Night</option>
+                    </select>
+
                     <input
                       id={`timing-time-${idx}`}
                       name={`timing_time_${idx}`}
@@ -486,6 +718,7 @@ export const MedicinesPage: React.FC = () => {
                       }}
                       className="px-2.5 py-1.5 rounded-lg glass-input text-xs text-white"
                     />
+
                     <div className="flex items-center space-x-1">
                       <select
                         id={`timing-recurrence-${idx}`}
@@ -545,9 +778,10 @@ export const MedicinesPage: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="btn-press px-4 py-2 rounded-xl bg-primary text-surface font-bold text-xs shadow-glow hover:bg-primary-container"
+              disabled={submitting}
+              className="btn-press px-4 py-2 rounded-xl bg-primary text-surface font-bold text-xs shadow-glow hover:bg-primary-container disabled:opacity-50"
             >
-              {t('btn.save')}
+              {submitting ? 'Saving...' : t('btn.save')}
             </button>
           </div>
         </form>

@@ -38,15 +38,19 @@ export interface Medicine {
   id: string;
   user_id: string;
   name: string;
-  dosage: string;
-  route: 'oral' | 'injection' | 'topical' | 'inhalation' | 'drops' | 'other';
-  frequency: string;
+  dosage?: string;
+  dosage_amount?: number;
+  dosage_unit?: 'mg' | 'ml' | 'units';
+  route: 'oral' | 'topical' | 'injection' | 'inhaled' | 'other';
+  frequency?: string;
+  frequency_type?: 'daily' | 'weekday' | 'alternate' | 'prn';
   start_date: string;
   end_date?: string | null;
   instructions?: string | null;
   is_active: boolean;
   created_at?: string;
   reminders?: Reminder[];
+  missed_count?: number;
 }
 
 export interface Reminder {
@@ -55,9 +59,11 @@ export interface Reminder {
   user_id: string;
   dose_label: string;
   dose_time_utc: string;
+  timezone?: string;
   recurrence_type: 'daily' | 'weekday' | 'alternate' | 'prn';
-  recurrence_params?: number[];
-  advance_notification_minutes: number;
+  recurrence_params?: any;
+  advance_notify?: boolean;
+  advance_notification_minutes?: number;
   is_active: boolean;
   medicines?: Medicine;
 }
@@ -141,6 +147,7 @@ export interface ApiResponse<T> {
     code: string;
     message: string;
     field?: string;
+    details?: { field: string; message: string; type?: string }[];
   };
 }
 
