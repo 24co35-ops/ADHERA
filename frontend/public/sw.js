@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhera-v4';
+const CACHE_NAME = 'adhera-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -50,19 +50,17 @@ self.addEventListener('fetch', (event) => {
 
   if (!isStatic) return;
 
+  // Network-first for fresh bundles, fallback to cache
   event.respondWith(
-    caches.match(request).then((cached) => {
-      return (
-        cached ||
-        fetch(request).then((res) => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return res;
-        })
-      );
-    })
+    fetch(request)
+      .then((res) => {
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
+        return res;
+      })
+      .catch(() => caches.match(request))
   );
 });
 

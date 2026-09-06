@@ -475,6 +475,8 @@ export const WellnessPage: React.FC = () => {
                   <span className="text-xs text-on-surface-variant">{item.label}</span>
                   <div className="flex items-center gap-2">
                     <input
+                      id={`custom-pattern-${item.key}`}
+                      name={`custom_pattern_${item.key}`}
                       type="range"
                       min="0"
                       max="12"

@@ -64,6 +64,7 @@ Adhera is a web-based medication adherence platform that:
 
 ### For Administrators
 
+- **Platform Identity Directory**: Full searchable, filterable registry of all platform patients and providers with 6-tab deep-dive views (Profile & Demographics, Medications, Adherence History with CSV export, Side-Effect Feedback, Doctor Assignments, and Audit Trail) with reason-audited status toggle
 - Approve or reject Healthcare Provider registrations with a mandatory written reason
 - Manage patient-to-provider assignments
 - Create, deactivate, and reactivate accounts for all roles

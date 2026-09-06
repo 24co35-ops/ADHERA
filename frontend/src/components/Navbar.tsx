@@ -16,6 +16,7 @@ import {
   X,
   Wind,
   Bot,
+  BookUser,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -49,6 +50,7 @@ export const Navbar: React.FC = () => {
 
   const adminLinks = [
     { to: '/admin', label: t('nav.admin'), icon: Shield },
+    { to: '/admin/directory', label: 'Identity Directory', icon: BookUser },
     { to: '/profile', label: t('nav.profile'), icon: UserIcon },
   ];
 

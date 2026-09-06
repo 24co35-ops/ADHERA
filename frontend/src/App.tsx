@@ -25,6 +25,8 @@ import { ProviderPatientDetail } from './pages/provider/ProviderPatientDetail';
 
 // Admin Pages
 import { AdminDashboard } from './pages/admin/AdminDashboard';
+import { DirectoryPage } from './pages/admin/DirectoryPage';
+import { DirectoryUserDetail } from './pages/admin/DirectoryUserDetail';
 
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
@@ -168,6 +170,26 @@ export const App: React.FC = () => {
             <ProtectedRoute allowedRoles={['admin']}>
               <AppLayout>
                 <AdminDashboard />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/directory"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AppLayout>
+                <DirectoryPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/directory/:userId"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AppLayout>
+                <DirectoryUserDetail />
               </AppLayout>
             </ProtectedRoute>
           }

@@ -287,6 +287,7 @@ so that I can investigate security incidents.
 | ADH-FR-47 | Approve / reject Healthcare Provider registrations; rejection includes mandatory written reason | P0 |
 | ADH-FR-48 | Manage patient-to-provider assignments (create, update, deactivate) | P0 |
 | ADH-FR-49 | RBAC + Supabase RLS: patients see only their data; providers see only Active-assigned patients' data; admins use service role | P0 |
+| ADH-FR-50 | Platform Identity Directory: searchable, paginated registry of all patients & providers with 6-tab inspection (Profile, Meds, Adherence + CSV export, Feedback, Assignments, Audit Trail) & reason-audited status toggle | P0 |
 
 ---
 
