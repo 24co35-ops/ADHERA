@@ -1,6 +1,6 @@
+import re
 from datetime import date
 from decimal import Decimal
-import re
 from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator

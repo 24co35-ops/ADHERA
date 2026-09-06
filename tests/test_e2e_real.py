@@ -1,6 +1,9 @@
 import os
 
-from playwright.sync_api import Page, expect  # type: ignore[import-not-found,import-untyped]
+from playwright.sync_api import (  # type: ignore[import-not-found,import-untyped]
+    Page,
+    expect,
+)
 
 SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), 'screenshots_real')
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)

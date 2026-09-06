@@ -2,6 +2,7 @@
 Unit tests for Platform Identity Directory endpoints in app.admin.router.
 """
 from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
 from jose import jwt
 
