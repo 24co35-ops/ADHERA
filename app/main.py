@@ -24,7 +24,7 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
@@ -34,7 +34,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.admin.router import router as admin_router
 from app.analytics.router import router as analytics_router
-from app.auth.dependencies import get_current_user
 from app.auth.router import router as auth_router
 from app.chat.router import router as chat_router
 from app.config import settings
