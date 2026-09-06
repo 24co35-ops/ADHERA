@@ -318,6 +318,7 @@ export const ProfilePage: React.FC = () => {
                   </label>
                   <input
                     id="profile-fullname"
+                    name="fullName"
                     type="text"
                     required
                     value={fullName}
@@ -332,6 +333,7 @@ export const ProfilePage: React.FC = () => {
                   </label>
                   <input
                     id="profile-email"
+                    name="email"
                     type="email"
                     disabled
                     value={user?.email || ''}
@@ -347,6 +349,7 @@ export const ProfilePage: React.FC = () => {
                   </label>
                   <input
                     id="profile-dob"
+                    name="dateOfBirth"
                     type="date"
                     value={dateOfBirth}
                     onChange={(e) => setDateOfBirth(e.target.value)}
@@ -360,6 +363,7 @@ export const ProfilePage: React.FC = () => {
                   </label>
                   <select
                     id="profile-bloodgroup"
+                    name="bloodGroup"
                     value={bloodGroup}
                     onChange={(e) => setBloodGroup(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl glass-input text-sm bg-surface-container"
@@ -382,6 +386,7 @@ export const ProfilePage: React.FC = () => {
                   </label>
                   <input
                     id="profile-timezone"
+                    name="timezone"
                     type="text"
                     value={timezoneStr}
                     onChange={(e) => setTimezoneStr(e.target.value)}
@@ -392,7 +397,7 @@ export const ProfilePage: React.FC = () => {
 
               {/* Known Allergies Tag Input */}
               <div>
-                <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
+                <label htmlFor="profile-allergies" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
                   {t('profile.allergies')}
                 </label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
@@ -413,6 +418,8 @@ export const ProfilePage: React.FC = () => {
                   ))}
                 </div>
                 <input
+                  id="profile-allergies"
+                  name="allergyInput"
                   type="text"
                   placeholder="e.g. Penicillin, Peanuts"
                   value={allergyInput}
@@ -424,7 +431,7 @@ export const ProfilePage: React.FC = () => {
 
               {/* Medical Conditions Tag Input */}
               <div>
-                <label className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
+                <label htmlFor="profile-conditions" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
                   {t('profile.conditions')}
                 </label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
@@ -445,6 +452,8 @@ export const ProfilePage: React.FC = () => {
                   ))}
                 </div>
                 <input
+                  id="profile-conditions"
+                  name="conditionInput"
                   type="text"
                   placeholder="e.g. Hypertension, Type 2 Diabetes"
                   value={conditionInput}
@@ -611,10 +620,12 @@ export const ProfilePage: React.FC = () => {
       >
         <form onSubmit={handleAddContact} className="space-y-4 text-xs">
           <div>
-            <label className="block font-semibold text-on-surface uppercase tracking-wider mb-1">
+            <label htmlFor="emergency-contact-name" className="block font-semibold text-on-surface uppercase tracking-wider mb-1">
               Contact Full Name *
             </label>
             <input
+              id="emergency-contact-name"
+              name="contactName"
               type="text"
               required
               value={contactName}
@@ -625,10 +636,12 @@ export const ProfilePage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-semibold text-on-surface uppercase tracking-wider mb-1">
+            <label htmlFor="emergency-contact-phone" className="block font-semibold text-on-surface uppercase tracking-wider mb-1">
               Phone Number *
             </label>
             <input
+              id="emergency-contact-phone"
+              name="contactPhone"
               type="tel"
               required
               value={contactPhone}
@@ -639,10 +652,12 @@ export const ProfilePage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-semibold text-on-surface uppercase tracking-wider mb-1">
+            <label htmlFor="emergency-contact-email" className="block font-semibold text-on-surface uppercase tracking-wider mb-1">
               Email Address (Optional)
             </label>
             <input
+              id="emergency-contact-email"
+              name="contactEmail"
               type="email"
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
@@ -652,10 +667,12 @@ export const ProfilePage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-semibold text-on-surface uppercase tracking-wider mb-1">
+            <label htmlFor="emergency-contact-rel" className="block font-semibold text-on-surface uppercase tracking-wider mb-1">
               Relationship (Optional)
             </label>
             <input
+              id="emergency-contact-rel"
+              name="contactRelationship"
               type="text"
               value={contactRel}
               onChange={(e) => setContactRel(e.target.value)}
@@ -694,6 +711,8 @@ export const ProfilePage: React.FC = () => {
             <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3 top-3 text-on-surface-variant" />
               <input
+                id="search-provider-query"
+                name="searchProviderQuery"
                 type="text"
                 value={searchProviderQuery}
                 onChange={(e) => setSearchProviderQuery(e.target.value)}

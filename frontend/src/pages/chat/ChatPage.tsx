@@ -313,6 +313,8 @@ export const ChatPage: React.FC = () => {
             className="flex items-center gap-3"
           >
             <input
+              id="chat-page-query"
+              name="chatPageQuery"
               type="text"
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}

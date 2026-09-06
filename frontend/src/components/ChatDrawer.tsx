@@ -348,6 +348,8 @@ export const ChatDrawer: React.FC = () => {
                 className="flex items-center gap-2"
               >
                 <input
+                  id="chat-drawer-query"
+                  name="chatDrawerQuery"
                   type="text"
                   value={inputQuery}
                   onChange={(e) => setInputQuery(e.target.value)}

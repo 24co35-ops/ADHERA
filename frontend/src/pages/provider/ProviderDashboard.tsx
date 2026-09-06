@@ -211,6 +211,8 @@ export const ProviderDashboard: React.FC = () => {
           <div className="relative w-full sm:w-64">
             <Search className="w-4 h-4 absolute left-3 top-3 text-on-surface-variant" />
             <input
+              id="search-patients"
+              name="searchPatients"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

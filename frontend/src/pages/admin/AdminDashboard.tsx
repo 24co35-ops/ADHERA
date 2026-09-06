@@ -308,6 +308,8 @@ export const AdminDashboard: React.FC = () => {
             <div className="relative w-48">
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-on-surface-variant" />
               <input
+                id="filter-users"
+                name="filterUsers"
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
