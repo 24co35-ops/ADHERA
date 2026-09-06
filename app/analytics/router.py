@@ -136,6 +136,8 @@ async def get_dashboard(request: Request, patient_id: str = Query(None), user: d
                             days_diff = (occurrence_local.date() - med_start).days
                             if days_diff % 2 != 0:
                                 continue
+                    elif rec_type == "prn":
+                        pass  # PRN (as-needed) meds are always shown as available
                     else:
                         continue
 
@@ -162,7 +164,10 @@ async def get_dashboard(request: Request, patient_id: str = Query(None), user: d
             scheduled = r.get('scheduled_utc', '')
             if not scheduled:
                 continue
-            d = scheduled[:10]
+            # Use user's local date for streak, not UTC date slice
+            dt_utc = datetime.fromisoformat(scheduled.replace("Z", "+00:00"))
+            dt_local = dt_utc.astimezone(user_tz)
+            d = dt_local.date().isoformat()
             if d not in dates_with_all_taken:
                 dates_with_all_taken[d] = {'taken': 0, 'total': 0}
             dates_with_all_taken[d]['total'] += 1

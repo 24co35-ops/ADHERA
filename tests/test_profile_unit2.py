@@ -1,12 +1,13 @@
 """
 Unit tests for app.profile.router — all Supabase calls mocked.
 """
-import pytest
+from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
 from jose import jwt
-from app.main import app
+
 from app.config import settings
+from app.main import app
 
 client = TestClient(app)
 app.state.limiter.enabled = False
@@ -27,7 +28,7 @@ class TestGetProfile:
         profile = {"id": TEST_USER_ID, "full_name": "Alice", "date_of_birth": "1990-01-01"}
         mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[profile])
         mock_sb.auth.admin.get_user_by_id.return_value = MagicMock(user=MagicMock(email="alice@test.com"))
-        
+
         response = client.get("/v1/profile/", headers=make_token())
         assert response.status_code == 200
         data = response.json()["data"]
@@ -46,7 +47,7 @@ class TestUpdateProfile:
     def test_update_profile_success(self, mock_sb):
         profile = {"id": TEST_USER_ID, "full_name": "Bob", "date_of_birth": "1990-01-01"}
         mock_sb.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(data=[profile])
-        
+
         response = client.patch("/v1/profile/", json={"full_name": "Bob"}, headers=make_token())
         assert response.status_code == 200
         assert response.json()["data"]["full_name"] == "Bob"
@@ -103,7 +104,7 @@ class TestExportDataProfile:
     def test_export_json(self, mock_sb):
         mock_sb.table.return_value.select.return_value.eq.return_value.order.return_value.execute.return_value = MagicMock(data=[])
         mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
-        
+
         response = client.get("/v1/profile/export?format=json", headers=make_token())
         assert response.status_code == 200
         assert "application/json" in response.headers["content-type"]
@@ -112,7 +113,7 @@ class TestExportDataProfile:
     def test_export_csv(self, mock_sb):
         mock_sb.table.return_value.select.return_value.eq.return_value.order.return_value.execute.return_value = MagicMock(data=[])
         mock_sb.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
-        
+
         response = client.get("/v1/profile/export?format=csv", headers=make_token())
         assert response.status_code == 200
         assert "text/csv" in response.headers["content-type"]

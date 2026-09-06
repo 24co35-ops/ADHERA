@@ -2,12 +2,13 @@
 Unit tests for app.analytics.router — dashboard, adherence, trend endpoints.
 All Supabase calls are mocked.
 """
-import pytest
+from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
 from jose import jwt
-from app.main import app
+
 from app.config import settings
+from app.main import app
 
 client = TestClient(app)
 app.state.limiter.enabled = False
@@ -26,7 +27,7 @@ def make_token(role="patient", user_id=TEST_USER_ID):
 
 
 def mock_adherence_data():
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta, timezone
     now = datetime.now(timezone.utc)
     return [
         {"status": "taken", "scheduled_utc": (now - timedelta(days=1)).isoformat(), "user_id": TEST_USER_ID},

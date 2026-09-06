@@ -1,6 +1,6 @@
-import pytest
-from playwright.sync_api import Page, expect
 import os
+
+from playwright.sync_api import Page, expect
 
 SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), 'screenshots_real')
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
@@ -30,7 +30,7 @@ def test_step1_register(page: Page):
     # Wait for registration API call to complete (button goes back to Register or page redirects)
     try:
         page.locator("button:has-text('Registering...')").wait_for(state="hidden", timeout=10000)
-    except:
+    except Exception:
         pass
     # Accept: redirect to index.html, or 'already' error, or rate limit error
     url = page.url
@@ -74,7 +74,7 @@ def test_step5_mark_dose(page: Page):
     page.wait_for_timeout(1000)
     try:
         page.click("button:has-text('Taken')", timeout=3000)
-    except:
+    except Exception:
         pass
     page.screenshot(path=f"{SCREENSHOT_DIR}/step5_mark_dose.png")
 

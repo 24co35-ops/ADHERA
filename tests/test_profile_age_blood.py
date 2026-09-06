@@ -1,8 +1,11 @@
+from datetime import date
+
 import pytest
-from datetime import date, datetime
+from pydantic import ValidationError
+
 from app.core.utils import calculate_age
 from app.profile.schemas import ProfileUpdate
-from pydantic import ValidationError
+
 
 def test_calculate_age_basic():
     # Birthday has occurred this year

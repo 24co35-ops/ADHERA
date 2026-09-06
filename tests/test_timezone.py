@@ -1,12 +1,14 @@
+from datetime import datetime, time, timedelta, timezone
+from unittest.mock import MagicMock, patch
+from zoneinfo import ZoneInfo
+
+import jwt
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
-from app.main import app
-import jwt
-from app.config import settings
-from datetime import datetime, timezone, timedelta, time
-from zoneinfo import ZoneInfo
 from freezegun import freeze_time
+
+from app.config import settings
+from app.main import app
 
 client = TestClient(app)
 
@@ -62,7 +64,7 @@ def test_spring_forward_missed_automatically(mock_supabase, iana_tz, sf_date, fb
     """
     # Mock profiles table to return user's timezone
     mock_supabase.table().select().eq().execute.return_value = MagicMock(data=[{"timezone": iana_tz}])
-    
+
     # Mock reminders table
     mock_supabase.table().select().eq().eq().execute.return_value = MagicMock(data=[
         {
@@ -82,19 +84,19 @@ def test_spring_forward_missed_automatically(mock_supabase, iana_tz, sf_date, fb
             }
         }
     ])
-    
+
     # Mock empty adherence records
     mock_supabase.table().select().eq().gte().lte().execute.return_value = MagicMock(data=[])
-    
+
     # Freeze time AFTER the skipped hour (clock jumps past scheduled time)
     tz = ZoneInfo(iana_tz)
     freeze_dt = datetime.fromisoformat(f"{sf_date}T{freeze_local_sf}").replace(tzinfo=tz)
-    
+
     with freeze_time(freeze_dt):
         res = client.get("/v1/doses/upcoming", headers=headers())
         assert res.status_code == 200
         upcoming_doses = res.json()["data"]
-        
+
         # Verify that the scheduled UTC time is in the past by >2 hours
         for dose in upcoming_doses:
             scheduled_dt = datetime.fromisoformat(dose["scheduled_utc"].replace("Z", "+00:00"))
@@ -111,7 +113,7 @@ def test_fallback_fires_exactly_once(mock_supabase, iana_tz, sf_date, fb_date, d
     """
     # Mock profile
     mock_supabase.table().select().eq().execute.return_value = MagicMock(data=[{"timezone": iana_tz}])
-    
+
     # Mock reminder
     mock_supabase.table().select().eq().eq().execute.return_value = MagicMock(data=[
         {
@@ -131,28 +133,28 @@ def test_fallback_fires_exactly_once(mock_supabase, iana_tz, sf_date, fb_date, d
             }
         }
     ])
-    
+
     first_utc_dt = datetime.fromisoformat(first_occ_utc_fb.replace("Z", "+00:00"))
     second_utc_dt = datetime.fromisoformat(second_occ_utc_fb.replace("Z", "+00:00"))
-    
+
     # First call: No adherence records yet. Upcoming list contains the dose.
     mock_supabase.table().select().eq().gte().lte().execute.return_value = MagicMock(data=[])
-    
+
     with freeze_time(first_utc_dt - timedelta(minutes=15)):
         res = client.get("/v1/doses/upcoming", headers=headers())
         assert res.status_code == 200
         upcoming = res.json()["data"]
         assert len(upcoming) == 1
         assert upcoming[0]["id"] == "r1"
-        
+
     # Dose is taken/completed at the first occurrence (recorded in database)
     mock_supabase.table().insert().execute.return_value = MagicMock(data=[{"id": "a1", "status": "taken"}])
     mock_supabase.table().select().eq().execute.return_value = MagicMock(data=[{"user_id": "11111111-1111-1111-1111-111111111111", "dose_time_utc": dose_time_utc_fb}])
-    
+
     # Mock POST to /taken
     res_taken = client.post("/v1/doses/r1/taken", headers=headers())
     assert res_taken.status_code == 200
-    
+
     # Second call (during the second occurrence / repeated hour):
     # Mock the database to return that the first occurrence is completed in the adherence table
     mock_supabase.table().select().eq().gte().lte().execute.return_value = MagicMock(data=[
@@ -163,10 +165,10 @@ def test_fallback_fires_exactly_once(mock_supabase, iana_tz, sf_date, fb_date, d
             "status": "taken"
         }
     ])
-    
+
     # Mock profile response again for upcoming call
     mock_supabase.table().select().eq().execute.return_value = MagicMock(data=[{"timezone": iana_tz}])
-    
+
     with freeze_time(second_utc_dt):
         res = client.get("/v1/doses/upcoming", headers=headers())
         assert res.status_code == 200
@@ -184,18 +186,17 @@ def test_india_timezone_conversion(mock_supabase):
     the UTC stored time is 18:00 UTC and reminder fires at the correct UTC moment.
     """
     iana_tz = "Asia/Kolkata"
-    local_time_str = "23:30:00"
-    
+
     # Local 23:30 in Asia/Kolkata is 18:00 UTC
     tz = ZoneInfo(iana_tz)
     local_dt = datetime.fromisoformat("2026-06-19T23:30:00").replace(tzinfo=tz)
     utc_dt = local_dt.astimezone(timezone.utc)
-    
+
     assert utc_dt.time() == time(18, 0, 0)
-    
+
     # Mock profiles table to return India timezone
     mock_supabase.table().select().eq().execute.return_value = MagicMock(data=[{"timezone": iana_tz}])
-    
+
     # Mock reminder to return a dose stored at 18:00:00 UTC
     mock_supabase.table().select().eq().eq().execute.return_value = MagicMock(data=[
         {
@@ -215,10 +216,10 @@ def test_india_timezone_conversion(mock_supabase):
             }
         }
     ])
-    
+
     # Empty adherence
     mock_supabase.table().select().eq().gte().lte().execute.return_value = MagicMock(data=[])
-    
+
     # Freeze time at the exact UTC moment (18:00:00 UTC)
     with freeze_time(utc_dt):
         res = client.get("/v1/doses/upcoming", headers=headers())

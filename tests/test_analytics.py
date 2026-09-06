@@ -1,9 +1,10 @@
-import pytest
-from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
-from app.main import app
+from unittest.mock import MagicMock, patch
+
 import jwt
+from fastapi.testclient import TestClient
+
 from app.config import settings
+from app.main import app
 
 client = TestClient(app)
 
@@ -35,4 +36,4 @@ def test_dashboard_warning(mock_supabase):
     ])
     res = client.get("/v1/analytics/dashboard", headers=headers())
     assert res.status_code == 200
-    assert res.json()["data"]["weekly_warning"] == True
+    assert res.json()["data"]["weekly_warning"] is True

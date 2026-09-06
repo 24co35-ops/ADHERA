@@ -96,8 +96,18 @@ async def admin_health_check(request: Request, user: dict = Depends(require_role
 @limiter.limit("60/minute")
 async def get_critical_feedback(request: Request, user: dict = Depends(require_role("admin"))):
     try:
-        result = supabase.table("feedback").select("*, profiles(full_name, email)").gte("severity", 3).order("created_at", desc=True).execute()
+        result = supabase.table("feedback").select("*, profiles(full_name)").gte("severity", 3).order("created_at", desc=True).execute()
         data = result.data or []
+        # Enrich with emails via auth API
+        try:
+            auth_users = supabase.auth.admin.list_users()
+            email_map = {u.id: u.email for u in auth_users}
+            for r in data:
+                pid = (r.get("profiles") or {}).get("id") or r.get("user_id")
+                if pid:
+                    r["email"] = email_map.get(pid, "")
+        except Exception:
+            pass
         # Filter unreviewed if column exists
         try:
             unreviewed = [r for r in data if not r.get("admin_reviewed", False)]
@@ -157,13 +167,13 @@ async def top_side_effects(request: Request, user: dict = Depends(require_role("
 @limiter.limit("30/minute")
 async def daily_active_users(request: Request, user: dict = Depends(require_role("admin"))):
     try:
-        result = supabase.table("adherence").select("patient_id, created_at").order("created_at").execute()
+        result = supabase.table("adherence").select("user_id, created_at").order("created_at").execute()
         daily: dict = defaultdict(set)
         for r in (result.data or []):
             day = (r.get("created_at") or "")[:10]
-            pid = r.get("patient_id")
-            if day and pid:
-                daily[day].add(pid)
+            uid = r.get("user_id")
+            if day and uid:
+                daily[day].add(uid)
         dau = [{"date": d, "users": len(uids)} for d, uids in sorted(daily.items())[-30:]]
     except Exception:
         dau = []
@@ -409,7 +419,7 @@ async def reset_user_password(request: Request, id: str, user: dict = Depends(re
     try:
         supabase_auth.auth.reset_password_for_email(
             email,
-            options={"redirect_to": f"{settings.FRONTEND_URL}/reset-password.html"}
+            options={"redirect_to": f"{settings.FRONTEND_URL}/reset-password"}
         )
     except Exception:
         pass
@@ -486,7 +496,12 @@ async def approve_provider_legacy(request: Request, id: str, user: dict = Depend
 @router.post("/providers/{id}/reject", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
 async def reject_provider_legacy(request: Request, id: str, user: dict = Depends(require_role("admin"))):
-    return await reject_user(request, id, RejectBody(reason="Legacy reject"), user)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    reason = body.get("reason", "Rejected by admin")
+    return await reject_user(request, id, RejectBody(reason=reason), user)
 
 
 # ── Assignments ───────────────────────────────────────────────────────────────
@@ -583,7 +598,10 @@ async def get_admin_pending_patient_requests(request: Request, user: dict = Depe
     try:
         # TODO: re-add .eq("initiated_by", "patient") once migration 018 is applied to live DB
         # initiated_by column is not yet in the live schema cache; filter all pending and serve
+        # APPLY_018_MANUALLY.sql on the live DB to re-enable .eq('initiated_by') filters.
         res = supabase.table("assignments").select("*").eq("status", "pending").execute().data or []
+        # Python-side workaround: patient-initiated = no assigned_by value
+        res = [r for r in res if not r.get("assigned_by")]
         if not res:
             return SuccessResponse(data=[])
         user_ids = list(set([r["patient_id"] for r in res] + [r["provider_id"] for r in res]))
@@ -619,7 +637,10 @@ async def get_admin_pending_provider_requests(request: Request, user: dict = Dep
     try:
         # TODO: re-add .eq("initiated_by", "provider") once migration 018 is applied to live DB
         # initiated_by column is not yet in the live schema cache; filter all pending and serve
+        # APPLY_018_MANUALLY.sql on the live DB to re-enable .eq('initiated_by') filters.
         res = supabase.table("assignments").select("*").eq("status", "pending").execute().data or []
+        # Python-side workaround: provider-initiated = assigned_by is set
+        res = [r for r in res if r.get("assigned_by")]
         if not res:
             return SuccessResponse(data=[])
         user_ids = list(set([r["patient_id"] for r in res] + [r["provider_id"] for r in res]))
@@ -848,7 +869,7 @@ async def admin_invite_user(request: Request, payload: InviteUser, user: dict = 
 
         try:
             # Call invite_user_by_email using reset-password.html redirect
-            redirect_url = f"{settings.FRONTEND_URL}/reset-password.html"
+            redirect_url = f"{settings.FRONTEND_URL}/reset-password"
             supabase.auth.admin.invite_user_by_email(
                 email,
                 options={

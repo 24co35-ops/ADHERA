@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 
 import httpx
 import jwt as pyjwt
@@ -14,34 +15,41 @@ logger = logging.getLogger(__name__)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="v1/auth/login")
 
 _JWKS_URL = settings.SUPABASE_URL.rstrip("/") + "/auth/v1/.well-known/jwks.json"
-_KEY_CACHE: dict = {}
+_KEY_CACHE: dict[str, tuple] = {}  # kid -> (key_object, cached_at_timestamp)
+_KEY_CACHE_TTL = 3600  # 1 hour
 
 
-def _get_signing_key(kid: str):
+async def _get_signing_key(kid: str):
     """Retrieve signing key from in-memory cache or fetch dynamically via HTTPX."""
     if kid in _KEY_CACHE:
-        return _KEY_CACHE[kid]
+        cached_key, cached_at = _KEY_CACHE[kid]
+        if time.time() - cached_at < _KEY_CACHE_TTL:
+            return cached_key
+        # TTL expired, remove and re-fetch
+        del _KEY_CACHE[kid]
 
     try:
-        resp = httpx.get(_JWKS_URL, timeout=5.0)
-        if resp.status_code == 200:
-            jwks = resp.json()
-            for key_dict in jwks.get("keys", []):
-                k = key_dict.get("kid")
-                kty = key_dict.get("kty")
-                if k and kty == "EC":
-                    _KEY_CACHE[k] = ECAlgorithm.from_jwk(json.dumps(key_dict))
-                elif k and kty == "RSA":
-                    _KEY_CACHE[k] = RSAAlgorithm.from_jwk(json.dumps(key_dict))
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(_JWKS_URL, timeout=5.0)
+            if resp.status_code == 200:
+                jwks = resp.json()
+                for key_dict in jwks.get("keys", []):
+                    k = key_dict.get("kid")
+                    kty = key_dict.get("kty")
+                    if k and kty == "EC":
+                        _KEY_CACHE[k] = (ECAlgorithm.from_jwk(json.dumps(key_dict)), time.time())
+                    elif k and kty == "RSA":
+                        _KEY_CACHE[k] = (RSAAlgorithm.from_jwk(json.dumps(key_dict)), time.time())
     except Exception as e:
         logger.warning("Failed to fetch JWKS from Supabase: %r", e)
 
-    return _KEY_CACHE.get(kid)
+    cached = _KEY_CACHE.get(kid)
+    return cached[0] if cached else None
 
 
-def _decode_with_jwks(token: str, kid: str) -> dict:
+async def _decode_with_jwks(token: str, kid: str) -> dict:
     """Verify token using Supabase JWKS with local caching and clock leeway."""
-    signing_key = _get_signing_key(kid)
+    signing_key = await _get_signing_key(kid)
     if not signing_key:
         raise HTTPException(status_code=401, detail="Signing key not found")
 
@@ -67,13 +75,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
                 settings.SUPABASE_JWT_SECRET,
                 algorithms=["HS256"],
                 audience="authenticated",
-                options={"verify_exp": False},
             )
         else:
             # Production path: asymmetric JWKS verification with Supabase API fallback
             try:
                 kid = header.get("kid", "")
-                payload = _decode_with_jwks(token, kid)
+                payload = await _decode_with_jwks(token, kid)
             except Exception as jwks_err:
                 logger.info("JWKS verification missed, validating via Supabase Auth API: %r", jwks_err)
                 from app.db.supabase import supabase_auth

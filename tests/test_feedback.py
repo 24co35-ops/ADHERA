@@ -1,9 +1,10 @@
-import pytest
-from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
-from app.main import app
+from unittest.mock import MagicMock, patch
+
 import jwt
+from fastapi.testclient import TestClient
+
 from app.config import settings
+from app.main import app
 
 client = TestClient(app)
 
@@ -24,11 +25,11 @@ def test_feedback_severity_1(mock_supabase):
 def test_feedback_severity_4(mock_supabase, mock_httpx_post):
     mock_supabase.table().insert().execute.return_value = MagicMock(data=[{"id": "2"}])
     mock_supabase.table().select().eq().eq().execute.return_value = MagicMock(data=[{"profiles": {"email": "p@demo.com"}}])
-    
+
     res = client.post("/v1/feedback/", headers=headers(), json={
         "medicine_id": "m1", "description": "Emergency", "severity": 4
     })
-    
+
     assert res.status_code == 201
     mock_httpx_post.assert_called_once()
     args, kwargs = mock_httpx_post.call_args
@@ -52,7 +53,7 @@ def test_feedback_invalid_description_too_long():
     assert "description" in res.json()["error"]["field"]
 
 def test_feedback_invalid_occurred_at_future():
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta, timezone
     future_time = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
     res = client.post("/v1/feedback/", headers=headers(), json={
         "medicine_id": "m1", "description": "Mild headache", "severity": 1, "occurred_at": future_time

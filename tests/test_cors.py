@@ -1,6 +1,7 @@
 """Tests for CORS origin validation in app/main.py."""
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 
 def _get_cors(origin: str, env: str) -> list[str]:

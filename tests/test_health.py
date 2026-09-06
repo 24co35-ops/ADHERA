@@ -1,9 +1,22 @@
 """Tests for GET /v1/health endpoint."""
-import pytest
-from datetime import datetime, timezone
+from datetime import datetime
 from unittest.mock import MagicMock, patch
+
+import jwt
+import pytest
 from fastapi.testclient import TestClient
+
+from app.config import settings
 from app.main import app
+
+
+def make_token(role="patient", user_id="00000000-0000-0000-0000-000000000001"):
+    payload = {
+        "aud": "authenticated",
+        "sub": user_id,
+        "user_metadata": {"role": role}
+    }
+    return {"Authorization": f"Bearer {jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm='HS256')}"}
 
 
 @pytest.fixture()
@@ -59,7 +72,7 @@ def test_health_db_error(client):
 
 def test_config_endpoint_success(client):
     """Verify GET /v1/config returns config variables and no-cache headers."""
-    response = client.get("/v1/config")
+    response = client.get("/v1/config", headers=make_token())
     assert response.status_code == 200
     body = response.json()
     assert body["success"] is True

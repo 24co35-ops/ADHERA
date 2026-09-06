@@ -1,13 +1,14 @@
 import os
-import sys
 import random
+import sys
 from datetime import datetime, timedelta, timezone
 
 # Add parent directory to path to import app modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
-from supabase import create_client, Client
+
+from supabase import Client, create_client
 
 load_dotenv()
 
@@ -56,7 +57,7 @@ def seed():
                         break
             else:
                 print(f"Error creating {u['email']}: {e}")
-                
+
     patient_id = user_ids.get("patient")
     provider_id = user_ids.get("provider")
 
@@ -81,7 +82,7 @@ def seed():
         {"name": "Lisinopril", "dosage_amount": 10, "dosage_unit": "mg", "route": "oral", "frequency_type": "daily", "start_date": "2025-01-01", "user_id": patient_id},
         {"name": "Atorvastatin", "dosage_amount": 20, "dosage_unit": "mg", "route": "oral", "frequency_type": "daily", "start_date": "2025-01-01", "user_id": patient_id}
     ]
-    
+
     med_ids = []
     for med in medicines:
         res = supabase.table("medicines").insert(med).execute()
@@ -94,7 +95,7 @@ def seed():
         {"medicine_id": med_ids[1], "user_id": patient_id, "dose_label": "morning", "dose_time_utc": "08:00:00", "timezone": "UTC", "recurrence_type": "daily"},
         {"medicine_id": med_ids[2], "user_id": patient_id, "dose_label": "evening", "dose_time_utc": "20:00:00", "timezone": "UTC", "recurrence_type": "daily"}
     ]
-    
+
     rem_ids = []
     for rem in reminders:
         try:
@@ -105,12 +106,12 @@ def seed():
             print(f"Error creating reminder: {e}")
             # Try fetching existing
             pass
-            
+
     # Adherence history (30 days, ~72% taken)
     if not rem_ids:
         print("No reminders to track adherence.")
         return
-        
+
     # Get rem_ids again just in case
     existing_rems = supabase.table("reminders").select("id").eq("user_id", patient_id).execute()
     rem_ids = [r["id"] for r in existing_rems.data]
@@ -118,7 +119,7 @@ def seed():
     print("Generating adherence history...")
     now = datetime.now(timezone.utc)
     adherence_data = []
-    
+
     for i in range(30):
         d = now - timedelta(days=i)
         for rid in rem_ids:
@@ -130,15 +131,15 @@ def seed():
                 "status": status,
                 "outcome_utc": d.isoformat()
             })
-    
+
     # Bulk insert adherence in chunks
     for i in range(0, len(adherence_data), 100):
         chunk = adherence_data[i:i+100]
         try:
             supabase.table("adherence").insert(chunk).execute()
-        except Exception as e:
+        except Exception:
             pass # Ignore unique constraint violations if running multiple times
-            
+
     print("Seed complete.")
 
 if __name__ == "__main__":

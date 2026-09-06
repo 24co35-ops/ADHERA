@@ -1,12 +1,13 @@
 """
 Unit tests for app.routers.assignments — all Supabase calls mocked.
 """
-import pytest
+from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
 from jose import jwt
-from app.main import app
+
 from app.config import settings
+from app.main import app
 
 client = TestClient(app)
 app.state.limiter.enabled = False

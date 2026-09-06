@@ -2,12 +2,13 @@
 Unit tests for app.medicines.router — all Supabase calls mocked.
 Tests: create, list, get, update, delete, get_reminders, create_reminder.
 """
-import pytest
+from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
 from jose import jwt
-from app.main import app
+
 from app.config import settings
+from app.main import app
 
 client = TestClient(app)
 app.state.limiter.enabled = False

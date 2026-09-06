@@ -1,8 +1,8 @@
 """
 Unit tests for app.core.utils — calculate_age and format_utc_to_iana.
 """
-import pytest
 from datetime import date, datetime
+
 from app.core.utils import calculate_age, format_utc_to_iana
 
 

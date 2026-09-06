@@ -1,12 +1,13 @@
 """
 Unit tests for app.admin.router — all Supabase and HTTP calls mocked.
 """
-import pytest
+from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
 from jose import jwt
-from app.main import app
+
 from app.config import settings
+from app.main import app
 
 client = TestClient(app)
 app.state.limiter.enabled = False
@@ -156,7 +157,7 @@ class TestUserManagement:
             "id": PROVIDER_ID, "full_name": "Test Provider", "date_of_birth": "1990-01-01"
         }])
         mock_sb.auth.admin.get_user_by_id.return_value = MagicMock(user=MagicMock(email="test@user.com"))
-        
+
         response = client.get(f"/v1/admin/users/{PROVIDER_ID}", headers=make_token())
         assert response.status_code == 200
         data = response.json()["data"]
@@ -169,7 +170,7 @@ class TestUserManagement:
         mock_sb.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(data=[{
             "id": PROVIDER_ID, "full_name": "Updated Provider"
         }])
-        
+
         response = client.patch(
             f"/v1/admin/users/{PROVIDER_ID}",
             json={"full_name": "Updated Provider", "contact_number": "1234567890"},
@@ -183,20 +184,20 @@ class TestUserManagement:
     def test_reset_password_success(self, mock_sb, mock_sb_auth):
         mock_sb.auth.admin.get_user_by_id.return_value = MagicMock(user=MagicMock(email="test@user.com"))
         mock_sb_auth.auth.reset_password_for_email.return_value = MagicMock()
-        
+
         response = client.post(f"/v1/admin/users/{PROVIDER_ID}/reset-password", headers=make_token())
         assert response.status_code == 200
         assert "password reset email sent to test@user.com" in response.json()["data"]["message"].lower()
         mock_sb.auth.admin.get_user_by_id.assert_called_once_with(PROVIDER_ID)
         mock_sb_auth.auth.reset_password_for_email.assert_called_once_with(
             "test@user.com",
-            options={"redirect_to": f"{settings.FRONTEND_URL}/reset-password.html"}
+            options={"redirect_to": f"{settings.FRONTEND_URL}/reset-password"}
         )
 
     @patch("app.admin.router.supabase")
     def test_reset_password_not_found(self, mock_sb):
         mock_sb.auth.admin.get_user_by_id.side_effect = Exception("User not found")
-        
+
         response = client.post(f"/v1/admin/users/{PROVIDER_ID}/reset-password", headers=make_token())
         assert response.status_code == 404
         assert "user not found" in response.json()["error"]["message"].lower()
@@ -459,13 +460,13 @@ class TestAdminInviteUser:
         )
         assert response.status_code == 200
         assert "invite sent successfully" in response.json()["data"]["message"].lower()
-        
+
         # Verify invite parameters
         mock_sb.auth.admin.invite_user_by_email.assert_called_once_with(
             "new.user@example.com",
             options={
                 "data": {"role": "provider", "full_name": "New Provider"},
-                "redirect_to": f"{settings.FRONTEND_URL}/reset-password.html"
+                "redirect_to": f"{settings.FRONTEND_URL}/reset-password"
             }
         )
         mock_audit.assert_called_once()
@@ -489,7 +490,7 @@ class TestAdminInviteUser:
     def test_invite_user_auth_already_exists(self, mock_sb):
         """Conflict: AuthApiError raised due to user already in Supabase Auth."""
         mock_sb.auth.admin.list_users.return_value = []
-        
+
         from supabase_auth.errors import AuthApiError
         # Mock invite_user_by_email to raise AuthApiError representing duplicate user
         mock_sb.auth.admin.invite_user_by_email.side_effect = AuthApiError(

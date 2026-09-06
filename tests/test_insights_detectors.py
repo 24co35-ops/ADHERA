@@ -3,13 +3,13 @@ Unit tests for app.insights.detectors - dose drift, weekend pattern,
 post side-effect drop, and silent inactivity detectors.
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 from app.insights.detectors import (
     detect_dose_drift,
-    detect_weekend_pattern,
     detect_post_side_effect_drop,
     detect_silent_inactivity,
+    detect_weekend_pattern,
 )
 
 TEST_USER = "user-123"
@@ -33,7 +33,7 @@ class TestDoseDrift:
              "outcome_utc": (base + timedelta(days=i, minutes=60)).isoformat(), "user_id": TEST_USER}
             for i in range(4, 7)
         ]
-        
+
         flag = detect_dose_drift(rows, threshold_minutes=45)
         assert flag is not None
         assert flag["flag_type"] == "dose_drift"
@@ -143,7 +143,7 @@ class TestPostSideEffectDrop:
             {"status": "missed", "scheduled_utc": (fb_time + timedelta(days=3)).isoformat(), "user_id": TEST_USER},
             {"status": "missed", "scheduled_utc": (fb_time + timedelta(days=4)).isoformat(), "user_id": TEST_USER},
         ]
-        
+
         flags = detect_post_side_effect_drop(feedback, adherence, window_days=5)
         assert len(flags) == 1
         flag = flags[0]

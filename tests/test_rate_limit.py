@@ -1,11 +1,12 @@
 """Tests for slowapi rate limiting integration."""
-import json
 import asyncio
 import concurrent.futures
-import pytest
+import json
 from unittest.mock import MagicMock
+
 from fastapi.testclient import TestClient
-from app.main import app, _rate_limit_handler
+
+from app.main import _rate_limit_handler, app
 
 client = TestClient(app)
 

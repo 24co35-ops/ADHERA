@@ -249,6 +249,9 @@ async def list_patients(request: Request, user: dict = Depends(require_role("pro
 @router.get("/patients/{id}", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
 async def get_patient(request: Request, id: str, user: dict = Depends(require_role("provider"))):
+    assignment = supabase.table("assignments").select("id").eq("provider_id", user["user_id"]).eq("patient_id", id).eq("status", "active").execute()
+    if not assignment.data:
+        raise HTTPException(status_code=403, detail="Not assigned to this patient")
     res = supabase.table("profiles").select("*").eq("id", id).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Not found")

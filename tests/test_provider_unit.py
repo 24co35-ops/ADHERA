@@ -1,12 +1,13 @@
 """
 Unit tests for app.provider.router — all routes mocked.
 """
-import pytest
+from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
 from jose import jwt
-from app.main import app
+
 from app.config import settings
+from app.main import app
 
 client = TestClient(app)
 app.state.limiter.enabled = False
@@ -39,9 +40,9 @@ class TestProviderDashboard:
 
     @patch("app.provider.router.supabase")
     def test_with_patients_returns_stats(self, mock_sb):
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
         now = datetime.now(timezone.utc)
-        
+
         # assignments
         assignments_mock = MagicMock(data=[{"patient_id": TEST_PATIENT_ID}])
         # profiles
@@ -122,7 +123,7 @@ class TestProviderDashboard:
         response = client.get("/v1/provider/dashboard", headers=make_token())
         assert response.status_code == 200
         data = response.json()["data"]
-        
+
         # Verify alert_list profiles full_name is correctly resolved
         assert len(data["alerts"]) == 1
         alert = data["alerts"][0]
@@ -132,9 +133,9 @@ class TestProviderDashboard:
 
     @patch("app.provider.router.supabase")
     def test_dashboard_new_patient_fields(self, mock_sb):
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
         now = datetime.now(timezone.utc)
-        
+
         assignments_mock = MagicMock(data=[{"patient_id": TEST_PATIENT_ID}])
         profiles_mock = MagicMock(data=[{"id": TEST_PATIENT_ID, "full_name": "Pat", "contact_number": "1234", "date_of_birth": "1990-01-01", "blood_group": "A+"}])
         adherence_mock = MagicMock(data=[
@@ -144,7 +145,7 @@ class TestProviderDashboard:
         reminders_mock = MagicMock(data=[
             {"user_id": TEST_PATIENT_ID, "is_active": True, "dose_time_utc": "12:00:00", "recurrence_type": "daily", "medicines": {"name": "Aspirin", "is_active": True, "start_date": "2026-01-01"}}
         ])
-        
+
         def table_side_effect(table_name):
             mock_table = MagicMock()
             if table_name == "assignments":
@@ -251,12 +252,12 @@ class TestPendingRequests:
     def test_pending_with_profile(self, mock_sb):
         pending = [{"patient_id": TEST_PATIENT_ID, "provider_id": TEST_PROVIDER_ID, "status": "pending"}]
         profile = [{"id": TEST_PATIENT_ID, "full_name": "Pat", "date_of_birth": "1990-01-01", "blood_group": "A+", "contact_number": "1234"}]
-        
+
         sel = mock_sb.table.return_value.select.return_value
         sel.eq.return_value.eq.return_value.order.return_value.execute.return_value = MagicMock(data=pending)
         sel.in_.return_value.execute.return_value = MagicMock(data=profile)
         mock_sb.auth.admin.list_users.return_value = []
-        
+
         response = client.get("/v1/provider/pending-requests", headers=make_token())
         assert response.status_code == 200
 
@@ -385,8 +386,9 @@ class TestDashboardPatientCount:
     @patch("app.provider.router.supabase")
     def test_two_assigned_patients_all_returned(self, mock_sb):
         """Both assigned patients must appear in the response regardless of patient_flags state."""
+        from datetime import datetime, timedelta, timezone
+
         from postgrest.exceptions import APIError
-        from datetime import datetime, timezone, timedelta
 
         now = datetime.now(timezone.utc)
 

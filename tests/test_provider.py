@@ -1,10 +1,11 @@
-import pytest
-from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
-from app.main import app
-import jwt
-from app.config import settings
 import uuid
+from unittest.mock import MagicMock, patch
+
+import jwt
+from fastapi.testclient import TestClient
+
+from app.config import settings
+from app.main import app
 
 client = TestClient(app)
 
@@ -20,7 +21,7 @@ def headers(role="provider"):
 def test_provider_dashboard_empty(mock_supabase):
     # Setup mock to return no assignments
     mock_supabase.table().select().eq().eq().execute.return_value = MagicMock(data=[])
-    
+
     res = client.get("/v1/provider/dashboard", headers=headers())
     assert res.status_code == 200
     data = res.json()["data"]

@@ -40,7 +40,7 @@ def get_scheduled_utc_for_today(reminder: dict) -> str:
 @router.post("/{reminder_id}/taken", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
 async def dose_taken(request: Request, reminder_id: str, background_tasks: BackgroundTasks, user: dict = Depends(get_current_user)):
-    rem_res = supabase.table("reminders").select("*").eq("id", reminder_id).execute()
+    rem_res = supabase.table("reminders").select("*").eq("id", reminder_id).eq("user_id", user["user_id"]).execute()
     if not rem_res.data:
         raise HTTPException(status_code=404, detail="Reminder not found")
     reminder = rem_res.data[0]
@@ -59,7 +59,7 @@ async def dose_taken(request: Request, reminder_id: str, background_tasks: Backg
 @router.post("/{reminder_id}/missed", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
 async def dose_missed(request: Request, reminder_id: str, background_tasks: BackgroundTasks, user: dict = Depends(get_current_user)):
-    rem_res = supabase.table("reminders").select("*").eq("id", reminder_id).execute()
+    rem_res = supabase.table("reminders").select("*").eq("id", reminder_id).eq("user_id", user["user_id"]).execute()
     if not rem_res.data:
         raise HTTPException(status_code=404, detail="Reminder not found")
     reminder = rem_res.data[0]
@@ -78,7 +78,25 @@ async def dose_missed(request: Request, reminder_id: str, background_tasks: Back
 @router.post("/{reminder_id}/snooze", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
 async def dose_snooze(request: Request, reminder_id: str, user: dict = Depends(get_current_user)):
-    return SuccessResponse(data={"message": "Snoozed."})
+    rem_res = supabase.table("reminders").select("*").eq("id", reminder_id).eq("user_id", user["user_id"]).execute()
+    if not rem_res.data:
+        raise HTTPException(status_code=404, detail="Reminder not found")
+    reminder = rem_res.data[0]
+    scheduled_utc = get_scheduled_utc_for_today(reminder)
+    today_start_utc = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    snooze_count_res = supabase.table("adherence").select("id").eq("reminder_id", reminder_id).eq("user_id", user["user_id"]).eq("status", "snoozed").gte("scheduled_utc", today_start_utc).execute()
+    if len(snooze_count_res.data) >= 3:
+        raise HTTPException(status_code=422, detail="Maximum snooze count (3) reached for this dose.")
+    # Snooze = reschedule 10 minutes from now
+    snoozed_utc = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
+    res = supabase.table("adherence").insert({
+        "reminder_id": reminder_id,
+        "user_id": user["user_id"],
+        "scheduled_utc": scheduled_utc,
+        "status": "snoozed",
+        "outcome_utc": snoozed_utc
+    }).execute()
+    return SuccessResponse(data=res.data[0])
 
 @router.get("/upcoming", response_model=SuccessResponse[list])
 @limiter.limit("60/minute")
@@ -152,6 +170,8 @@ async def doses_upcoming(request: Request, user: dict = Depends(get_current_user
                         days_diff = (occurrence_local.date() - med_start).days
                         if days_diff % 2 != 0:
                             continue
+                elif rec_type == "prn":
+                    pass  # PRN (as-needed) meds are always shown as available
                 else:
                     continue
 

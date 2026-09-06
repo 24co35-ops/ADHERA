@@ -1,9 +1,10 @@
-import pytest
-from fastapi.testclient import TestClient
 from unittest.mock import patch
-from app.main import app
+
 import jwt
+from fastapi.testclient import TestClient
+
 from app.config import settings
+from app.main import app
 
 client = TestClient(app)
 
@@ -16,7 +17,7 @@ def headers(role="patient"):
 @patch("app.profile.router.supabase")
 def test_save_push_subscription_valid(mock_supabase):
     mock_supabase.table().upsert().execute.return_value = type('obj', (object,), {'data': [{'id': '1'}]})()
-    
+
     payload = {
         "endpoint": "https://fcm.googleapis.com/fcm/send/some-token",
         "keys": {

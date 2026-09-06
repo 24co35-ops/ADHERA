@@ -1,9 +1,12 @@
 import os
+
 os.environ["ENVIRONMENT"] = "test"
 os.environ["SENTRY_DSN"] = ""
 
 from unittest.mock import MagicMock, patch
+
 import pytest
+
 
 @pytest.fixture
 def mock_supabase(monkeypatch):

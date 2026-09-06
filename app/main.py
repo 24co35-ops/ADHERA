@@ -24,7 +24,7 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
@@ -34,6 +34,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.admin.router import router as admin_router
 from app.analytics.router import router as analytics_router
+from app.auth.dependencies import get_current_user
 from app.auth.router import router as auth_router
 from app.config import settings
 from app.core.exceptions import create_error_response, global_exception_handler
@@ -168,7 +169,8 @@ async def health_check():
 # NOTE: SUPABASE_ANON_KEY and VAPID_PUBLIC_KEY are client-safe credentials by design.
 # Row-Level Security (RLS) protects access server-side. Do not remove or swap in service role key.
 @app.get("/v1/config", response_model=SuccessResponse[dict])
-async def get_config():
+@limiter.limit("30/minute")
+async def get_config(request: Request, user: dict = Depends(get_current_user)):
     # Return configuration details dynamically from env
     # Set headers to prevent caching sensitive configurations
     from fastapi.responses import JSONResponse
@@ -178,7 +180,7 @@ async def get_config():
             "data": {
                 "SUPABASE_URL": settings.SUPABASE_URL,
                 "SUPABASE_ANON_KEY": settings.SUPABASE_ANON_KEY,
-                "VAPID_PUBLIC_KEY": os.environ.get("VAPID_PUBLIC_KEY", "BP7gOA_zw733v9HapbDhHW7WHXnXTmCs9rRHWegiWnf8nxsVIU9bytYpAGPCP2XyRYZt_5-OcPKBHyhqKrwQrSU")
+                "VAPID_PUBLIC_KEY": os.environ.get("VAPID_PUBLIC_KEY") or ""
             }
         },
         headers={

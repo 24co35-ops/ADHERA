@@ -1,15 +1,16 @@
-import pytest
-from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
 import base64
 import hashlib
 import json
 import time
-from jose import jwt
+from unittest.mock import MagicMock, patch
+
 import pyotp
 from cryptography.fernet import Fernet
-from app.main import app
+from fastapi.testclient import TestClient
+from jose import jwt
+
 from app.config import settings
+from app.main import app
 
 try:
     from supabase_auth.errors import AuthApiError

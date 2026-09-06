@@ -1,12 +1,13 @@
 """
 Unit tests for app.feedback.router — all Supabase and HTTP calls mocked.
 """
-import pytest
+from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
 from jose import jwt
-from app.main import app
+
 from app.config import settings
+from app.main import app
 
 client = TestClient(app)
 app.state.limiter.enabled = False
@@ -44,10 +45,10 @@ class TestCreateFeedback:
     @patch("app.feedback.router.httpx.post")
     def test_create_feedback_emergency_severity(self, mock_post, mock_sb):
         inserted = {"id": "f1", "user_id": TEST_USER_ID, "medicine_id": "med-1", "severity": 4, "description": "Severe pain"}
-        
+
         # Mocks for table calls: feedback insert, provider assignment, emergency contact select
         mock_sb.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[inserted])
-        
+
         # assignments select
         mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[
             {"provider_id": PROVIDER_ID, "profiles": {"email": "doc@test.com"}}
@@ -60,7 +61,7 @@ class TestCreateFeedback:
         response = client.post("/v1/feedback/", json={
             "medicine_id": "med-1", "severity": 4, "description": "Severe pain"
         }, headers=make_token())
-        
+
         assert response.status_code == 201
         # verify emergency alert triggered
         assert mock_post.called
@@ -84,7 +85,7 @@ class TestListFeedback:
         mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[{"id": "a1"}])
         # mock feedback query
         mock_sb.table.return_value.select.return_value.eq.return_value.order.return_value.range.return_value.execute.return_value = MagicMock(data=[])
-        
+
         response = client.get(f"/v1/feedback/?patient_id={TEST_USER_ID}", headers=make_token(role="provider", user_id=PROVIDER_ID))
         assert response.status_code in (200, 403)
 

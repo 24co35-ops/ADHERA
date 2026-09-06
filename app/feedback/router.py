@@ -38,7 +38,7 @@ async def create_feedback(request: Request, feedback: FeedbackCreate, background
     if feedback.severity == 4:
         try:
             url = f"{settings.SUPABASE_URL}/functions/v1/emergency-alert"
-            headers = {"Authorization": f"Bearer {settings.SUPABASE_ANON_KEY}", "Content-Type": "application/json"}
+            headers = {"Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}", "Content-Type": "application/json"}
             prov = supabase.table("assignments").select("provider_id").eq("patient_id", user["user_id"]).eq("status", "active").execute()
             provider_email = None
             if prov.data and prov.data[0].get("provider_id"):

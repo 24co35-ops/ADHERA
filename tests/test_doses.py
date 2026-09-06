@@ -1,10 +1,11 @@
-import pytest
-from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
-from app.main import app
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
+
 import jwt
+from fastapi.testclient import TestClient
+
 from app.config import settings
-from datetime import datetime, timezone, timedelta
+from app.main import app
 
 client = TestClient(app)
 
@@ -14,16 +15,29 @@ def headers():
 
 @patch("app.doses.router.supabase")
 def test_dose_taken(mock_supabase):
-    mock_supabase.table.return_value.select.return_value.eq.return_value.execute.side_effect = [
+    query_mock = MagicMock()
+    query_mock.eq.return_value = query_mock
+    query_mock.execute.side_effect = [
         MagicMock(data=[{"user_id": "11111111-1111-1111-1111-111111111111", "dose_time_utc": "08:00:00"}]),
         MagicMock(data=[{"timezone": "UTC"}])
     ]
+    mock_supabase.table.return_value.select.return_value = query_mock
     mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "d1", "status": "taken"}])
     res = client.post("/v1/doses/r1/taken", headers=headers())
     assert res.status_code == 200
 
 @patch("app.doses.router.supabase")
 def test_dose_snooze(mock_supabase):
+    query_mock = MagicMock()
+    query_mock.eq.return_value = query_mock
+    query_mock.gte.return_value = query_mock
+    query_mock.execute.side_effect = [
+        MagicMock(data=[{"user_id": "11111111-1111-1111-1111-111111111111", "dose_time_utc": "08:00:00"}]),
+        MagicMock(data=[{"timezone": "UTC"}]),
+        MagicMock(data=[])
+    ]
+    mock_supabase.table.return_value.select.return_value = query_mock
+    mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "d1", "status": "snoozed"}])
     res = client.post("/v1/doses/r1/snooze", headers=headers())
     assert res.status_code == 200
 
@@ -34,4 +48,4 @@ def test_auto_expiry_logic():
     t_now = datetime.now(timezone.utc)
     t_dose = t_now - timedelta(hours=2, minutes=1)
     is_expired = t_dose + timedelta(hours=2) < t_now
-    assert is_expired == True
+    assert is_expired is True
