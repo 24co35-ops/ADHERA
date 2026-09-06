@@ -81,8 +81,9 @@ class MedicalRAGEngine:
     def _extract_text(self, filepath: str) -> str:
         if filepath.endswith('.pdf'):
             try:
-                from pypdf import PdfReader
-                reader = PdfReader(filepath)
+                import importlib
+                pypdf = importlib.import_module("pypdf")
+                reader = pypdf.PdfReader(filepath)
                 return "\n".join([page.extract_text() or "" for page in reader.pages])
             except Exception:
                 # Fallback if pypdf is not available or file is empty

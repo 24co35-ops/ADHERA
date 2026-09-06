@@ -49,7 +49,7 @@ Web application (mobile-responsive). Built with Python backend, Supabase (Postgr
 ### 2.1 Current State
 
 | Patient's Current Approach | Pain Point |
-|---|---|
+| --- | --- |
 | Paper prescriptions | Doses forgotten; no record |
 | Memory | Unreliable; no structure |
 | Generic phone alarms | No dose-level tracking or history |
@@ -64,6 +64,7 @@ Web application (mobile-responsive). Built with Python backend, Supabase (Postgr
 ### 2.3 The Gap
 
 No single tool currently:
+
 - Sends structured, actionable dose reminders with Taken / Missed / Snooze responses
 - Maintains a verified, append-only medication history
 - Surfaces side-effect feedback with emergency escalation
@@ -76,7 +77,7 @@ No single tool currently:
 ### 3.1 Goals
 
 | Priority | Goal |
-|---|---|
+| --- | --- |
 | P0 | Patients can register medications and receive automated dose reminders by email and browser notification |
 | P0 | Patients can mark doses Taken, Missed, or Snoozed; history is permanent and append-only |
 | P0 | Healthcare providers can see assigned patients' adherence rates and receive emergency side-effect alerts |
@@ -134,7 +135,7 @@ No single tool currently:
 
 ### 5.1 Patient Stories
 
-```
+```text
 As a patient, I want to register my medications with a daily schedule
 so that I receive automated reminders at the right times.
 
@@ -156,7 +157,7 @@ when I report a Severity 4 side effect, directing me to call emergency services.
 
 ### 5.2 Healthcare Provider Stories
 
-```
+```text
 As a healthcare provider, I want to see all my assigned patients'
 adherence rates on a single dashboard so I can identify who needs follow-up.
 
@@ -172,7 +173,7 @@ for patients whose weekly adherence falls below 50%.
 
 ### 5.3 Administrator Stories
 
-```
+```text
 As an administrator, I want to approve or reject Healthcare Provider
 registration requests with a mandatory written reason so accountability is maintained.
 
@@ -192,7 +193,7 @@ so that I can investigate security incidents.
 #### 6.1.1 Registration
 
 | ID | Requirement | Priority |
-|---|---|---|
+| --- | --- | --- |
 | ADH-FR-01 | Self-registration for Patients and Healthcare Providers with: full name, email, password, role, DOB, contact number, timezone, and disclaimer acceptance | P0 |
 | ADH-FR-02 | Email verification required for Patient accounts before activation | P0 |
 | ADH-FR-03 | Healthcare Provider registrations require Administrator approval with a mandatory approval note | P0 |
@@ -202,7 +203,7 @@ so that I can investigate security incidents.
 #### 6.1.2 Authentication
 
 | ID | Requirement | Priority |
-|---|---|---|
+| --- | --- | --- |
 | ADH-FR-06 | Email + password login via Supabase Auth | P0 |
 | ADH-FR-07 | Access token validity: 15 minutes. Refresh token validity: 7 days (Supabase Auth managed) | P0 |
 | ADH-FR-08 | 5 failed login attempts on the same throttle key triggers a 15-minute lockout, audit-logged | P0 |
@@ -213,7 +214,7 @@ so that I can investigate security incidents.
 ### 6.2 Medicine Management
 
 | ID | Requirement | Priority |
-|---|---|---|
+| --- | --- | --- |
 | ADH-FR-12 | Add medicine: name, dosage, unit, route, frequency (daily / specific weekdays / alternate days / PRN), start/end date, instructions | P0 |
 | ADH-FR-13 | PRN medicines: no reminders, excluded from adherence calculations, shown with 'PRN — no reminders' label | P0 |
 | ADH-FR-14 | Edit any field of an active medicine; schedule changes update all future reminders and are audit-logged | P0 |
@@ -222,7 +223,7 @@ so that I can investigate security incidents.
 ### 6.3 Reminder Scheduling
 
 | ID | Requirement | Priority |
-|---|---|---|
+| --- | --- | --- |
 | ADH-FR-16 | Dose time slots labelled Morning / Afternoon / Evening / Night | P0 |
 | ADH-FR-17 | Recurrence: Daily, Specific weekdays, Alternate days (with stored anchor date) | P0 |
 | ADH-FR-18 | All times stored in UTC; converted to patient's IANA timezone for display and delivery | P0 |
@@ -233,7 +234,7 @@ so that I can investigate security incidents.
 ### 6.4 Notification Dispatch
 
 | ID | Requirement | Priority |
-|---|---|---|
+| --- | --- | --- |
 | ADH-FR-22 | Reminder sent via email (Supabase Edge Function + transactional email provider) | P0 |
 | ADH-FR-23 | Reminder sent via browser Push API where supported; graceful fallback to email-only | P0 |
 | ADH-FR-24 | Each notification includes: medicine name, dosage, Mark as Taken / Mark as Missed / Snooze actions | P0 |
@@ -243,7 +244,7 @@ so that I can investigate security incidents.
 ### 6.5 Dose Tracking
 
 | ID | Requirement | Priority |
-|---|---|---|
+| --- | --- | --- |
 | ADH-FR-27 | Dose statuses: Pending → Taken / Missed / Snoozed → Pending → Taken / Missed | P0 |
 | ADH-FR-28 | Auto-expiry: 2 hours after scheduled time, Pending or Snoozed doses auto-marked Missed | P0 |
 | ADH-FR-29 | Maximum 3 snoozes per dose; third unresolved snooze auto-marks Missed | P0 |
@@ -253,7 +254,7 @@ so that I can investigate security incidents.
 ### 6.6 Feedback and Side Effects
 
 | ID | Requirement | Priority |
-|---|---|---|
+| --- | --- | --- |
 | ADH-FR-32 | Patient registers at most one emergency contact (name, relationship, email); verified before use | P0 |
 | ADH-FR-33 | Side-effect report: medicine, description (max 2,000 chars), severity (1–4), occurrence datetime | P0 |
 | ADH-FR-34 | Severity 4 (Emergency): immediate on-screen emergency services prompt + email alert to provider + emergency contact within 60 seconds | P0 |
@@ -262,7 +263,7 @@ so that I can investigate security incidents.
 ### 6.7 Adherence Analytics
 
 | ID | Requirement | Priority |
-|---|---|---|
+| --- | --- | --- |
 | ADH-FR-36 | Adherence Rate = (Doses Taken / Total Scheduled Doses) × 100, rounded to 1 decimal place | P0 |
 | ADH-FR-37 | Computed for daily, weekly (ISO 8601), and monthly periods in patient's timezone | P0 |
 | ADH-FR-38 | Warning indicator (icon + text label, not colour alone) for weekly adherence < 70% | P0 |
@@ -273,7 +274,7 @@ so that I can investigate security incidents.
 ### 6.8 Healthcare Provider Module
 
 | ID | Requirement | Priority |
-|---|---|---|
+| --- | --- | --- |
 | ADH-FR-42 | Patient list with overall adherence rate and last activity date | P0 |
 | ADH-FR-43 | Per-patient drill-down: adherence breakdown, Permanent Medication History, feedback records | P0 |
 | ADH-FR-44 | Critical alert indicator for patients with weekly adherence < 50% | P0 |
@@ -282,7 +283,7 @@ so that I can investigate security incidents.
 ### 6.9 Administrator Module
 
 | ID | Requirement | Priority |
-|---|---|---|
+| --- | --- | --- |
 | ADH-FR-46 | Create, deactivate, and reactivate user accounts for all roles | P0 |
 | ADH-FR-47 | Approve / reject Healthcare Provider registrations; rejection includes mandatory written reason | P0 |
 | ADH-FR-48 | Manage patient-to-provider assignments (create, update, deactivate) | P0 |
@@ -294,7 +295,7 @@ so that I can investigate security incidents.
 ## 7. Non-Functional Requirements
 
 | Category | Requirement | Target |
-|---|---|---|
+| --- | --- | --- |
 | Performance | API p95 response time | ≤ 2,000 ms at Standard Operating Load |
 | Performance | Reminder dispatch latency | ≤ 60 s from scheduled time for ≥ 95% of dispatches |
 | Performance | Dashboard API p95 | ≤ 3,000 ms |
@@ -322,7 +323,7 @@ so that I can investigate security incidents.
 ### 8.1 Adoption Metrics
 
 | Metric | Target (End of v1.0 Pilot) |
-|---|---|
+| --- | --- |
 | Registered patients | ≥ 50 |
 | Active Healthcare Providers | ≥ 5 |
 | Patient DAU/MAU ratio | ≥ 60% |
@@ -330,7 +331,7 @@ so that I can investigate security incidents.
 ### 8.2 Adherence Metrics
 
 | Metric | Target |
-|---|---|
+| --- | --- |
 | Average patient adherence rate (Adhera users) | ≥ 75% |
 | Reminder response rate (Taken or Missed within 2 h) | ≥ 80% |
 | Dashboard visit frequency | ≥ 3× per week per active patient |
@@ -338,7 +339,7 @@ so that I can investigate security incidents.
 ### 8.3 Quality Metrics
 
 | Metric | Target |
-|---|---|
+| --- | --- |
 | Reminder delivery success rate | ≥ 95% |
 | System uptime | ≥ 99.5%/month |
 | Emergency alert delivery latency | ≤ 60 seconds |
@@ -369,7 +370,7 @@ so that I can investigate security incidents.
 ## 10. Timeline and Milestones
 
 | Increment | Scope | Target |
-|---|---|---|
+| --- | --- | --- |
 | Increment 1 | User registration, login (Supabase Auth), profile management, disclaimer | Week 1–2 |
 | Increment 2 | Medicine management (CRUD), PRN support, soft delete | Week 3–4 |
 | Increment 3 | Reminder scheduling (all recurrence types), conflict detection | Week 5–6 |
@@ -384,7 +385,7 @@ so that I can investigate security incidents.
 ## 11. Risks
 
 | Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Supabase Auth limitations for custom workflows | Medium | High | Prototype auth flow in Increment 1; use Supabase service role for admin overrides |
 | pg_cron reliability for reminder dispatch | Medium | High | Supplement with Supabase Edge Function scheduled invocations; test thoroughly in Increment 4 |
 | Browser Push API permission denial by users | High | Medium | Email fallback is mandatory (ADH-FR-23); display persistent enable-notifications prompt |
