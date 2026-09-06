@@ -858,7 +858,7 @@ export const DirectoryUserDetail: React.FC = () => {
               {auditLogs.map((log) => (
                 <div key={log.id} className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                   <div>
-                    <span className="font-mono font-bold text-primary mr-2">[{log.action}]</span>
+                    <span className="font-mono font-bold text-primary mr-2">[{log.action_code}]</span>
                     {log.details && (
                       <span className="text-on-surface-variant font-mono text-[11px]">
                         {JSON.stringify(log.details)}

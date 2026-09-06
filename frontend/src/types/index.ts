@@ -195,7 +195,7 @@ export interface DirectoryPage<T> {
 
 export interface AuditLogEntry {
   id: string;
-  action: string;
+  action_code: string;
   actor_id: string;
   target_id?: string | null;
   details?: Record<string, any>;
