@@ -27,7 +27,16 @@ export async function fetchConfig(): Promise<AdheraConfig> {
 
   configPromise = (async () => {
     try {
-      const res = await fetch(`${config.API_BASE}/config`, { cache: 'no-store' });
+      const token = typeof window !== 'undefined'
+        ? sessionStorage.getItem('adhera_token') || localStorage.getItem('adhera_token')
+        : null;
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${config.API_BASE}/config`, {
+        cache: 'no-store',
+        headers,
+      });
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {

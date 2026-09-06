@@ -172,7 +172,7 @@ async def health_check():
 # Row-Level Security (RLS) protects access server-side. Do not remove or swap in service role key.
 @app.get("/v1/config", response_model=SuccessResponse[dict])
 @limiter.limit("30/minute")
-async def get_config(request: Request, user: dict = Depends(get_current_user)):
+async def get_config(request: Request):
     # Return configuration details dynamically from env
     # Set headers to prevent caching sensitive configurations
     from fastapi.responses import JSONResponse
