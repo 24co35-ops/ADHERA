@@ -1157,20 +1157,11 @@ async def get_directory_user_adherence(
             q = q.eq("status", status)
 
         offset = (page - 1) * limit
-        res = q.order("scheduled_time", desc=True).range(offset, offset + limit - 1).execute()
+        res = q.order("scheduled_utc", desc=True).range(offset, offset + limit - 1).execute()
 
-        # Enrich with medicine names
         records = res.data or []
-        med_ids = list(set(r.get("medicine_id") for r in records if r.get("medicine_id")))
-        med_map = {}
-        if med_ids:
-            try:
-                med_res = supabase.table("medicines").select("id, name").in_("id", med_ids).execute()
-                med_map = {m["id"]: m["name"] for m in (med_res.data or [])}
-            except Exception:
-                pass
 
-        # Enrich with dose_label from reminders
+        # Enrich with dose_label and medicine_id from reminders
         reminder_ids = list(set(r.get("reminder_id") for r in records if r.get("reminder_id")))
         reminder_map: dict = {}
         if reminder_ids:
@@ -1180,10 +1171,27 @@ async def get_directory_user_adherence(
             except Exception:
                 pass
 
+        # Enrich with medicine names
+        med_ids = list(set(
+            r.get("medicine_id") or reminder_map.get(r.get("reminder_id"), {}).get("medicine_id")
+            for r in records
+            if (r.get("medicine_id") or reminder_map.get(r.get("reminder_id"), {}).get("medicine_id"))
+        ))
+        med_map = {}
+        if med_ids:
+            try:
+                med_res = supabase.table("medicines").select("id, name").in_("id", med_ids).execute()
+                med_map = {m["id"]: m["name"] for m in (med_res.data or [])}
+            except Exception:
+                pass
+
         for r in records:
-            r["medicine_name"] = med_map.get(r.get("medicine_id"), "Unknown Medicine")
             rem = reminder_map.get(r.get("reminder_id"), {})
+            med_id = r.get("medicine_id") or rem.get("medicine_id")
+            r["medicine_id"] = med_id
+            r["medicine_name"] = med_map.get(med_id, "Unknown Medicine")
             r["dose_label"] = rem.get("dose_label", "")
+            r["scheduled_time"] = r.get("scheduled_utc", "")
             r["notes"] = r.get("correction_note", "")
 
         return SuccessResponse(data={
@@ -1210,10 +1218,23 @@ async def export_directory_user_adherence(
         if not p_res.data:
             raise HTTPException(status_code=404, detail="User not found")
 
-        res = supabase.table("adherence").select("*").eq("user_id", user_id).order("scheduled_time", desc=True).execute()
+        res = supabase.table("adherence").select("*").eq("user_id", user_id).order("scheduled_utc", desc=True).execute()
         records = res.data or []
 
-        med_ids = list(set(r.get("medicine_id") for r in records if r.get("medicine_id")))
+        reminder_ids = list(set(r.get("reminder_id") for r in records if r.get("reminder_id")))
+        reminder_map: dict = {}
+        if reminder_ids:
+            try:
+                rem_res = supabase.table("reminders").select("id, dose_label, medicine_id").in_("id", reminder_ids).execute()
+                reminder_map = {rem["id"]: rem for rem in (rem_res.data or [])}
+            except Exception:
+                pass
+
+        med_ids = list(set(
+            r.get("medicine_id") or reminder_map.get(r.get("reminder_id"), {}).get("medicine_id")
+            for r in records
+            if (r.get("medicine_id") or reminder_map.get(r.get("reminder_id"), {}).get("medicine_id"))
+        ))
         med_map = {}
         if med_ids:
             try:
@@ -1227,12 +1248,17 @@ async def export_directory_user_adherence(
         writer.writerow(["Date", "Medicine", "Scheduled Time", "Status", "Logged At"])
 
         for r in records:
+            rem = reminder_map.get(r.get("reminder_id"), {})
+            med_id = r.get("medicine_id") or rem.get("medicine_id")
+            date_val = r.get("date") or (r.get("scheduled_utc")[:10] if r.get("scheduled_utc") else "")
+            sched_val = r.get("scheduled_utc") or r.get("scheduled_time") or ""
+            logged_val = r.get("outcome_utc") or r.get("logged_at") or r.get("created_at") or ""
             writer.writerow([
-                safe_csv_cell(r.get("date", "")),
-                safe_csv_cell(med_map.get(r.get("medicine_id"), "Unknown")),
-                safe_csv_cell(r.get("scheduled_time", "")),
+                safe_csv_cell(date_val),
+                safe_csv_cell(med_map.get(med_id, "Unknown")),
+                safe_csv_cell(sched_val),
                 safe_csv_cell(r.get("status", "")),
-                safe_csv_cell(r.get("logged_at") or r.get("created_at") or ""),
+                safe_csv_cell(logged_val),
             ])
 
         output.seek(0)
