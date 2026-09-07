@@ -13,7 +13,10 @@ create table public.adherence (
 
 -- Prevent application-level UPDATE/DELETE via RLS + trigger
 create or replace function prevent_adherence_modification()
-returns trigger language plpgsql as $$
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
 begin
   if tg_op = 'UPDATE' then
     raise exception 'adherence records are immutable';
