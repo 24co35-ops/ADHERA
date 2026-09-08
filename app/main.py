@@ -48,6 +48,9 @@ from app.profile.router import router as profile_router
 from app.provider.router import router as provider_router
 from app.reminders.router import router as reminders_router
 from app.routers.assignments import router as assignments_router
+from app.services.adherence_intelligence.intelligence_router import (
+    router as intelligence_router,
+)
 from app.wellness.router import router as wellness_router
 
 request_id_ctx = contextvars.ContextVar("request_id", default="-")
@@ -231,3 +234,4 @@ app.include_router(reminders_router, prefix="/v1/reminders", tags=["reminders"])
 app.include_router(assignments_router, prefix="/v1")
 app.include_router(wellness_router, prefix="/v1/wellness", tags=["wellness"])
 app.include_router(chat_router, prefix="/v1/chat", tags=["chat"])
+app.include_router(intelligence_router, prefix="/v1", tags=["intelligence"])
