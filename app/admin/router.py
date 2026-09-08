@@ -1048,7 +1048,16 @@ async def get_directory_user_detail(
                 ec_res = supabase.table("emergency_contacts").select("full_name, email, phone, relationship, is_verified").eq("user_id", user_id).limit(1).execute()
                 profile["emergency_contact"] = ec_res.data[0] if ec_res.data else None
             except Exception:
-                profile["emergency_contact"] = None
+                try:
+                    ec_res = supabase.table("emergency_contacts").select("*").eq("user_id", user_id).limit(1).execute()
+                    if ec_res.data:
+                        ec = ec_res.data[0]
+                        ec["is_verified"] = ec.get("is_verified", ec.get("verified", False))
+                        profile["emergency_contact"] = ec
+                    else:
+                        profile["emergency_contact"] = None
+                except Exception:
+                    profile["emergency_contact"] = None
 
         if user_role == "patient":
             profile["age"] = calculate_age(profile.get("date_of_birth"))
@@ -1285,8 +1294,17 @@ async def get_directory_user_feedback(
         if not p_res.data:
             raise HTTPException(status_code=404, detail="User not found")
 
-        feedbacks = supabase.table("feedback").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
-        return SuccessResponse(data=feedbacks.data or [])
+        feedbacks = supabase.table("feedback").select("*").eq("user_id", user_id).order("created_at", desc=True).execute().data or []
+        med_ids = list(set(f.get("medicine_id") for f in feedbacks if f.get("medicine_id")))
+        if med_ids:
+            try:
+                med_res = supabase.table("medicines").select("id, name").in_("id", med_ids).execute()
+                med_map = {m["id"]: m["name"] for m in (med_res.data or [])}
+                for f in feedbacks:
+                    f["medicine_name"] = med_map.get(f.get("medicine_id"), "General / Unspecified")
+            except Exception:
+                pass
+        return SuccessResponse(data=feedbacks)
     except HTTPException:
         raise
     except Exception as e:
@@ -1380,6 +1398,7 @@ async def change_directory_user_status(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/directory/{user_id}/audit", response_model=SuccessResponse[list])
 @limiter.limit("60/minute")
 async def get_directory_user_audit(
@@ -1402,7 +1421,22 @@ async def get_directory_user_audit(
             merged.setdefault(r["id"], r)
 
         sorted_logs = sorted(merged.values(), key=lambda x: x.get("created_at", ""), reverse=True)[:limit]
+
+        actor_ids = list(set(r.get("actor_id") for r in sorted_logs if r.get("actor_id")))
+        if actor_ids:
+            try:
+                actors = supabase.table("profiles").select("id, full_name, role").in_("id", actor_ids).execute().data or []
+                actor_map = {a["id"]: a for a in actors}
+                for r in sorted_logs:
+                    actor_info = actor_map.get(r.get("actor_id"))
+                    if actor_info:
+                        r["actor_name"] = actor_info.get("full_name")
+                        r["actor_role"] = actor_info.get("role")
+            except Exception:
+                pass
+
         return SuccessResponse(data=sorted_logs)
+
     except HTTPException:
         raise
     except Exception as e:
