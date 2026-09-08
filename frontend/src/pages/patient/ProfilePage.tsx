@@ -272,7 +272,8 @@ export const ProfilePage: React.FC = () => {
         addToast('success', 'Push notifications successfully activated!');
       }
     } catch (err: any) {
-      addToast('error', err.message || 'Failed to update push subscription');
+      const msg = typeof err === 'string' ? err : err?.message || 'Failed to update push subscription. Please check notification permissions.';
+      addToast('error', msg);
     } finally {
       setPushLoading(false);
     }

@@ -234,3 +234,57 @@ def test_save_push_subscription_with_json_and_columns(mock_supabase):
     assert saved_payload["auth"] == "authKey456"
     assert saved_payload["p256dh"] == "p256Key789"
     assert saved_payload["subscription"] == payload
+
+
+@patch("app.profile.router.supabase")
+def test_save_push_subscription_fallback_when_subscription_column_missing(mock_supabase):
+    """Test PGRST204 error fallback when 'subscription' column is not in DB schema."""
+    call_count = 0
+    saved_payload = None
+
+    def upsert_side_effect(data, **kwargs):
+        nonlocal call_count, saved_payload
+        call_count += 1
+        if call_count == 1:
+            raise Exception("Could not find the 'subscription' column of 'push_subscriptions' in the schema cache")
+        saved_payload = data
+        mock_obj = MagicMock()
+        mock_obj.execute.return_value = MagicMock(data=[{"id": "sub-fallback-1", **data}])
+        return mock_obj
+
+    mock_supabase.table.return_value.upsert.side_effect = upsert_side_effect
+
+    payload = {
+        "endpoint": "https://fcm.googleapis.com/fcm/send/token456",
+        "keys": {
+            "auth": "authKey789",
+            "p256dh": "p256Key101"
+        }
+    }
+    response = client.post("/v1/profile/push-subscription", headers=headers(), json=payload)
+    assert response.status_code == 200
+    assert call_count == 2
+    assert saved_payload is not None
+    assert saved_payload["endpoint"] == "https://fcm.googleapis.com/fcm/send/token456"
+    assert saved_payload["auth"] == "authKey789"
+    assert saved_payload["p256dh"] == "p256Key101"
+    assert "subscription" not in saved_payload
+
+
+@patch("app.profile.router.supabase")
+def test_save_push_subscription_fallback_to_delete_insert(mock_supabase):
+    """Test delete-then-insert fallback when on_conflict fails."""
+    mock_supabase.table.return_value.upsert.side_effect = Exception("on_conflict error")
+    mock_supabase.table.return_value.delete.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+    mock_supabase.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{"id": "sub-insert-1"}])
+
+    payload = {
+        "endpoint": "https://fcm.googleapis.com/fcm/send/token789",
+        "keys": {
+            "auth": "authKey999",
+            "p256dh": "p256Key888"
+        }
+    }
+    response = client.post("/v1/profile/push-subscription", headers=headers(), json=payload)
+    assert response.status_code == 200
+    assert response.json()["data"]["id"] == "sub-insert-1"

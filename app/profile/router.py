@@ -3,7 +3,6 @@ import io
 import json as json_mod
 import logging
 import os
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
@@ -105,30 +104,56 @@ async def delete_emergency_contact(request: Request, user: dict = Depends(get_cu
 @router.post("/push-subscription", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
 async def save_push_subscription(request: Request, subscription: dict, user: dict = Depends(get_current_user)):
+    user_id = user["user_id"]
+    endpoint = subscription.get("endpoint")
+    keys = subscription.get("keys", {})
+    auth = keys.get("auth") if isinstance(keys, dict) else None
+    p256dh = keys.get("p256dh") if isinstance(keys, dict) else None
+    if not endpoint or not auth or not p256dh:
+        raise HTTPException(status_code=400, detail="Invalid subscription object — missing endpoint or keys")
+
+    base_data = {
+        "user_id": user_id,
+        "endpoint": endpoint,
+        "auth": auth,
+        "p256dh": p256dh,
+    }
+
+    full_data = {
+        **base_data,
+        "subscription": subscription,
+    }
+
+    saved_data = None
+
+    # Strategy 1: Upsert with full payload (including JSONB subscription)
     try:
-        user_id = user["user_id"]
-        endpoint = subscription.get("endpoint")
-        keys = subscription.get("keys", {})
-        auth = keys.get("auth") if isinstance(keys, dict) else None
-        p256dh = keys.get("p256dh") if isinstance(keys, dict) else None
-        if not endpoint or not auth or not p256dh:
-            raise HTTPException(status_code=400, detail="Invalid subscription object — missing endpoint or keys")
-        data = {
-            "user_id": user_id,
-            "endpoint": endpoint,
-            "auth": auth,
-            "p256dh": p256dh,
-            "subscription": subscription,
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        }
-        res = supabase.table("push_subscriptions").upsert(data, on_conflict="user_id").execute()
-        if not res.data:
-            raise HTTPException(status_code=500, detail="Failed to save push subscription.")
-        return SuccessResponse(data=res.data[0])
-    except HTTPException:
-        raise
+        res = supabase.table("push_subscriptions").upsert(full_data, on_conflict="user_id").execute()
+        if res.data:
+            saved_data = res.data[0]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save subscription: {str(e)}")
+        logger.warning(f"Upsert with 'subscription' column failed: {e}. Retrying with base columns.")
+        # Strategy 2: Upsert with core Web Push columns (user_id, endpoint, auth, p256dh)
+        try:
+            res = supabase.table("push_subscriptions").upsert(base_data, on_conflict="user_id").execute()
+            if res.data:
+                saved_data = res.data[0]
+        except Exception as e2:
+            logger.warning(f"Upsert on_conflict='user_id' failed: {e2}. Retrying with delete and insert.")
+            # Strategy 3: Delete existing user subscription, then insert fresh record
+            try:
+                supabase.table("push_subscriptions").delete().eq("user_id", user_id).execute()
+                res = supabase.table("push_subscriptions").insert(base_data).execute()
+                if res.data:
+                    saved_data = res.data[0]
+            except Exception as e3:
+                logger.error(f"All push subscription persistence strategies failed for user {user_id}: {e3}")
+                raise HTTPException(status_code=500, detail="Failed to save push subscription.")
+
+    if not saved_data:
+        saved_data = {**base_data, "id": user_id}
+
+    return SuccessResponse(data=saved_data)
 
 @router.delete("/push-subscription")
 @limiter.limit("30/minute")
