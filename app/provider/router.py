@@ -268,6 +268,10 @@ async def get_patient(request: Request, id: str, user: dict = Depends(require_ro
 @router.get("/patients/{id}/report", response_model=SuccessResponse[dict])
 @limiter.limit("60/minute")
 async def get_patient_report(request: Request, id: str, user: dict = Depends(require_role("provider"))):
+    # IDOR guard: verify this provider is assigned to the patient (mirrors get_patient)
+    assignment = supabase.table("assignments").select("id").eq("provider_id", user["user_id"]).eq("patient_id", id).eq("status", "active").execute()
+    if not assignment.data:
+        raise HTTPException(status_code=403, detail="Not assigned to this patient")
     res = supabase.table("reports").select("*").eq("user_id", id).order("created_at", desc=True).limit(1).execute()
     return SuccessResponse(data=res.data[0] if res.data else {})
 
