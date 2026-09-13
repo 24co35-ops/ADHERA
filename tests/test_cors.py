@@ -26,6 +26,13 @@ def test_production_empty_raises():
         _get_cors("", "production")
 
 
+def test_production_localhost_raises():
+    """CORS_ORIGIN=http://localhost:8080 in production must raise RuntimeError."""
+    with pytest.raises(RuntimeError, match="cannot contain unsafe origin"):
+        _get_cors("http://localhost:8080", "production")
+
+
+
 def test_production_valid_origin():
     """Valid CORS_ORIGIN in production returns that origin only."""
     origins = _get_cors("https://app.adhera.health", "production")

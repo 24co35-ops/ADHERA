@@ -110,6 +110,11 @@ def _get_cors_origins() -> list[str]:
                 "CORS_ORIGIN must be explicitly set to your frontend domain in production"
             )
         origins = [o.strip() for o in origin.split(",") if o.strip()]
+        for o in origins:
+            if o in ("*", "http://localhost:8080", "http://localhost:3000", "http://127.0.0.1:8080", "http://127.0.0.1:3000"):
+                raise RuntimeError(
+                    f"CORS_ORIGIN cannot contain unsafe origin '{o}' in production"
+                )
         logger.info("CORS [production] allow_origins=%s", origins)
         return origins
 
