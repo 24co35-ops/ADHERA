@@ -376,7 +376,7 @@ class MedicalRAGEngine:
 
                 if is_user_med or is_general_adherence or is_explicitly_queried:
                     # Clean markdown headers for inline bullet readability
-                    cleaned_lines = [l.strip() for l in sub_clean.split("\n") if l.strip()]
+                    cleaned_lines = [line.strip() for line in sub_clean.split("\n") if line.strip()]
                     cleaned_body = "\n".join(cleaned_lines[:5])
                     if cleaned_body not in guidance_points:
                         guidance_points.append(cleaned_body)
