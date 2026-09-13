@@ -19,10 +19,12 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { Profile, Medicine, Feedback, PatientFlag, AdherenceLog } from '../../types';
+import { useI18n } from '../../lib/i18n';
 
 export const ProviderPatientDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const [patient, setPatient] = useState<Profile | null>(null);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -102,7 +104,7 @@ export const ProviderPatientDetail: React.FC = () => {
       <div className="min-h-screen bg-surface flex items-center justify-center">
         <div className="flex flex-col items-center space-y-3">
           <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-          <p className="text-xs text-on-surface-variant">Loading patient medical chart...</p>
+          <p className="text-xs text-on-surface-variant">{t('provider.loading_chart')}</p>
         </div>
       </div>
     );
@@ -119,7 +121,7 @@ export const ProviderPatientDetail: React.FC = () => {
           className="btn-press inline-flex items-center space-x-2 text-xs font-semibold text-on-surface-variant hover:text-white"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to Provider Roster</span>
+          <span>{t('provider.back_to_roster')}</span>
         </button>
 
         <span
@@ -127,7 +129,7 @@ export const ProviderPatientDetail: React.FC = () => {
             adherenceRate >= 80 ? 'low' : adherenceRate >= 70 ? 'moderate' : 'critical'
           }`}
         >
-          Adherence: {adherenceRate}%
+          {t('provider.adherence_rate_label')}: {adherenceRate}%
         </span>
       </div>
 
@@ -140,21 +142,21 @@ export const ProviderPatientDetail: React.FC = () => {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-extrabold text-white">
-                {patient?.full_name || 'Patient'}
+                {patient?.full_name || t('dashboard.patient')}
               </h1>
               <p className="text-xs text-on-surface-variant mt-0.5">{patient?.email}</p>
               <div className="flex flex-wrap items-center gap-3 text-xs text-on-surface-variant mt-2">
                 {patient?.age && (
                   <span className="px-2.5 py-0.5 rounded-md bg-white/5 font-semibold text-white">
-                    Age: {patient.age}
+                    {t('provider.age')}: {patient.age}
                   </span>
                 )}
                 {patient?.blood_group && (
                   <span className="px-2.5 py-0.5 rounded-md bg-white/5 font-semibold text-white">
-                    Blood: {patient.blood_group}
+                    {t('provider.blood')}: {patient.blood_group}
                   </span>
                 )}
-                <span>Timezone: {patient?.timezone || 'UTC'}</span>
+                <span>{t('provider.timezone')}: {patient?.timezone || 'UTC'}</span>
               </div>
             </div>
           </div>
@@ -162,13 +164,13 @@ export const ProviderPatientDetail: React.FC = () => {
           <div className="flex flex-wrap gap-2 text-xs">
             {patient?.allergies && patient.allergies.length > 0 && (
               <div className="p-2.5 rounded-xl bg-status-error/10 border border-status-error/20 text-status-error">
-                <span className="font-bold block text-[10px] uppercase">Allergies:</span>
+                <span className="font-bold block text-[10px] uppercase">{t('provider.allergies')}:</span>
                 <span>{patient.allergies.join(', ')}</span>
               </div>
             )}
             {patient?.medical_conditions && patient.medical_conditions.length > 0 && (
               <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 text-primary">
-                <span className="font-bold block text-[10px] uppercase">Conditions:</span>
+                <span className="font-bold block text-[10px] uppercase">{t('provider.conditions')}:</span>
                 <span>{patient.medical_conditions.join(', ')}</span>
               </div>
             )}
@@ -182,7 +184,7 @@ export const ProviderPatientDetail: React.FC = () => {
           <div className="flex items-center space-x-2 pb-3 border-b border-white/10 mb-4">
             <Sparkles className="w-5 h-5 text-status-warning" />
             <h3 className="text-base font-bold text-white">
-              AI Adherence Detector Flags ({flags.length})
+              {t('provider.ai_flags_title')} ({flags.length})
             </h3>
           </div>
 
@@ -217,7 +219,7 @@ export const ProviderPatientDetail: React.FC = () => {
                     className="btn-press px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-semibold text-white flex items-center space-x-1"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 text-status-success" />
-                    <span>Resolve Flag</span>
+                    <span>{t('provider.resolve_flag')}</span>
                   </button>
                 </div>
               </div>
@@ -229,7 +231,7 @@ export const ProviderPatientDetail: React.FC = () => {
       {/* Adherence Trend */}
       <GlassCard className="p-6">
         <h3 className="text-base font-bold text-white mb-4 pb-3 border-b border-white/10">
-          Adherence Rate History (Last 7 Days)
+          {t('provider.adherence_history_title')}
         </h3>
         <AdherenceChart trendData={trendData} />
       </GlassCard>
@@ -240,12 +242,12 @@ export const ProviderPatientDetail: React.FC = () => {
         <GlassCard className="p-6">
           <div className="flex items-center space-x-2 pb-3 border-b border-white/10 mb-4">
             <Pill className="w-5 h-5 text-primary" />
-            <h3 className="text-base font-bold text-white">Active Prescriptions ({medicines.length})</h3>
+            <h3 className="text-base font-bold text-white">{t('provider.active_rx_title')} ({medicines.length})</h3>
           </div>
 
           <div className="space-y-3">
             {medicines.length === 0 ? (
-              <p className="text-xs text-on-surface-variant py-4 text-center">No active prescriptions.</p>
+              <p className="text-xs text-on-surface-variant py-4 text-center">{t('provider.no_active_rx')}</p>
             ) : (
               medicines.map((med) => (
                 <div key={med.id} className="p-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs space-y-1">
@@ -275,12 +277,12 @@ export const ProviderPatientDetail: React.FC = () => {
         <GlassCard className="p-6">
           <div className="flex items-center space-x-2 pb-3 border-b border-white/10 mb-4">
             <MessageSquareWarning className="w-5 h-5 text-status-error" />
-            <h3 className="text-base font-bold text-white">Reported Side Effects ({feedback.length})</h3>
+            <h3 className="text-base font-bold text-white">{t('provider.reported_side_effects')} ({feedback.length})</h3>
           </div>
 
           <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
             {feedback.length === 0 ? (
-              <p className="text-xs text-on-surface-variant py-4 text-center">No adverse events reported.</p>
+              <p className="text-xs text-on-surface-variant py-4 text-center">{t('provider.no_adverse_events')}</p>
             ) : (
               feedback.map((fb) => (
                 <div key={fb.id} className="p-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs space-y-1.5">

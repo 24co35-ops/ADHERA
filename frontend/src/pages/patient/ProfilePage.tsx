@@ -359,7 +359,7 @@ export const ProfilePage: React.FC = () => {
 
                 <div>
                   <label htmlFor="profile-email" className="block text-xs font-semibold text-on-surface uppercase tracking-wider mb-1">
-                    Email Address
+                    {t('profile.email_label')}
                   </label>
                   <input
                     id="profile-email"
@@ -398,7 +398,7 @@ export const ProfilePage: React.FC = () => {
                     onChange={(e) => setBloodGroup(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl glass-input text-sm bg-surface-container"
                   >
-                    <option value="">Select</option>
+                    <option value="">{t('profile.select_placeholder')}</option>
                     <option value="A+">A+</option>
                     <option value="A-">A-</option>
                     <option value="B+">B+</option>
@@ -566,14 +566,14 @@ export const ProfilePage: React.FC = () => {
                 <Bell className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">Push Notifications</h3>
-                <p className="text-xs text-on-surface-variant">10m advance dose alerts</p>
+                <h3 className="text-sm font-bold text-white">{t('profile.push_title')}</h3>
+                <p className="text-xs text-on-surface-variant">{t('profile.push_sub')}</p>
               </div>
             </div>
 
             {pushPermission === 'denied' && (
               <div className="mb-3 p-2.5 rounded-xl bg-status-warning/10 border border-status-warning/30 text-status-warning text-[11px] leading-relaxed">
-                ⚠️ Notifications are blocked in your browser settings. Click the site settings icon in your browser URL bar to allow notifications.
+                {t('profile.push_blocked_banner')}
               </div>
             )}
 
@@ -581,17 +581,17 @@ export const ProfilePage: React.FC = () => {
               <div className="space-y-1">
                 <span className="text-xs font-semibold text-white block">
                   {pushPermission === 'denied'
-                    ? 'Permission Blocked'
+                    ? t('profile.push_blocked')
                     : pushSubscribed
-                    ? 'Alerts Active'
-                    : 'Alerts Disabled'}
+                    ? t('profile.push_active')
+                    : t('profile.push_disabled')}
                 </span>
                 <span className="text-[11px] text-on-surface-variant block">
                   {pushPermission === 'denied'
-                    ? 'Unblock in browser settings'
+                    ? t('profile.push_blocked_desc')
                     : pushSubscribed
-                    ? 'Receiving reminders on this device'
-                    : 'Enable to receive dose reminders'}
+                    ? t('profile.push_active_desc')
+                    : t('profile.push_disabled_desc')}
                 </span>
               </div>
               <button
@@ -605,7 +605,7 @@ export const ProfilePage: React.FC = () => {
                     : 'bg-primary text-surface shadow-glow'
                 }`}
               >
-                {pushLoading ? '...' : pushPermission === 'denied' ? 'Blocked' : pushSubscribed ? 'Subscribed' : 'Enable'}
+                {pushLoading ? '...' : pushPermission === 'denied' ? t('profile.push_btn_blocked') : pushSubscribed ? t('profile.push_btn_subscribed') : t('profile.push_btn_enable')}
               </button>
             </div>
           </GlassCard>
@@ -617,8 +617,8 @@ export const ProfilePage: React.FC = () => {
                 <Stethoscope className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">Care Provider</h3>
-                <p className="text-xs text-on-surface-variant">Connected doctor</p>
+                <h3 className="text-sm font-bold text-white">{t('profile.provider_title')}</h3>
+                <p className="text-xs text-on-surface-variant">{t('profile.provider_sub')}</p>
               </div>
             </div>
 
@@ -626,7 +626,7 @@ export const ProfilePage: React.FC = () => {
               <div className="space-y-3 text-xs">
                 <div className="p-3 rounded-xl bg-white/5 border border-white/5">
                   <span className="text-[10px] uppercase font-bold text-status-success tracking-wider block">
-                    Connected Doctor
+                    {t('profile.provider_connected_tag')}
                   </span>
                   <span className="font-bold text-sm text-white block mt-1">
                     {assignment.data.profiles.full_name}
@@ -639,7 +639,7 @@ export const ProfilePage: React.FC = () => {
             ) : (
               <div className="text-center py-4 space-y-3">
                 <p className="text-xs text-on-surface-variant">
-                  You are not assigned to a healthcare provider.
+                  {t('profile.no_provider_assigned')}
                 </p>
                 <button
                   onClick={() => {
@@ -648,7 +648,7 @@ export const ProfilePage: React.FC = () => {
                   }}
                   className="btn-press px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold text-xs border border-white/10"
                 >
-                  Search & Connect Doctor
+                  {t('profile.btn_search_doctor')}
                 </button>
               </div>
             )}
@@ -660,12 +660,12 @@ export const ProfilePage: React.FC = () => {
       <Modal
         isOpen={contactModalOpen}
         onClose={() => setContactModalOpen(false)}
-        title="Add Emergency Contact"
+        title={t('profile.modal_add_contact')}
       >
         <form onSubmit={handleAddContact} className="space-y-4 text-xs">
           <div>
             <label htmlFor="emergency-contact-name" className="block font-semibold text-on-surface uppercase tracking-wider mb-1">
-              Contact Full Name *
+              {t('profile.contact_name_req')}
             </label>
             <input
               id="emergency-contact-name"
@@ -681,7 +681,7 @@ export const ProfilePage: React.FC = () => {
 
           <div>
             <label htmlFor="emergency-contact-phone" className="block font-semibold text-on-surface uppercase tracking-wider mb-1">
-              Phone Number *
+              {t('profile.contact_phone_req')}
             </label>
             <input
               id="emergency-contact-phone"
@@ -697,7 +697,7 @@ export const ProfilePage: React.FC = () => {
 
           <div>
             <label htmlFor="emergency-contact-email" className="block font-semibold text-on-surface uppercase tracking-wider mb-1">
-              Email Address (Optional)
+              {t('profile.contact_email_opt')}
             </label>
             <input
               id="emergency-contact-email"
@@ -712,7 +712,7 @@ export const ProfilePage: React.FC = () => {
 
           <div>
             <label htmlFor="emergency-contact-rel" className="block font-semibold text-on-surface uppercase tracking-wider mb-1">
-              Relationship (Optional)
+              {t('profile.contact_rel_opt')}
             </label>
             <input
               id="emergency-contact-rel"
@@ -731,13 +731,13 @@ export const ProfilePage: React.FC = () => {
               onClick={() => setContactModalOpen(false)}
               className="px-3 py-2 rounded-xl text-on-surface-variant hover:bg-white/5"
             >
-              Cancel
+              {t('btn.cancel')}
             </button>
             <button
               type="submit"
               className="btn-press px-4 py-2 bg-primary text-surface font-bold rounded-xl shadow-glow"
             >
-              Save Contact
+              {t('profile.btn_save_contact')}
             </button>
           </div>
         </form>
@@ -747,7 +747,7 @@ export const ProfilePage: React.FC = () => {
       <Modal
         isOpen={providerModalOpen}
         onClose={() => setProviderModalOpen(false)}
-        title="Find Healthcare Provider"
+        title={t('profile.search_doctor_title')}
         maxWidth="lg"
       >
         <div className="space-y-4">
@@ -760,7 +760,7 @@ export const ProfilePage: React.FC = () => {
                 type="text"
                 value={searchProviderQuery}
                 onChange={(e) => setSearchProviderQuery(e.target.value)}
-                placeholder="Search provider by name..."
+                placeholder={t('profile.search_doctor_placeholder')}
                 className="w-full pl-9 pr-3 py-2 rounded-xl glass-input text-xs"
               />
             </div>
@@ -769,15 +769,15 @@ export const ProfilePage: React.FC = () => {
               onClick={handleSearchProviders}
               className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold text-white"
             >
-              Search
+              {t('profile.search_doctor_btn')}
             </button>
           </div>
 
           <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
             {searching ? (
-              <p className="text-xs text-on-surface-variant text-center py-4">Searching providers...</p>
+              <p className="text-xs text-on-surface-variant text-center py-4">{t('profile.searching_doctors')}</p>
             ) : searchResults.length === 0 ? (
-              <p className="text-xs text-on-surface-variant text-center py-4">No verified providers found.</p>
+              <p className="text-xs text-on-surface-variant text-center py-4">{t('profile.no_doctors_found')}</p>
             ) : (
               searchResults.map((p) => (
                 <div
@@ -792,7 +792,7 @@ export const ProfilePage: React.FC = () => {
                     onClick={() => handleRequestProvider(p.id)}
                     className="btn-press px-3 py-1.5 rounded-lg bg-primary text-surface font-bold text-xs shadow-glow"
                   >
-                    Request Care
+                    {t('profile.btn_request_care')}
                   </button>
                 </div>
               ))

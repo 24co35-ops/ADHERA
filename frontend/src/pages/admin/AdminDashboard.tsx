@@ -178,7 +178,7 @@ export const AdminDashboard: React.FC = () => {
           className="btn-press inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-primary text-surface font-bold text-xs shadow-glow hover:bg-primary-container"
         >
           <Plus className="w-4 h-4" />
-          <span>Assign Patient to Doctor</span>
+          <span>{t('admin.assign_patient_btn')}</span>
         </button>
       </div>
 
@@ -187,46 +187,46 @@ export const AdminDashboard: React.FC = () => {
         <GlassCard className="p-5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-              Total Accounts
+              {t('admin.total_accounts')}
             </span>
             <Users className="w-4 h-4 text-primary" />
           </div>
           <div className="mt-3 text-3xl font-extrabold text-white">{users.length}</div>
-          <span className="text-[11px] text-on-surface-variant mt-1 block">Active on platform</span>
+          <span className="text-[11px] text-on-surface-variant mt-1 block">{t('admin.active_on_platform')}</span>
         </GlassCard>
 
         <GlassCard className="p-5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-              Active Patients
+              {t('admin.active_patients')}
             </span>
             <UserCheck className="w-4 h-4 text-secondary" />
           </div>
           <div className="mt-3 text-3xl font-extrabold text-white">{patientsList.length}</div>
-          <span className="text-[11px] text-secondary mt-1 block">Registered patients</span>
+          <span className="text-[11px] text-secondary mt-1 block">{t('admin.registered_patients')}</span>
         </GlassCard>
 
         <GlassCard className="p-5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-              Care Providers
+              {t('admin.care_providers')}
             </span>
             <Stethoscope className="w-4 h-4 text-tertiary" />
           </div>
           <div className="mt-3 text-3xl font-extrabold text-white">{verifiedProvidersList.length}</div>
-          <span className="text-[11px] text-tertiary mt-1 block">Verified doctors</span>
+          <span className="text-[11px] text-tertiary mt-1 block">{t('admin.verified_doctors')}</span>
         </GlassCard>
 
         <GlassCard className="p-5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-              System Health
+              {t('admin.system_health')}
             </span>
             <Server className="w-4 h-4 text-status-success" />
           </div>
           <div className="mt-3 text-2xl font-extrabold text-status-success flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-status-success animate-pulse" />
-            <span>{healthStatus?.status === 'ok' ? 'HEALTHY' : 'OPERATIONAL'}</span>
+            <span>{healthStatus?.status === 'ok' ? t('admin.healthy') : t('admin.operational')}</span>
           </div>
           <span className="text-[11px] text-on-surface-variant mt-1 block">DB: {healthStatus?.db || 'ok'}</span>
         </GlassCard>
@@ -239,7 +239,7 @@ export const AdminDashboard: React.FC = () => {
             <div className="flex items-center space-x-2">
               <AlertTriangle className="w-5 h-5 text-status-warning" />
               <h3 className="text-base font-bold text-white">
-                Pending Provider Credentials Queue ({pendingProviders.length})
+                {t('admin.pending_queue_title')} ({pendingProviders.length})
               </h3>
             </div>
           </div>
@@ -254,9 +254,9 @@ export const AdminDashboard: React.FC = () => {
                   <span className="font-bold text-sm text-white block">{prov.full_name}</span>
                   <span className="text-xs text-on-surface-variant block">{prov.email}</span>
                   <div className="flex items-center space-x-2 text-[11px] text-primary mt-1">
-                    <span>License: {prov.license_number || 'N/A'}</span>
+                    <span>{t('admin.license')}: {prov.license_number || 'N/A'}</span>
                     <span>&bull;</span>
-                    <span>{prov.specialization || 'General'}</span>
+                    <span>{prov.specialization || t('admin.general')}</span>
                   </div>
                 </div>
 
@@ -265,13 +265,13 @@ export const AdminDashboard: React.FC = () => {
                     onClick={() => handleApproveProvider(prov.id)}
                     className="btn-press px-3 py-1.5 rounded-xl bg-status-success text-surface font-bold text-xs"
                   >
-                    Approve
+                    {t('admin.approve')}
                   </button>
                   <button
                     onClick={() => handleRejectProvider(prov.id)}
                     className="btn-press px-3 py-1.5 rounded-xl bg-status-error/10 text-status-error hover:bg-status-error/20 text-xs font-semibold"
                   >
-                    Reject
+                    {t('admin.reject')}
                   </button>
                 </div>
               </div>
@@ -284,14 +284,14 @@ export const AdminDashboard: React.FC = () => {
       <GlassCard className="p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
           <div>
-            <h3 className="text-base font-bold text-white">Platform Identity Directory</h3>
-            <p className="text-xs text-on-surface-variant">View accounts, roles, and status</p>
+            <h3 className="text-base font-bold text-white">{t('admin.identity_dir_title')}</h3>
+            <p className="text-xs text-on-surface-variant">{t('admin.identity_dir_sub')}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             {/* Role Filter Chips */}
             <div className="flex rounded-xl bg-white/5 p-1 border border-white/5 text-xs">
-              {['all', 'patient', 'provider', 'admin'].map((r) => (
+              {(['all', 'patient', 'provider', 'admin'] as const).map((r) => (
                 <button
                   key={r}
                   onClick={() => setRoleFilter(r)}
@@ -299,7 +299,13 @@ export const AdminDashboard: React.FC = () => {
                     roleFilter === r ? 'bg-primary text-surface font-bold shadow-sm' : 'text-on-surface-variant'
                   }`}
                 >
-                  {r}
+                  {r === 'all'
+                    ? t('directory.all_roles')
+                    : r === 'patient'
+                    ? t('directory.role_patient')
+                    : r === 'provider'
+                    ? t('directory.role_provider')
+                    : t('directory.role_admin')}
                 </button>
               ))}
             </div>
@@ -313,7 +319,7 @@ export const AdminDashboard: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Filter users..."
+                placeholder={t('admin.filter_users_placeholder')}
                 className="w-full pl-8 pr-3 py-1.5 rounded-xl glass-input text-xs"
               />
             </div>
@@ -324,11 +330,11 @@ export const AdminDashboard: React.FC = () => {
           <table className="w-full text-left text-xs text-on-surface">
             <thead>
               <tr className="border-b border-white/10 text-[11px] uppercase tracking-wider text-on-surface-variant">
-                <th className="py-3 px-4 font-semibold">User</th>
-                <th className="py-3 px-4 font-semibold">Role</th>
-                <th className="py-3 px-4 font-semibold">Timezone</th>
-                <th className="py-3 px-4 font-semibold">Status</th>
-                <th className="py-3 px-4 font-semibold text-right">Toggle</th>
+                <th className="py-3 px-4 font-semibold">{t('admin.col_user')}</th>
+                <th className="py-3 px-4 font-semibold">{t('admin.col_role')}</th>
+                <th className="py-3 px-4 font-semibold">{t('admin.col_timezone')}</th>
+                <th className="py-3 px-4 font-semibold">{t('admin.col_status')}</th>
+                <th className="py-3 px-4 font-semibold text-right">{t('admin.col_toggle')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -340,7 +346,7 @@ export const AdminDashboard: React.FC = () => {
                         {u.full_name?.charAt(0) || u.email?.charAt(0) || 'U'}
                       </div>
                       <div>
-                        <span className="font-bold text-white block">{u.full_name || 'Anonymous'}</span>
+                        <span className="font-bold text-white block">{u.full_name || t('admin.anonymous')}</span>
                         <span className="text-[11px] text-on-surface-variant">{u.email}</span>
                       </div>
                     </div>
@@ -355,7 +361,11 @@ export const AdminDashboard: React.FC = () => {
                           : 'bg-primary/20 text-primary'
                       }`}
                     >
-                      {u.role}
+                      {u.role === 'admin'
+                        ? t('directory.role_admin')
+                        : u.role === 'provider'
+                        ? t('directory.role_provider')
+                        : t('directory.role_patient')}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-on-surface-variant">{u.timezone || 'UTC'}</td>
@@ -365,7 +375,7 @@ export const AdminDashboard: React.FC = () => {
                         u.is_active ? 'low' : 'critical'
                       }`}
                     >
-                      {u.is_active ? 'Active' : 'Suspended'}
+                      {u.is_active ? t('admin.active') : t('admin.suspended')}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-right">
@@ -377,7 +387,7 @@ export const AdminDashboard: React.FC = () => {
                           : 'bg-status-success/10 text-status-success hover:bg-status-success/20'
                       }`}
                     >
-                      {u.is_active ? 'Deactivate' : 'Activate'}
+                      {u.is_active ? t('admin.deactivate') : t('admin.activate')}
                     </button>
                   </td>
                 </tr>
@@ -391,12 +401,12 @@ export const AdminDashboard: React.FC = () => {
       <Modal
         isOpen={assignModalOpen}
         onClose={() => setAssignModalOpen(false)}
-        title="Assign Patient to Healthcare Provider"
+        title={t('admin.assign_modal_title')}
       >
         <form onSubmit={handleCreateAssignment} className="space-y-4 text-xs">
           <div>
             <label className="block font-semibold text-on-surface uppercase tracking-wider mb-1.5">
-              Select Patient *
+              {t('admin.select_patient_req')}
             </label>
             <select
               value={selectedPatientId}
@@ -413,7 +423,7 @@ export const AdminDashboard: React.FC = () => {
 
           <div>
             <label className="block font-semibold text-on-surface uppercase tracking-wider mb-1.5">
-              Select Provider *
+              {t('admin.select_provider_req')}
             </label>
             <select
               value={selectedProviderId}
@@ -422,7 +432,7 @@ export const AdminDashboard: React.FC = () => {
             >
               {verifiedProvidersList.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.full_name} - {p.specialization || 'General'}
+                  {p.full_name} - {p.specialization || t('admin.general')}
                 </option>
               ))}
             </select>
@@ -434,13 +444,13 @@ export const AdminDashboard: React.FC = () => {
               onClick={() => setAssignModalOpen(false)}
               className="px-4 py-2 rounded-xl text-on-surface-variant hover:bg-white/5 font-semibold"
             >
-              Cancel
+              {t('btn.cancel')}
             </button>
             <button
               type="submit"
               className="btn-press px-4 py-2 rounded-xl bg-primary text-surface font-bold shadow-glow"
             >
-              Create Assignment
+              {t('admin.create_assignment')}
             </button>
           </div>
         </form>

@@ -14,9 +14,11 @@ import {
   ChevronLeft,
 } from 'lucide-react';
 import { DirectoryUser, DirectoryPage as DirectoryPageType } from '../../types';
+import { useI18n } from '../../lib/i18n';
 
 export const DirectoryPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [users, setUsers] = useState<DirectoryUser[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -108,10 +110,10 @@ export const DirectoryPage: React.FC = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2.5">
             <BookUser className="w-7 h-7 text-primary" />
-            <span>Platform Identity Directory</span>
+            <span>{t('directory.title')}</span>
           </h1>
           <p className="text-xs sm:text-sm text-on-surface-variant mt-1">
-            Global registry of all registered Patients and Healthcare Providers on ADHERA.
+            {t('directory.subtitle')}
           </p>
         </div>
 
@@ -122,7 +124,7 @@ export const DirectoryPage: React.FC = () => {
           title="Refresh Directory"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-primary' : ''}`} />
-          <span>Refresh</span>
+          <span>{loading ? t('btn.loading') : t('directory.col_registered')}</span>
         </button>
       </div>
 
@@ -136,7 +138,7 @@ export const DirectoryPage: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by full name or email..."
+              placeholder={t('directory.search_placeholder')}
               className="w-full pl-10 pr-4 py-2.5 bg-black/30 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-on-surface-variant focus:outline-none focus:border-primary/50 transition-colors"
             />
           </div>
@@ -151,9 +153,9 @@ export const DirectoryPage: React.FC = () => {
               }}
               className="w-full px-3.5 py-2.5 bg-black/30 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-primary/50 transition-colors"
             >
-              <option value="">All Roles (Patients & Providers)</option>
-              <option value="patient">Patients Only</option>
-              <option value="provider">Healthcare Providers Only</option>
+              <option value="">{t('directory.all_roles')}</option>
+              <option value="patient">{t('directory.role_patient')}</option>
+              <option value="provider">{t('directory.role_provider')}</option>
             </select>
           </div>
 
@@ -167,9 +169,9 @@ export const DirectoryPage: React.FC = () => {
               }}
               className="w-full px-3.5 py-2.5 bg-black/30 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-primary/50 transition-colors"
             >
-              <option value="">All Statuses (Active & Suspended)</option>
-              <option value="active">Active Accounts</option>
-              <option value="inactive">Suspended / Inactive</option>
+              <option value="">{t('directory.all_statuses')}</option>
+              <option value="active">{t('directory.status_active')}</option>
+              <option value="inactive">{t('directory.status_suspended')}</option>
             </select>
           </div>
         </div>
@@ -181,13 +183,13 @@ export const DirectoryPage: React.FC = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-white/10 bg-white/[0.02] text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
-                <th className="py-3.5 px-4 sm:px-6">User / Identity</th>
-                <th className="py-3.5 px-4">Role</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">Registered</th>
-                <th className="py-3.5 px-4">Last Activity</th>
-                <th className="py-3.5 px-4">Assigned / License</th>
-                <th className="py-3.5 px-4 sm:px-6 text-right">Action</th>
+                <th className="py-3.5 px-4 sm:px-6">{t('directory.col_user')}</th>
+                <th className="py-3.5 px-4">{t('directory.col_role')}</th>
+                <th className="py-3.5 px-4">{t('directory.col_status')}</th>
+                <th className="py-3.5 px-4">{t('directory.col_registered')}</th>
+                <th className="py-3.5 px-4">{t('directory.col_last_active')}</th>
+                <th className="py-3.5 px-4">{t('profile.provider_title')}</th>
+                <th className="py-3.5 px-4 sm:px-6 text-right">{t('provider.col_actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-xs sm:text-sm">
@@ -216,11 +218,11 @@ export const DirectoryPage: React.FC = () => {
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-on-surface-variant">
                     <UserX className="w-10 h-10 mx-auto mb-3 opacity-40 text-on-surface-variant" />
-                    <p className="text-sm font-semibold text-white">No identities found</p>
+                    <p className="text-sm font-semibold text-white">{t('directory.no_users')}</p>
                     <p className="text-xs text-on-surface-variant mt-1">
                       {searchQuery || roleFilter || statusFilter
-                        ? 'Try adjusting your search query or filter options'
-                        : 'No patient or provider accounts registered yet.'}
+                        ? t('directory.no_users')
+                        : t('directory.no_users')}
                     </p>
                   </td>
                 </tr>
@@ -271,7 +273,7 @@ export const DirectoryPage: React.FC = () => {
                           }`}
                         >
                           {isPatient ? <UserCheck className="w-3 h-3" /> : <Stethoscope className="w-3 h-3" />}
-                          <span className="capitalize">{u.role}</span>
+                          <span className="capitalize">{isPatient ? t('directory.role_patient') : u.role === 'provider' ? t('directory.role_provider') : t('directory.role_admin')}</span>
                         </span>
                       </td>
 
@@ -288,7 +290,7 @@ export const DirectoryPage: React.FC = () => {
                               u.is_active ? 'bg-status-success' : 'bg-status-danger'
                             }`}
                           />
-                          <span>{u.is_active ? 'Active' : 'Suspended'}</span>
+                          <span>{u.is_active ? t('directory.status_active') : t('directory.status_suspended')}</span>
                         </span>
                       </td>
 
@@ -305,7 +307,7 @@ export const DirectoryPage: React.FC = () => {
                           u.assigned_provider_name ? (
                             <span className="text-white font-medium">Dr. {u.assigned_provider_name}</span>
                           ) : (
-                            <span className="text-white/40 italic">Unassigned</span>
+                            <span className="text-white/40 italic">—</span>
                           )
                         ) : (
                           u.license_number ? (
@@ -324,7 +326,7 @@ export const DirectoryPage: React.FC = () => {
                           }}
                           className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-primary/20 text-white hover:text-primary text-xs font-medium border border-white/10 hover:border-primary/40 transition-all"
                         >
-                          <span>View</span>
+                          <span>{t('provider.view_details')}</span>
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
                       </td>
@@ -339,7 +341,7 @@ export const DirectoryPage: React.FC = () => {
         {/* Pagination & Limit Footer */}
         <div className="p-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-on-surface-variant bg-white/[0.01]">
           <div className="flex items-center gap-2">
-            <span>Show</span>
+            <span>{t('directory.showing')}</span>
             <select
               value={limit}
               onChange={(e) => {
@@ -352,20 +354,20 @@ export const DirectoryPage: React.FC = () => {
               <option value={20}>20</option>
               <option value={50}>50</option>
             </select>
-            <span>users per page</span>
+            <span>{t('directory.users_count')}</span>
             <span className="hidden sm:inline text-white/40">•</span>
-            <span className="hidden sm:inline">Total {total} identities</span>
+            <span className="hidden sm:inline">{total} {t('directory.users_count')}</span>
           </div>
 
           <div className="flex items-center space-x-2">
             <span className="text-white/70 mr-1">
-              Page {page} of {totalPages}
+              {page} / {totalPages}
             </span>
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1 || loading}
               className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white border border-white/10"
-              title="Previous Page"
+              title={t('directory.page_prev')}
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -373,7 +375,7 @@ export const DirectoryPage: React.FC = () => {
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || loading}
               className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-white border border-white/10"
-              title="Next Page"
+              title={t('directory.page_next')}
             >
               <ChevronRight className="w-4 h-4" />
             </button>

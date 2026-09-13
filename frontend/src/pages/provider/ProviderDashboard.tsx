@@ -124,7 +124,7 @@ export const ProviderDashboard: React.FC = () => {
           <div className="flex items-center space-x-2">
             <AlertTriangle className="w-5 h-5 text-status-warning shrink-0" />
             <span className="text-sm font-bold text-status-warning">
-              {criticalAlerts.length} Patient(s) with Low Adherence (&lt; 70%)
+              {criticalAlerts.length} {t('provider.low_adherence_banner')}
             </span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -137,7 +137,7 @@ export const ProviderDashboard: React.FC = () => {
                 <div>
                   <span className="font-bold text-white block">{patient.full_name || patient.email}</span>
                   <span className="text-[11px] text-status-warning font-semibold">
-                    Adherence: {patient.adherence_rate}%
+                    {t('provider.adherence_rate_label')}: {patient.adherence_rate}%
                   </span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-status-warning" />
@@ -153,10 +153,10 @@ export const ProviderDashboard: React.FC = () => {
           <h3 className="text-base font-bold text-white mb-4 pb-3 border-b border-white/10 flex items-center justify-between">
             <span className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-secondary" />
-              <span>Pending Patient Requests</span>
+              <span>{t('provider.pending_requests')}</span>
             </span>
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-secondary/20 text-secondary font-bold">
-              {pendingRequests.length} pending
+              {pendingRequests.length} {t('provider.pending_badge')}
             </span>
           </h3>
 
@@ -168,13 +168,13 @@ export const ProviderDashboard: React.FC = () => {
               >
                 <div>
                   <span className="font-bold text-sm text-white block">
-                    {req.profiles?.full_name || 'Patient'}
+                    {req.profiles?.full_name || t('dashboard.patient')}
                   </span>
                   <span className="text-xs text-on-surface-variant block">
                     {req.profiles?.email}
                   </span>
                   <span className="text-[10px] text-on-surface-variant/70 block mt-1">
-                    Requested on {new Date(req.assigned_on).toLocaleDateString()}
+                    {t('provider.requested_on')} {new Date(req.assigned_on).toLocaleDateString()}
                   </span>
                 </div>
 
@@ -184,14 +184,14 @@ export const ProviderDashboard: React.FC = () => {
                     className="btn-press flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-status-success text-surface font-bold text-xs"
                   >
                     <Check className="w-3.5 h-3.5" />
-                    <span>Approve</span>
+                    <span>{t('provider.accept')}</span>
                   </button>
                   <button
                     onClick={() => handleRejectRequest(req.patient_id)}
                     className="btn-press flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-status-error/10 text-red-300 hover:bg-status-error/20 font-semibold text-xs"
                   >
                     <X className="w-3.5 h-3.5" />
-                    <span>Decline</span>
+                    <span>{t('provider.decline')}</span>
                   </button>
                 </div>
               </div>
@@ -204,8 +204,8 @@ export const ProviderDashboard: React.FC = () => {
       <GlassCard className="p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
           <div>
-            <h3 className="text-base font-bold text-white">Assigned Patient Roster</h3>
-            <p className="text-xs text-on-surface-variant">Active patient records and adherence stats</p>
+            <h3 className="text-base font-bold text-white">{t('provider.roster_title')}</h3>
+            <p className="text-xs text-on-surface-variant">{t('provider.roster_sub')}</p>
           </div>
 
           <div className="relative w-full sm:w-64">
@@ -216,7 +216,7 @@ export const ProviderDashboard: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search patients..."
+              placeholder={t('provider.search_placeholder')}
               className="w-full pl-9 pr-3 py-2 rounded-xl glass-input text-xs"
             />
           </div>
@@ -225,14 +225,14 @@ export const ProviderDashboard: React.FC = () => {
         {loading ? (
           <div className="py-12 text-center">
             <div className="w-8 h-8 border-3 border-primary/20 border-t-primary rounded-full animate-spin mx-auto" />
-            <p className="text-xs text-on-surface-variant mt-2">Loading patient roster...</p>
+            <p className="text-xs text-on-surface-variant mt-2">{t('provider.loading_roster')}</p>
           </div>
         ) : filteredPatients.length === 0 ? (
           <div className="py-12 text-center space-y-2">
             <Users className="w-10 h-10 text-on-surface-variant/40 mx-auto" />
-            <p className="text-sm font-semibold text-white">No active patients found</p>
+            <p className="text-sm font-semibold text-white">{t('provider.no_patients')}</p>
             <p className="text-xs text-on-surface-variant">
-              When patients connect with you or admins assign them, they will appear here.
+              {t('provider.no_patients_sub')}
             </p>
           </div>
         ) : (
@@ -240,11 +240,11 @@ export const ProviderDashboard: React.FC = () => {
             <table className="w-full text-left text-xs text-on-surface">
               <thead>
                 <tr className="border-b border-white/10 text-[11px] uppercase tracking-wider text-on-surface-variant">
-                  <th className="py-3 px-4 font-semibold">Patient Name</th>
-                  <th className="py-3 px-4 font-semibold">Contact / Timezone</th>
-                  <th className="py-3 px-4 font-semibold">Adherence Rate</th>
-                  <th className="py-3 px-4 font-semibold">Active Rx</th>
-                  <th className="py-3 px-4 font-semibold text-right">Action</th>
+                  <th className="py-3 px-4 font-semibold">{t('provider.col_patient')}</th>
+                  <th className="py-3 px-4 font-semibold">{t('provider.col_contact_tz')}</th>
+                  <th className="py-3 px-4 font-semibold">{t('provider.col_adherence')}</th>
+                  <th className="py-3 px-4 font-semibold">{t('provider.col_active_rx')}</th>
+                  <th className="py-3 px-4 font-semibold text-right">{t('provider.col_actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -264,7 +264,7 @@ export const ProviderDashboard: React.FC = () => {
                           </div>
                           <div>
                             <span className="font-bold text-white block">
-                              {patient.full_name || 'Patient'}
+                              {patient.full_name || t('dashboard.patient')}
                             </span>
                             <span className="text-[11px] text-on-surface-variant">
                               {patient.email}
@@ -307,7 +307,7 @@ export const ProviderDashboard: React.FC = () => {
                           }}
                           className="btn-press px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white font-semibold text-xs inline-flex items-center space-x-1"
                         >
-                          <span>Review</span>
+                          <span>{t('provider.review')}</span>
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
                       </td>
