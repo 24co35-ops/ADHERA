@@ -4,8 +4,10 @@ import { Activity, CheckCircle2, AlertCircle, Mail, Send } from 'lucide-react';
 import { GlassCard } from '../../components/GlassCard';
 import { api, setTokens } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
+import { usePageMeta } from '../../hooks/usePageMeta';
 
 export const ConfirmAuthPage: React.FC = () => {
+  usePageMeta('Confirm Account', 'Verify your email address to activate your Adhera account.');
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
   const [message, setMessage] = useState('Verifying your email token...');
   const [resendEmail, setResendEmail] = useState('');
@@ -155,6 +157,16 @@ export const ConfirmAuthPage: React.FC = () => {
           </div>
         )}
       </GlassCard>
+
+      <div className="mt-8 flex items-center justify-center space-x-4 text-[11px] text-on-surface-variant/70">
+        <Link to="/privacy" className="hover:text-primary transition-colors">
+          Privacy Policy
+        </Link>
+        <span>•</span>
+        <Link to="/terms" className="hover:text-primary transition-colors">
+          Terms & Conditions
+        </Link>
+      </div>
     </div>
   );
 };

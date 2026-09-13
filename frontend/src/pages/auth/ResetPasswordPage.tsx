@@ -3,8 +3,10 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { Activity, Lock, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { GlassCard } from '../../components/GlassCard';
+import { usePageMeta } from '../../hooks/usePageMeta';
 
 export const ResetPasswordPage: React.FC = () => {
+  usePageMeta('Reset Password', 'Create a new secure password for your Adhera account.');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -137,6 +139,16 @@ export const ResetPasswordPage: React.FC = () => {
             </form>
           </GlassCard>
         )}
+
+        <div className="mt-8 flex items-center justify-center space-x-4 text-[11px] text-on-surface-variant/70">
+          <Link to="/privacy" className="hover:text-primary transition-colors">
+            Privacy Policy
+          </Link>
+          <span>•</span>
+          <Link to="/terms" className="hover:text-primary transition-colors">
+            Terms & Conditions
+          </Link>
+        </div>
       </div>
     </div>
   );

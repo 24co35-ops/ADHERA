@@ -5,8 +5,10 @@ import { UserRole } from '../../types';
 import { api } from '../../lib/api';
 import { Activity, Lock, Mail, ArrowRight, ShieldAlert, ChevronLeft, Send } from 'lucide-react';
 import { GlassCard } from '../../components/GlassCard';
+import { usePageMeta } from '../../hooks/usePageMeta';
 
 export const LoginPage: React.FC = () => {
+  usePageMeta('Sign In', 'Sign in to your Adhera account to access intelligent medication adherence tracking and clinical coordination.');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -370,6 +372,16 @@ export const LoginPage: React.FC = () => {
                 Create an account
               </Link>
             </p>
+
+            <div className="mt-6 flex items-center justify-center space-x-4 text-[11px] text-on-surface-variant">
+              <Link to="/privacy" className="hover:text-primary transition-colors">
+                Privacy Policy
+              </Link>
+              <span>•</span>
+              <Link to="/terms" className="hover:text-primary transition-colors">
+                Terms & Conditions
+              </Link>
+            </div>
           </>
         )}
       </div>

@@ -21,8 +21,10 @@ import {
 } from 'lucide-react';
 import { Profile, UserRole } from '../../types';
 import { useI18n } from '../../lib/i18n';
+import { usePageMeta } from '../../hooks/usePageMeta';
 
 export const AdminDashboard: React.FC = () => {
+  usePageMeta('Admin Console', 'System administration, server health metrics, provider verification, and security audit logs.');
   const { t } = useI18n();
   const [users, setUsers] = useState<Profile[]>([]);
   const [pendingProviders, setPendingProviders] = useState<Profile[]>([]);

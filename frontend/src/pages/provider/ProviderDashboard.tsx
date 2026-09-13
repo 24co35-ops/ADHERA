@@ -18,8 +18,10 @@ import {
 } from 'lucide-react';
 import { useI18n } from '../../lib/i18n';
 import { ChatDrawer } from '../../components/ChatDrawer';
+import { usePageMeta } from '../../hooks/usePageMeta';
 
 export const ProviderDashboard: React.FC = () => {
+  usePageMeta('Provider Dashboard', 'Clinical patient roster, adherence risk monitoring, and pending care assignments.');
   const navigate = useNavigate();
   const { t } = useI18n();
 

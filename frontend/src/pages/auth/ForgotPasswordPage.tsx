@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { Activity, Mail, ArrowLeft, Send } from 'lucide-react';
 import { GlassCard } from '../../components/GlassCard';
+import { usePageMeta } from '../../hooks/usePageMeta';
 
 export const ForgotPasswordPage: React.FC = () => {
+  usePageMeta('Forgot Password', 'Request a password reset link for your Adhera account.');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -101,6 +103,16 @@ export const ForgotPasswordPage: React.FC = () => {
             </Link>
           </div>
         </GlassCard>
+
+        <div className="mt-8 flex items-center justify-center space-x-4 text-[11px] text-on-surface-variant/70">
+          <Link to="/privacy" className="hover:text-primary transition-colors">
+            Privacy Policy
+          </Link>
+          <span>•</span>
+          <Link to="/terms" className="hover:text-primary transition-colors">
+            Terms & Conditions
+          </Link>
+        </div>
       </div>
     </div>
   );

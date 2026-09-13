@@ -1,0 +1,21 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /register
+Allow: /forgot-password
+Allow: /privacy
+Allow: /terms
+
+# Disallow authenticated application portals and API endpoints
+Disallow: /dashboard
+Disallow: /medicines
+Disallow: /feedback
+Disallow: /patient/
+Disallow: /provider/
+Disallow: /admin/
+Disallow: /profile
+Disallow: /v1/
+Disallow: /api/
+
+Sitemap: https://adhera-seven.vercel.app/sitemap.xml

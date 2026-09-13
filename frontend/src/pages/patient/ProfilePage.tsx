@@ -24,8 +24,10 @@ import {
   Search,
 } from 'lucide-react';
 import { Profile, EmergencyContact, MyProviderResponse } from '../../types';
+import { usePageMeta } from '../../hooks/usePageMeta';
 
 export const ProfilePage: React.FC = () => {
+  usePageMeta('Profile & Settings', 'Manage your personal health details, emergency contacts, push notifications, and security settings.');
   const { user, profile, setProfile } = useAuthStore();
   const { t } = useI18n();
 

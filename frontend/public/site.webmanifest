@@ -1,7 +1,7 @@
 {
-  "name": "Adhera",
+  "name": "Adhera — Intelligent Medication Adherence",
   "short_name": "Adhera",
-  "description": "Medication Adherence Platform",
+  "description": "Futuristic intelligent medication adherence and clinical coordination platform",
   "icons": [
     {
       "src": "/assets/favicons/favicon-192x192.png",
@@ -16,6 +16,6 @@
   ],
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#6366f1",
-  "theme_color": "#6366f1"
+  "background_color": "#111318",
+  "theme_color": "#00dbe7"
 }

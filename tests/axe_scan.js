@@ -115,6 +115,9 @@ async function scanPage(browser, url, label, token = null) {
     const pages = [
       { path: '/login', label: 'Login Page', token: null },
       { path: '/register', label: 'Register Page', token: null },
+      { path: '/privacy', label: 'Privacy Policy Page', token: null },
+      { path: '/terms', label: 'Terms & Conditions Page', token: null },
+      { path: '/404', label: '404 Error Page', token: null },
       { path: '/dashboard', label: 'Patient Dashboard', token: MOCK_TOKEN },
       { path: '/medicines', label: 'Medicines Page', token: MOCK_TOKEN },
       { path: '/feedback', label: 'Feedback Page', token: MOCK_TOKEN },

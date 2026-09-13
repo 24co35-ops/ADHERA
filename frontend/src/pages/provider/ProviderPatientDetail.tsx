@@ -20,8 +20,10 @@ import {
 } from 'lucide-react';
 import { Profile, Medicine, Feedback, PatientFlag, AdherenceLog } from '../../types';
 import { useI18n } from '../../lib/i18n';
+import { usePageMeta } from '../../hooks/usePageMeta';
 
 export const ProviderPatientDetail: React.FC = () => {
+  usePageMeta('Patient Medical Chart', 'Detailed patient medication compliance, adherence curve, and clinical flags.');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useI18n();

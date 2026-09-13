@@ -18,6 +18,7 @@ import {
   Heart,
   ChevronRight,
 } from 'lucide-react';
+import { usePageMeta } from '../../hooks/usePageMeta';
 import clsx from 'clsx';
 
 interface BreathingPattern {
@@ -84,6 +85,7 @@ interface WellnessSession {
 }
 
 export const WellnessPage: React.FC = () => {
+  usePageMeta('Wellness & Breathing', 'Interactive guided breathing sessions, mindfulness relaxation, and wellness streaks.');
   const { user } = useAuthStore();
   const { t } = useI18n();
   const [selectedPattern, setSelectedPattern] = useState<BreathingPattern>(PRESET_PATTERNS[0]);

@@ -15,8 +15,10 @@ import {
 } from 'lucide-react';
 import { DirectoryUser, DirectoryPage as DirectoryPageType } from '../../types';
 import { useI18n } from '../../lib/i18n';
+import { usePageMeta } from '../../hooks/usePageMeta';
 
 export const DirectoryPage: React.FC = () => {
+  usePageMeta('Identity Directory', 'Enterprise patient and provider directory, identity management, and credential status.');
   const navigate = useNavigate();
   const { t } = useI18n();
   const [users, setUsers] = useState<DirectoryUser[]>([]);

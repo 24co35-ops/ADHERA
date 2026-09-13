@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Navbar } from './components/Navbar';
+import { Footer } from './components/Footer';
+import { CookieConsent } from './components/CookieConsent';
 
 // Auth Pages — eager (needed immediately)
 import { LoginPage } from './pages/auth/LoginPage';
@@ -10,6 +12,11 @@ import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { ConfirmAuthPage } from './pages/auth/ConfirmAuthPage';
+
+// Legal & Error Pages
+const PrivacyPage = lazy(() => import('./pages/legal/PrivacyPage').then(m => ({ default: m.PrivacyPage })));
+const TermsPage = lazy(() => import('./pages/legal/TermsPage').then(m => ({ default: m.TermsPage })));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })));
 
 // All other pages — lazy loaded (split into separate async chunks)
 const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard').then(m => ({ default: m.PatientDashboard })));
@@ -30,12 +37,12 @@ const PageLoader = () => (
   </div>
 );
 
-
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <div className="min-h-screen bg-surface flex flex-col">
+    <div className="min-h-screen bg-surface flex flex-col justify-between">
       <Navbar />
       <main className="flex-1 pb-16">{children}</main>
+      <Footer />
     </div>
   );
 };
@@ -199,6 +206,11 @@ export const App: React.FC = () => {
           }
         />
 
+        {/* Public Legal & Informational Routes */}
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/404" element={<NotFoundPage />} />
+
         {/* Shared Profile Route for all logged in users */}
         <Route
           path="/profile"
@@ -211,10 +223,11 @@ export const App: React.FC = () => {
           }
         />
 
-        {/* Root Fallback */}
+        {/* Root Route & 404 Catch-all */}
         <Route path="/" element={<RootRedirect />} />
-        <Route path="*" element={<RootRedirect />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      <CookieConsent />
       </Suspense>
     </BrowserRouter>
   );

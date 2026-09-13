@@ -15,9 +15,11 @@ import {
 } from 'lucide-react';
 import { Medicine, Feedback } from '../../types';
 import { useI18n } from '../../lib/i18n';
+import { usePageMeta } from '../../hooks/usePageMeta';
 import clsx from 'clsx';
 
 export const FeedbackPage: React.FC = () => {
+  usePageMeta('Side Effects & Feedback', 'Report medication side effects, view history, and notify your healthcare team.');
   const { t } = useI18n();
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);

@@ -15,8 +15,10 @@ import {
   X,
 } from 'lucide-react';
 import { Medicine } from '../../types';
+import { usePageMeta } from '../../hooks/usePageMeta';
 
 export const MedicinesPage: React.FC = () => {
+  usePageMeta('My Medications', 'Manage your prescribed medications, dosing schedules, refill counts, and custom alerts.');
   const { t } = useI18n();
   const { user, profile } = useAuthStore();
 

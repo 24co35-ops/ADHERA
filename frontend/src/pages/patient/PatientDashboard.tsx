@@ -24,8 +24,10 @@ import { Link } from 'react-router-dom';
 import { DashboardStats, UpcomingDose, Feedback, MyProviderResponse } from '../../types';
 import { adheraFetch } from '../../lib/api';
 import { ChatDrawer } from '../../components/ChatDrawer';
+import { usePageMeta } from '../../hooks/usePageMeta';
 
 export const PatientDashboard: React.FC = () => {
+  usePageMeta('Patient Dashboard', 'View your medication schedule, daily adherence streak, upcoming doses, and care alerts.');
   const { user } = useAuthStore();
   const { t } = useI18n();
 

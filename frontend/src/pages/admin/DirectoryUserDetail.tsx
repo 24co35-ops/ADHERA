@@ -41,10 +41,12 @@ import {
   Feedback,
   AuditLogEntry,
 } from '../../types';
+import { usePageMeta } from '../../hooks/usePageMeta';
 
 type TabType = 'profile' | 'medications' | 'adherence' | 'feedback' | 'assignments' | 'audit';
 
 export const DirectoryUserDetail: React.FC = () => {
+  usePageMeta('User Account Detail', 'Admin view of user account lifecycle, clinical assignments, and audit trails.');
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
 

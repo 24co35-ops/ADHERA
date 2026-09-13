@@ -4,6 +4,7 @@ import { api } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { useI18n } from '../../lib/i18n';
 import { GlassCard } from '../../components/GlassCard';
+import { usePageMeta } from '../../hooks/usePageMeta';
 import {
   MessageSquare,
   Bot,
@@ -43,14 +44,17 @@ interface ChatMessage {
 
 const SAMPLE_QUESTIONS = [
   'What should I do if I miss a dose of my morning medication?',
-  'What are common side effects of Metformin and how can I reduce nausea?',
-  'Why do ACE inhibitors like Lisinopril sometimes cause a dry cough?',
-  'Can I take thyroid medication with morning coffee or food?',
-  'How does daily Box breathing help regulate high blood pressure?',
+  'Are there common side effects associated with my current medications?',
+  'Can I take my medicines with food or milk?',
+  'How do my medicines interact with vitamins or supplements?',
 ];
 
 export const ChatPage: React.FC = () => {
   const { user, role } = useAuthStore();
+  usePageMeta(
+    role === 'provider' ? 'Clinical AI Assistant' : 'AI Health Assistant',
+    'Ask questions about your medication schedules, side effects, drug precautions, and adherence tips.'
+  );
   const { t } = useI18n();
   const navigate = useNavigate();
 

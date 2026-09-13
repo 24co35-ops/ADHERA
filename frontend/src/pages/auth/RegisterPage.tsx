@@ -4,9 +4,11 @@ import { api } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { Activity, Mail, Lock, User as UserIcon, Calendar, Stethoscope, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { GlassCard } from '../../components/GlassCard';
+import { usePageMeta } from '../../hooks/usePageMeta';
 import clsx from 'clsx';
 
 export const RegisterPage: React.FC = () => {
+  usePageMeta('Create Account', 'Create your Adhera account to join the intelligent medication adherence and health tracking ecosystem.');
   const [role, setRole] = useState<'patient' | 'provider'>('patient');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -289,6 +291,17 @@ export const RegisterPage: React.FC = () => {
                 />
               </div>
 
+              <p className="text-[11px] text-on-surface-variant text-center pt-1 leading-relaxed">
+                By creating an account, you agree to our{' '}
+                <Link to="/terms" className="text-primary hover:underline font-semibold" target="_blank">
+                  Terms & Conditions
+                </Link>{' '}
+                and acknowledge our{' '}
+                <Link to="/privacy" className="text-primary hover:underline font-semibold" target="_blank">
+                  Privacy Policy
+                </Link>.
+              </p>
+
               <button
                 type="submit"
                 disabled={loading}
@@ -307,6 +320,16 @@ export const RegisterPage: React.FC = () => {
             Sign in
           </Link>
         </p>
+
+        <div className="mt-6 flex items-center justify-center space-x-4 text-[11px] text-on-surface-variant">
+          <Link to="/privacy" className="hover:text-primary transition-colors">
+            Privacy Policy
+          </Link>
+          <span>•</span>
+          <Link to="/terms" className="hover:text-primary transition-colors">
+            Terms & Conditions
+          </Link>
+        </div>
       </div>
     </div>
   );
