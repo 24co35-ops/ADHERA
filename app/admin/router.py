@@ -15,13 +15,22 @@ from app.admin.schemas import (
     StatusChange,
     UserUpdate,
 )
+import logging
+
 from app.auth.dependencies import require_role
 from app.config import settings
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
 from app.core.utils import calculate_age, safe_csv_cell
 from app.db.supabase import supabase, supabase_auth
+from app.services.admin_client import admin_supabase
 from app.services.audit import log_audit_action
+
+logger = logging.getLogger("adhera.admin")
+
+def get_db():
+    """Returns privileged admin_supabase client if available, else standard client."""
+    return admin_supabase if admin_supabase is not None else supabase
 
 try:
     from supabase_auth.errors import AuthApiError
@@ -30,6 +39,7 @@ except ImportError:
 
 
 router = APIRouter()
+
 
 # ── Platform Stats ────────────────────────────────────────────────────────────
 
@@ -940,42 +950,61 @@ async def list_directory_users(
     user: dict = Depends(require_role("admin")),
 ):
     try:
+        sb = supabase
+
         # 1. Fetch auth users email map
+        email_map: dict[str, str] = {}
+        last_sign_in_map: dict[str, str | None] = {}
         try:
-            auth_users = supabase.auth.admin.list_users()
+            auth_users = sb.auth.admin.list_users(page=1, per_page=1000)
             email_map = {u.id: (u.email or "") for u in auth_users}
             last_sign_in_map = {u.id: getattr(u, "last_sign_in_at", None) for u in auth_users}
-        except Exception:
-            email_map = {}
-            last_sign_in_map = {}
+        except Exception as auth_err:
+            logger.warning("Failed to fetch auth users in list_directory_users: %s", auth_err)
 
         # 2. Base query for non-admin profiles
-        q = supabase.table("profiles").select("*").neq("role", "admin")
-        if role in ("patient", "provider"):
-            q = q.eq("role", role)
-        if status == "active":
+        q = sb.table("profiles").select("*")
+
+        # Handle role filter: "all" or "" returns all non-admin users (patient + provider)
+        role_clean = (role or "").strip().lower()
+        if role_clean in ("patient", "provider"):
+            q = q.eq("role", role_clean)
+        elif role_clean == "admin":
+            q = q.eq("role", "admin")
+        else:
+            q = q.neq("role", "admin")
+
+        # Handle status filter: "all" or "" returns all statuses (both active and inactive)
+        status_clean = (status or "").strip().lower()
+        if status_clean == "active":
             q = q.eq("is_active", True)
-        elif status == "inactive":
+        elif status_clean in ("inactive", "suspended"):
             q = q.eq("is_active", False)
 
         profiles_res = q.order("created_at", desc=True).execute()
         all_profiles = profiles_res.data or []
 
         # 3. Active assignments for patient -> provider mapping
-        assignments_res = supabase.table("assignments").select("patient_id, provider_id").eq("status", "active").execute()
-        assigned_map = {a["patient_id"]: a["provider_id"] for a in (assignments_res.data or [])}
+        assigned_map: dict[str, str] = {}
+        provider_names: dict[str, str] = {}
+        try:
+            assignments_res = sb.table("assignments").select("patient_id, provider_id").eq("status", "active").execute()
+            assigned_map = {a["patient_id"]: a["provider_id"] for a in (assignments_res.data or []) if a.get("patient_id")}
 
-        provider_ids = list(set(assigned_map.values()))
-        provider_names = {}
-        if provider_ids:
-            p_res = supabase.table("profiles").select("id, full_name").in_("id", provider_ids).execute()
-            provider_names = {p["id"]: p.get("full_name") for p in (p_res.data or [])}
+            provider_ids = list({pid for pid in assigned_map.values() if pid})
+            if provider_ids:
+                p_res = sb.table("profiles").select("id, full_name").in_("id", provider_ids).execute()
+                provider_names = {p["id"]: p.get("full_name", "") for p in (p_res.data or []) if p.get("id")}
+        except Exception as assign_err:
+            logger.warning("Failed to fetch assignments in list_directory_users: %s", assign_err)
 
         # 4. Filter and enrich
         search_lower = search.strip().lower()
         enriched = []
         for p in all_profiles:
-            uid = p["id"]
+            uid = p.get("id")
+            if not uid:
+                continue
             email = email_map.get(uid, "")
             full_name = p.get("full_name") or ""
 
@@ -1013,7 +1042,9 @@ async def list_directory_users(
             "limit": limit,
         })
     except Exception as e:
+        logger.error("Error in list_directory_users: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.get("/directory/{user_id}", response_model=SuccessResponse[dict])

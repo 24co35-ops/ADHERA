@@ -74,6 +74,66 @@ class TestDirectoryList:
         assert items[0]["email"] == "patient@example.com"
         assert items[0]["assigned_provider_name"] == "Doctor House"
 
+    @patch("app.admin.router.supabase")
+    def test_list_directory_users_default_all_filters(self, mock_sb):
+        """When role and status filters are default/empty, all non-admin users are returned."""
+        mock_auth_patient = MagicMock(id=PATIENT_ID, email="patient@example.com", last_sign_in_at="2026-09-01T10:00:00Z")
+        mock_auth_provider = MagicMock(id=PROVIDER_ID, email="doc@example.com", last_sign_in_at="2026-09-02T11:00:00Z")
+        mock_sb.auth.admin.list_users.return_value = [mock_auth_patient, mock_auth_provider]
+
+        profiles_mock = MagicMock()
+        profiles_mock.data = [
+            {"id": PATIENT_ID, "full_name": "Jane Patient", "role": "patient", "is_active": True, "created_at": "2026-08-01T00:00:00Z"},
+            {"id": PROVIDER_ID, "full_name": "Dr Gregory", "role": "provider", "is_active": False, "created_at": "2026-08-02T00:00:00Z"},
+        ]
+
+        def table_side_effect(table_name):
+            chain = MagicMock()
+            if table_name == "profiles":
+                chain.select.return_value.neq.return_value.order.return_value.execute.return_value = profiles_mock
+                chain.select.return_value.in_.return_value.execute.return_value = MagicMock(data=[])
+            elif table_name == "assignments":
+                chain.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+            return chain
+
+        mock_sb.table.side_effect = table_side_effect
+
+        response = client.get("/v1/admin/directory", headers=make_token("admin"))
+        assert response.status_code == 200
+        json_data = response.json()
+        assert json_data["success"] is True
+        items = json_data["data"]["items"]
+        assert len(items) == 2
+        assert json_data["data"]["total"] == 2
+
+    @patch("app.admin.router.supabase")
+    def test_list_directory_users_auth_failure_graceful(self, mock_sb):
+        """Even if auth.admin.list_users raises an exception, directory returns profiles without crashing."""
+        mock_sb.auth.admin.list_users.side_effect = Exception("Supabase Auth API unavailable")
+
+        profiles_mock = MagicMock()
+        profiles_mock.data = [
+            {"id": PATIENT_ID, "full_name": "Jane Patient", "role": "patient", "is_active": True, "created_at": "2026-08-01T00:00:00Z"}
+        ]
+
+        def table_side_effect(table_name):
+            chain = MagicMock()
+            if table_name == "profiles":
+                chain.select.return_value.neq.return_value.order.return_value.execute.return_value = profiles_mock
+                chain.select.return_value.in_.return_value.execute.return_value = MagicMock(data=[])
+            elif table_name == "assignments":
+                chain.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+            return chain
+
+        mock_sb.table.side_effect = table_side_effect
+
+        response = client.get("/v1/admin/directory", headers=make_token("admin"))
+        assert response.status_code == 200
+        json_data = response.json()
+        assert json_data["success"] is True
+        assert len(json_data["data"]["items"]) == 1
+        assert json_data["data"]["items"][0]["email"] == ""
+
     def test_list_directory_forbidden_for_patient(self):
         response = client.get("/v1/admin/directory", headers=make_token("patient", PATIENT_ID))
         assert response.status_code == 403
@@ -81,6 +141,7 @@ class TestDirectoryList:
     def test_list_directory_forbidden_for_provider(self):
         response = client.get("/v1/admin/directory", headers=make_token("provider", PROVIDER_ID))
         assert response.status_code == 403
+
 
 
 class TestDirectoryUserDetail:
