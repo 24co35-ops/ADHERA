@@ -8,7 +8,7 @@ from app.auth.dependencies import get_current_user, require_role
 from app.core.exceptions import is_timeout_error
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
-from app.db.supabase import get_auth_email, get_auth_users_map, supabase
+from app.db.supabase import get_auth_users_map, supabase
 
 logger = logging.getLogger("adhera.provider")
 router = APIRouter()

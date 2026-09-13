@@ -21,7 +21,7 @@ from app.config import settings
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
 from app.core.utils import calculate_age, safe_csv_cell
-from app.db.supabase import get_auth_email, get_auth_users_map, supabase, supabase_auth
+from app.db.supabase import get_auth_users_map, supabase, supabase_auth
 from app.services.admin_client import admin_supabase
 from app.services.audit import log_audit_action
 

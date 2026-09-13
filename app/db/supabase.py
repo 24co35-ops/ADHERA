@@ -1,5 +1,7 @@
 import logging
 import os
+import threading
+import time
 
 from app.config import settings
 from supabase import Client, create_client
@@ -27,9 +29,6 @@ supabase_auth: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_A
 # ─────────────────────────────────────────────────────────────────────────────
 # In-memory Auth User Cache (Prevents repeated slow GoTrue round-trips)
 # ─────────────────────────────────────────────────────────────────────────────
-import threading
-import time
-
 _AUTH_CACHE_LOCK = threading.Lock()
 _AUTH_EMAIL_MAP: dict[str, str] = {}
 _AUTH_SIGNIN_MAP: dict[str, str | None] = {}
