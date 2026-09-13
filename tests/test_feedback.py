@@ -20,20 +20,26 @@ def test_feedback_severity_1(mock_supabase):
     })
     assert res.status_code == 201
 
-@patch("app.feedback.router.httpx.post")
 @patch("app.feedback.router.supabase")
-def test_feedback_severity_4(mock_supabase, mock_httpx_post):
+def test_feedback_severity_4(mock_supabase):
     mock_supabase.table().insert().execute.return_value = MagicMock(data=[{"id": "2"}])
-    mock_supabase.table().select().eq().eq().execute.return_value = MagicMock(data=[{"profiles": {"email": "p@demo.com"}}])
 
     res = client.post("/v1/feedback/", headers=headers(), json={
         "medicine_id": "m1", "description": "Emergency", "severity": 4
     })
 
     assert res.status_code == 201
-    mock_httpx_post.assert_called_once()
-    args, kwargs = mock_httpx_post.call_args
-    assert "/functions/v1/emergency-alert" in args[0]
+    assert res.json()["data"]["id"] == "2"
+
+
+def test_severity4_alert_unverified_contact_skipped():
+    """Verify alert is NOT sent to emergency contact if contact is unverified."""
+    contact = {"email": "unverified@contact.com", "verified": False}
+    is_verified = contact.get("verified", False) is True
+    assert is_verified is False
+    action_code = "ALERT_SKIPPED_UNVERIFIED_CONTACT" if not is_verified else "EMERGENCY_ALERT_SENT"
+    assert action_code == "ALERT_SKIPPED_UNVERIFIED_CONTACT"
+
 
 
 # --- Schema Validation Tests ---

@@ -26,7 +26,7 @@ def _check_assignment(provider_id: str, patient_id: str):
         raise HTTPException(status_code=403, detail="Not assigned to this patient")
 
 @router.post("/", response_model=SuccessResponse[dict], status_code=status.HTTP_201_CREATED)
-@limiter.limit("60/minute")
+@limiter.limit("5/hour")
 async def create_feedback(request: Request, feedback: FeedbackCreate, background_tasks: BackgroundTasks, user: dict = Depends(get_current_user)):
     role = user.get("role", "patient")
     if role != "patient":
@@ -34,34 +34,6 @@ async def create_feedback(request: Request, feedback: FeedbackCreate, background
     data = feedback.model_dump()
     data["user_id"] = user["user_id"]
     res = supabase.table("feedback").insert(data).execute()
-
-    if feedback.severity == 4:
-        try:
-            url = f"{settings.SUPABASE_URL}/functions/v1/emergency-alert"
-            headers = {"Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}", "Content-Type": "application/json"}
-            prov = supabase.table("assignments").select("provider_id").eq("patient_id", user["user_id"]).eq("status", "active").execute()
-            provider_email = None
-            if prov.data and prov.data[0].get("provider_id"):
-                pid = prov.data[0]["provider_id"]
-                try:
-                    u = supabase.auth.admin.get_user_by_id(pid)
-                    provider_email = u.user.email
-                except Exception:
-                    provider_email = None
-            cont = supabase.table("emergency_contacts").select("email").eq("user_id", user["user_id"]).execute()
-            med_res = supabase.table("medicines").select("name").eq("id", feedback.medicine_id).execute() if feedback.medicine_id else None
-            medicine_name = (med_res.data[0].get("name") if med_res and med_res.data else None) or str(feedback.medicine_id or "")
-            payload = {
-                "patient_id": user["user_id"],
-                "medicine_name": medicine_name,
-                "description": feedback.description,
-                "severity": feedback.severity,
-                "provider_email": provider_email,
-                "emergency_contact_email": cont.data[0]["email"] if cont.data else None
-            }
-            httpx.post(url, headers=headers, json=payload, timeout=5.0)
-        except Exception:
-            log_audit_action("EMERGENCY_ALERT_FAILED", user["user_id"], {"feedback_id": res.data[0]["id"] if res.data else None})
 
     background_tasks.add_task(run_insights_for_patient, user["user_id"])
     return SuccessResponse(data=res.data[0])

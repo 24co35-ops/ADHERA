@@ -41,20 +41,38 @@ serve(async (req) => {
       })
     }
 
-    // Email emergency contact
+    // Email emergency contact ONLY if verified (Emergency Contact Verification Gate)
     if (emergency_contact_email) {
-      await resend.emails.send({
-        from: "Adhera Alerts <alerts@adhera.app>",
-        to: emergency_contact_email,
-        subject,
-        html
-      })
-      await supabase.table("audit_log").insert({
-        actor_id: patient_id,
-        action_code: "EMERGENCY_ALERT_SENT",
-        target_id: null,
-        reason: `Sent to contact: ${emergency_contact_email}`
-      })
+      const { data: contactData } = await supabase
+        .table("emergency_contacts")
+        .select("verified")
+        .eq("user_id", patient_id)
+        .eq("email", emergency_contact_email)
+        .limit(1)
+        .maybeSingle()
+
+      const isVerified = Boolean(contactData?.verified)
+      if (isVerified) {
+        await resend.emails.send({
+          from: "Adhera Alerts <alerts@adhera.app>",
+          to: emergency_contact_email,
+          subject,
+          html
+        })
+        await supabase.table("audit_log").insert({
+          actor_id: patient_id,
+          action_code: "EMERGENCY_ALERT_SENT",
+          target_id: null,
+          reason: `Sent to contact: ${emergency_contact_email}`
+        })
+      } else {
+        await supabase.table("audit_log").insert({
+          actor_id: patient_id,
+          action_code: "ALERT_SKIPPED_UNVERIFIED_CONTACT",
+          target_id: null,
+          reason: `Emergency contact ${emergency_contact_email} is unverified`
+        })
+      }
     }
 
     clearTimeout(timeoutId)
