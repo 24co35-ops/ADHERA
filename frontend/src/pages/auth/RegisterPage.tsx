@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
-import { Activity, Mail, Lock, User as UserIcon, Calendar, Stethoscope, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, User as UserIcon, Calendar, Stethoscope, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { GlassCard } from '../../components/GlassCard';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import clsx from 'clsx';
@@ -78,9 +78,7 @@ export const RegisterPage: React.FC = () => {
 
       <div className="sm:mx-auto sm:w-full sm:max-w-lg z-10 px-4">
         <div className="flex flex-col items-center text-center">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-primary-dark via-primary to-primary-light flex items-center justify-center shadow-glow mb-3">
-            <Activity className="w-6 h-6 text-surface font-black" />
-          </div>
+          <img src="/assets/favicons/logo.svg" alt="Adhera logo" className="w-12 h-12 rounded-2xl shadow-glow mb-3" />
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
             {emailConfirmPending ? 'Check Your Inbox' : 'Create your Adhera Account'}
           </h2>

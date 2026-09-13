@@ -153,9 +153,14 @@ async def get_dashboard(request: Request, patient_id: str = Query(None), user: d
 
         today_total = len(adherence_res.data) + today_pending
 
+        def parse_ts(s):
+            return datetime.fromisoformat(s.replace("Z", "+00:00")) if s else datetime.min.replace(tzinfo=timezone.utc)
+
         res = supabase.table("adherence").select("status, scheduled_utc").eq("user_id", uid).execute()
-        w_data = [x for x in res.data if x.get('scheduled_utc', '') >= (now - timedelta(days=7)).isoformat()]
-        m_data = [x for x in res.data if x.get('scheduled_utc', '') >= (now - timedelta(days=30)).isoformat()]
+        cutoff_7 = now - timedelta(days=7)
+        cutoff_30 = now - timedelta(days=30)
+        w_data = [x for x in res.data if parse_ts(x.get('scheduled_utc')) >= cutoff_7]
+        m_data = [x for x in res.data if parse_ts(x.get('scheduled_utc')) >= cutoff_30]
         wr = get_rate(w_data)
         mr = get_rate(m_data)
         # Streak calculation
@@ -181,7 +186,7 @@ async def get_dashboard(request: Request, patient_id: str = Query(None), user: d
             else:
                 break
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        missed_this_month = len([x for x in res.data if x.get('status') == 'missed' and x.get('scheduled_utc', '') >= month_start.isoformat()])
+        missed_this_month = len([x for x in res.data if x.get('status') == 'missed' and parse_ts(x.get('scheduled_utc')) >= month_start])
         return SuccessResponse(data={
             "weekly_adherence": wr,
             "monthly_adherence": mr,
@@ -202,6 +207,9 @@ async def get_dashboard(request: Request, patient_id: str = Query(None), user: d
 @limiter.limit("60/minute")
 async def get_adherence(request: Request, patient_id: str = Query(None), user: dict = Depends(get_current_user)):
     try:
+        def parse_ts(s):
+            return datetime.fromisoformat(s.replace("Z", "+00:00")) if s else datetime.min.replace(tzinfo=timezone.utc)
+
         uid = _resolve_uid(user, patient_id)
         if uid is None:
             # Admin platform-wide
@@ -211,7 +219,8 @@ async def get_adherence(request: Request, patient_id: str = Query(None), user: d
             return SuccessResponse(data={"rate": get_rate(res.data), "overall_percentage": get_rate(res.data), "weekly_percentage": get_rate(res.data), "history": res.data[:50]})
         res = supabase.table("adherence").select("*").eq("user_id", uid).execute()
         now = datetime.now(timezone.utc)
-        w7 = [x for x in res.data if x.get('scheduled_utc', '') >= (now - timedelta(days=7)).isoformat()]
+        cutoff_7 = now - timedelta(days=7)
+        w7 = [x for x in res.data if parse_ts(x.get('scheduled_utc')) >= cutoff_7]
         return SuccessResponse(data={"rate": get_rate(res.data), "overall_percentage": get_rate(res.data), "weekly_percentage": get_rate(w7), "history": res.data})
     except HTTPException:
         raise

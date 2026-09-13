@@ -147,7 +147,7 @@ async def get_provider_dashboard(request: Request, user: dict = Depends(require_
             p_copy["age"] = calculate_age(p_copy.get("date_of_birth"))
             user_adh = patient_adh.get(pid, [])
             w_data = [x for x in user_adh if x['scheduled_utc'] >= d7]
-            weekly_percentage = get_rate(w_data) if w_data else (get_rate(user_adh) if user_adh else 80.0)
+            weekly_percentage = get_rate(w_data) if w_data else (get_rate(user_adh) if user_adh else 0.0)
             weekly_percentages.append(weekly_percentage)
 
             # Risk Level constant derivation

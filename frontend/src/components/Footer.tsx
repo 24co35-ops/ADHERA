@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, ShieldAlert, HeartHandshake } from 'lucide-react';
+import { ShieldAlert, HeartHandshake } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
@@ -8,9 +8,7 @@ export const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         {/* Brand & Copyright */}
         <div className="flex items-center space-x-2">
-          <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-            <Activity className="w-3.5 h-3.5" />
-          </div>
+          <img src="/assets/favicons/logo.svg" alt="Adhera logo" className="w-6 h-6 rounded-lg" />
           <span className="font-bold text-white tracking-tight">Adhera</span>
           <span className="text-on-surface-variant">© {new Date().getFullYear()} All rights reserved.</span>
         </div>

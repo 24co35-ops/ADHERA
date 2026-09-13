@@ -68,9 +68,7 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo & Brand */}
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigate('/')}>
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-primary-dark via-primary to-primary-light flex items-center justify-center shadow-glow">
-              <Activity className="w-5 h-5 text-surface font-black" />
-            </div>
+            <img src="/assets/favicons/logo.svg" alt="Adhera logo" className="w-9 h-9 rounded-xl shadow-glow" />
             <div className="flex flex-col">
               <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-on-surface to-primary bg-clip-text text-transparent">
                 Adhera

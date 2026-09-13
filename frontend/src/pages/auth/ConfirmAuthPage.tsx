@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Activity, CheckCircle2, AlertCircle, Mail, Send } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Mail, Send } from 'lucide-react';
 import { GlassCard } from '../../components/GlassCard';
 import { api, setTokens } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
@@ -77,9 +77,7 @@ export const ConfirmAuthPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-surface flex items-center justify-center p-4">
       <GlassCard className="max-w-md w-full text-center p-8 space-y-4 shadow-2xl">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-primary-dark via-primary to-primary-light flex items-center justify-center shadow-glow mx-auto mb-2">
-          <Activity className="w-6 h-6 text-surface font-black" />
-        </div>
+        <img src="/assets/favicons/logo.svg" alt="Adhera logo" className="w-12 h-12 rounded-2xl shadow-glow mx-auto mb-2" />
 
         {status === 'verifying' && (
           <div className="space-y-3">

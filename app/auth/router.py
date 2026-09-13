@@ -279,9 +279,10 @@ async def refresh(request: Request, body: RefreshRequest):
 
 @router.post("/logout", response_model=SuccessResponse[dict])
 @limiter.limit("10/minute")
-async def logout(request: Request):
+async def logout(request: Request, user: dict = Depends(get_current_user)):
+    token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
     try:
-        supabase_auth.auth.sign_out()
+        supabase_auth.auth.sign_out(token)
     except Exception:
         pass
     return SuccessResponse(data={"message": "Logged out."})

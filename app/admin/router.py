@@ -46,7 +46,9 @@ async def get_platform_stats(request: Request, user: dict = Depends(require_role
     except Exception:
         active_providers = 0
     try:
-        pending_providers = supabase.table("profiles").select("id", count="exact").eq("role", "provider").eq("is_active", False).execute().count or 0
+        suspended_ids = {r["actor_id"] for r in (supabase.table("audit_log").select("actor_id").eq("action_code", "USER_SUSPENDED").execute().data or [])}
+        all_inactive_providers = supabase.table("profiles").select("id").eq("role", "provider").eq("is_active", False).execute().data or []
+        pending_providers = len([r for r in all_inactive_providers if r.get("id") not in suspended_ids])
     except Exception:
         pending_providers = 0
     try:
@@ -483,15 +485,20 @@ async def reject_user(request: Request, id: str, body: RejectBody, user: dict = 
 @router.get("/pending-providers", response_model=SuccessResponse[list])
 @limiter.limit("60/minute")
 async def pending_providers(request: Request, user: dict = Depends(require_role("admin"))):
+    try:
+        suspended_ids = {r["actor_id"] for r in (supabase.table("audit_log").select("actor_id").eq("action_code", "USER_SUSPENDED").execute().data or [])}
+    except Exception:
+        suspended_ids = set()
     res = supabase.table("profiles").select("*").eq("role", "provider").eq("is_active", False).execute()
+    data = [r for r in (res.data or []) if r.get("id") not in suspended_ids]
     try:
         auth_users = supabase.auth.admin.list_users()
         email_map = {u.id: u.email for u in auth_users}
-        for p in res.data:
+        for p in data:
             p["email"] = email_map.get(p["id"])
     except Exception:
         pass
-    return SuccessResponse(data=res.data)
+    return SuccessResponse(data=data)
 
 
 @router.get("/audit-logs", response_model=SuccessResponse[list])

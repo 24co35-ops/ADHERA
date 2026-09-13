@@ -1,11 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
-from app.db.supabase import supabase
-
-supabase = supabase
 from app.auth.dependencies import get_current_user
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
+from app.db.supabase import supabase
 from app.medicines.schemas import MedicineCreate, MedicineUpdate
 from app.services.audit import log_audit_action
 
