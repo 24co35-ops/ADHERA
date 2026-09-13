@@ -108,3 +108,56 @@ class TestChatRouter:
     def test_chat_ingest_non_admin_forbidden(self):
         res = client.post("/v1/chat/ingest", headers=make_token(role="patient"))
         assert res.status_code == 403
+
+    @patch("app.chat.router.supabase")
+    def test_chat_query_hypertension_patient_no_diabetes_assumption(self, mock_sb):
+        """Test that a patient on blood pressure meds receives BP-specific guidance and NOT diabetes."""
+        mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[
+            {"id": "m1", "name": "Lisinopril", "dosage_amount": 10, "dosage_unit": "mg", "route": "oral", "frequency_type": "daily", "instructions": "Take in the morning"},
+            {"id": "m2", "name": "Amlodipine", "dosage_amount": 5, "dosage_unit": "mg", "route": "oral", "frequency_type": "daily", "instructions": None}
+        ])
+        mock_sb.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{}])
+
+        payload = {"message": "What should I know about taking my daily medicines and possible side effects?"}
+        res = client.post("/v1/chat/query", json=payload, headers=make_token())
+        assert res.status_code == 200
+        content = res.json()["data"]["content"]
+
+        # Must mention patient's actual medicines
+        assert "Lisinopril" in content
+        assert "Amlodipine" in content
+        # Must NOT assume or mention diabetes / metformin
+        assert "metformin" not in content.lower()
+        assert "type 2 diabetes" not in content.lower()
+        assert "hypoglycemia" not in content.lower()
+
+    @patch("app.chat.router.supabase")
+    def test_chat_query_empty_medicines(self, mock_sb):
+        """Test that a patient with 0 medicines gets generic adherence guidance without assuming diabetes."""
+        mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+        mock_sb.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{}])
+
+        payload = {"message": "How do I build a good medication adherence routine?"}
+        res = client.post("/v1/chat/query", json=payload, headers=make_token())
+        assert res.status_code == 200
+        content = res.json()["data"]["content"]
+
+        assert "No active medications" in content or "no active prescriptions" in content.lower()
+        assert "Consistency" in content or "scheduled" in content.lower()
+        assert "metformin" not in content.lower()
+        assert "type 2 diabetes" not in content.lower()
+
+    @patch("app.chat.router.supabase")
+    def test_chat_query_includes_adherence_and_feedback_context(self, mock_sb):
+        """Test that missed doses and recent symptoms are reflected in the response."""
+        # Setup mock returns for medicines, profiles, feedback, adherence
+        mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[
+            {"id": "m1", "name": "Atorvastatin", "dosage_amount": 20, "dosage_unit": "mg", "route": "oral", "frequency_type": "daily"}
+        ])
+        mock_sb.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{}])
+
+        payload = {"message": "What tips do you have for my routine?"}
+        res = client.post("/v1/chat/query", json=payload, headers=make_token())
+        assert res.status_code == 200
+        content = res.json()["data"]["content"]
+        assert "Atorvastatin" in content

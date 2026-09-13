@@ -29,6 +29,16 @@
 - **Common Side Effects**: Heart palpitations, tremors, insomnia, weight loss if dose is too high; fatigue and weight gain if dose is too low.
 - **Guidance**: Must be taken on an empty stomach with plain water at least 30–60 minutes before morning coffee, tea, or food.
 
+### Omeprazole / PPIs (Acid Reflux & GERD)
+
+- **Common Side Effects**: Mild headache, nausea, abdominal pain, constipation or diarrhea.
+- **Guidance**: Best taken 30–60 minutes before the first meal of the day.
+
+### Losartan / ARBs (Blood Pressure & Renal Protection)
+
+- **Common Side Effects**: Mild dizziness, nasal congestion, fatigue.
+- **Guidance**: Maintain consistent daily timing. Stay adequately hydrated.
+
 ## 2. Side Effect Severity Grading in ADHERA
 
 - **Level 1 (Mild)**: Noticeable but does not disrupt daily routine.

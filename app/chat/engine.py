@@ -255,66 +255,234 @@ class MedicalRAGEngine:
 
         return None
 
-    def generate_answer(self, query: str, context_chunks: List[Tuple[DocumentChunk, float]]) -> Tuple[str, List[SourceCitation]]:
-        """
-        Synthesizes a clean, document-grounded response using retrieved context chunks.
-        """
-        if not context_chunks:
-            answer = (
-                "I could not find specific clinical guidance in the Adhera medical reference base matching your exact query. "
-                "For your safety, please reach out to your prescribing doctor or pharmacist for guidance."
-                f"{DISCLAIMER}"
-            )
-            return answer, []
+    def _build_patient_context(self, patient_context: Optional[Dict[str, Any]], user_medicines: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+        """Normalizes patient context from router and user_medicines."""
+        ctx = patient_context or {}
+        meds = ctx.get("medicines") or user_medicines or []
+        profile = ctx.get("profile") or {}
+        feedback = ctx.get("recent_feedback") or []
+        adherence = ctx.get("adherence_summary") or {}
+        return {
+            "medicines": meds,
+            "profile": profile,
+            "recent_feedback": feedback,
+            "adherence_summary": adherence,
+        }
 
+    def _call_gemini(self, query: str, patient_summary: str, context_text: str) -> Optional[str]:
+        """Optional Gemini LLM call path if API key is present in environment."""
+        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            return None
+
+        try:
+            import httpx
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            system_instruction = (
+                "You are the ADHERA Medical Knowledge Assistant. Provide personalized, clinical, compassionate answers. "
+                "CRITICAL RULES:\n"
+                "1. ONLY discuss conditions and medications relevant to the patient's active regimen or explicitly asked in the query.\n"
+                "2. NEVER assume the patient has diabetes, hypertension, or any condition unless present in their regimen or query.\n"
+                "3. Reference their actual medicines, dosages, and adherence history where helpful.\n"
+                "4. Keep explanations concise, clear, and practical.\n"
+                "5. Never give direct diagnostic declarations or recommend dosage alterations."
+            )
+            prompt = (
+                f"### Patient Context:\n{patient_summary}\n\n"
+                f"### Clinical Knowledge Chunks:\n{context_text}\n\n"
+                f"### Patient Question:\n{query}"
+            )
+            payload = {
+                "system_instruction": {"parts": [{"text": system_instruction}]},
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"temperature": 0.2, "maxOutputTokens": 600}
+            }
+            res = httpx.post(url, json=payload, timeout=3.5)
+            if res.status_code == 200:
+                data = res.json()
+                text = data["candidates"][0]["content"]["parts"][0]["text"]
+                return text.strip()
+        except Exception as e:
+            logger.info("Gemini call skipped/failed, using deterministic synthesis: %s", str(e))
+        return None
+
+    def _synthesize_personalized_answer(
+        self,
+        query: str,
+        context_chunks: List[Tuple[DocumentChunk, float]],
+        patient_ctx: Dict[str, Any]
+    ) -> str:
+        """
+        Deterministic, highly personalized RAG synthesis tailored to the patient's actual regimen,
+        adherence pattern, and logged symptoms.
+        """
+        medicines = patient_ctx.get("medicines") or []
+        feedback = patient_ctx.get("recent_feedback") or []
+        adherence = patient_ctx.get("adherence_summary") or {}
+        q_lower = query.lower()
+
+        sections = []
+
+        # 1. Regimen Context Header
+        if medicines:
+            med_lines = []
+            for m in medicines:
+                name = m.get("name", "Prescription")
+                amt = m.get("dosage_amount")
+                unit = m.get("dosage_unit") or ""
+                freq = m.get("frequency_type") or m.get("frequency") or "daily"
+                dose_str = f" {amt} {unit}".strip() if amt else ""
+                inst = f" ({m['instructions']})" if m.get("instructions") else ""
+                med_lines.append(f"• **{name}**{dose_str} — {freq.capitalize()}{inst}")
+
+            sections.append(
+                "**Your Current Regimen:**\n" + "\n".join(med_lines)
+            )
+        else:
+            sections.append(
+                "**Your Current Regimen:**\n• No active medications currently recorded in your Adhera profile."
+            )
+
+        # 2. Personalized Guidance tailored to their specific medications
+        guidance_points = []
+        user_med_names = [m.get("name", "").lower() for m in medicines if m.get("name")]
+
+        # Match specific guidance for patient's medicines from knowledge base
+        for chunk, _ in context_chunks:
+            chunk_text = chunk.text
+            # Parse sub-sections in the chunk
+            subsections = re.split(r'\n(?=###?\s+)', chunk_text)
+            for sub in subsections:
+                sub_clean = sub.strip()
+                if not sub_clean:
+                    continue
+                sub_lower = sub_clean.lower()
+
+                # Determine relevance:
+                # A) Matches one of patient's active medicines
+                # B) Is general adherence/timing/missed dose/wellness guidance
+                # C) User explicitly mentioned the topic in their query
+                is_user_med = any(m_name in sub_lower for m_name in user_med_names)
+                is_general_adherence = any(k in sub_lower for k in [
+                    "missed dose", "consistency", "pairing with habits", "safe medication storage",
+                    "mental wellness", "daily routine & timing", "food requirements", "severity grading"
+                ])
+                is_explicitly_queried = any(word in sub_lower for word in q_lower.split() if len(word) > 4)
+
+                # Exclude drug/condition-specific chunks for drugs the patient is NOT taking unless explicitly queried
+                is_other_drug = any(other in sub_lower for other in ["metformin", "lisinopril", "amlodipine", "atorvastatin", "levothyroxine", "omeprazole", "losartan"])
+                if is_other_drug and not is_user_med and not is_explicitly_queried:
+                    continue
+
+                if is_user_med or is_general_adherence or is_explicitly_queried:
+                    # Clean markdown headers for inline bullet readability
+                    cleaned_lines = [l.strip() for l in sub_clean.split("\n") if l.strip()]
+                    cleaned_body = "\n".join(cleaned_lines[:5])
+                    if cleaned_body not in guidance_points:
+                        guidance_points.append(cleaned_body)
+
+        if guidance_points:
+            sections.append("### Clinical Guidance & Instructions:\n" + "\n\n".join(guidance_points[:3]))
+        else:
+            # Fallback general safety & adherence guidance
+            sections.append(
+                "### Clinical Guidance & Instructions:\n"
+                "• **Consistency**: Take your daily doses at the same scheduled time each day.\n"
+                "• **Missed Doses**: If you miss a dose, take it as soon as you remember. If it is close to your next scheduled dose, skip the missed dose. Never take a double dose.\n"
+                "• **Storage**: Store medications in a cool, dry place away from heat and direct moisture."
+            )
+
+        # 3. Adherence & Symptom Contextual Notes
+        notes = []
+        if adherence and adherence.get("missed_doses_7d", 0) > 0:
+            missed = adherence["missed_doses_7d"]
+            rate = adherence.get("weekly_rate")
+            rate_str = f" (weekly rate: {rate}%)" if rate is not None else ""
+            notes.append(
+                f"📊 **Adherence Note**: You have **{missed} missed dose{'s' if missed != 1 else ''}** recorded in the last 7 days{rate_str}. Pairing doses with daily anchors (like breakfast or brushing teeth) helps build steady habits."
+            )
+
+        if feedback:
+            latest_fb = feedback[0]
+            desc = latest_fb.get("description")
+            if desc:
+                notes.append(
+                    f"⚠️ **Recent Symptom Note**: You previously reported: *\"{desc}\"*. Please consult your healthcare provider if these symptoms persist or worsen."
+                )
+
+        if notes:
+            sections.append("\n\n".join(notes))
+
+        return "\n\n".join(sections)
+
+    def generate_answer(
+        self,
+        query: str,
+        context_chunks: List[Tuple[DocumentChunk, float]],
+        patient_context: Optional[Dict[str, Any]] = None
+    ) -> Tuple[str, List[SourceCitation]]:
+        """
+        Synthesizes a document-grounded response personalized to the patient's regimen.
+        """
+        ctx = self._build_patient_context(patient_context)
         citations = []
-        context_snippets = []
+        context_texts = []
+
         for chunk, score in context_chunks:
-            # Clean snippet for display
             clean_snippet = chunk.text.replace("\n", " ")[:200] + "..."
             citations.append(SourceCitation(
                 document_name=chunk.doc_name.replace(".md", "").replace("_", " ").title(),
                 snippet=clean_snippet,
                 score=round(float(score), 2)
             ))
-            context_snippets.append(chunk.text)
+            context_texts.append(chunk.text)
 
-        # High-quality synthesis based on retrieved medical context
-        top_chunk = context_chunks[0][0].text
-
-        # Extract most relevant paragraphs from top chunks
-        relevant_lines = []
-        for line in top_chunk.split("\n"):
-            line = line.strip()
-            if line and not line.startswith("#"):
-                relevant_lines.append(line)
-
-        summary_body = "\n".join(relevant_lines[:6]) if relevant_lines else top_chunk[:400]
-
-        answer = (
-            f"Based on Adhera's clinical reference guidelines:\n\n"
-            f"{summary_body}\n\n"
-            f"Please remember to log any symptoms in your daily Adhera tracker."
-            f"{DISCLAIMER}"
+        # 1. Try Gemini generation if API key is present
+        gemini_response = self._call_gemini(
+            query=query,
+            patient_summary=str(ctx),
+            context_text="\n\n---\n\n".join(context_texts[:3])
         )
 
+        if gemini_response:
+            answer = f"{gemini_response}{DISCLAIMER}"
+            return answer, citations
+
+        # 2. Deterministic Personalized Synthesis
+        personalized_body = self._synthesize_personalized_answer(query, context_chunks, ctx)
+        answer = f"{personalized_body}{DISCLAIMER}"
         return answer, citations
 
-    def process_query(self, query: str, user_medicines: Optional[List[Dict[str, Any]]] = None) -> Tuple[str, List[SourceCitation], Optional[SuggestedFeedback]]:
+    def process_query(
+        self,
+        query: str,
+        user_medicines: Optional[List[Dict[str, Any]]] = None,
+        patient_context: Optional[Dict[str, Any]] = None
+    ) -> Tuple[str, List[SourceCitation], Optional[SuggestedFeedback]]:
         """Main entry point for medical chat queries."""
         # 1. Guardrail validation
         refusal = self.check_guardrails(query)
         if refusal:
             return refusal, [], None
 
-        # 2. Semantic Document Retrieval
-        top_chunks = self.retrieve(query, top_k=3)
+        # 2. Build full patient context
+        norm_ctx = self._build_patient_context(patient_context, user_medicines)
+        active_meds = norm_ctx["medicines"]
 
-        # 3. Grounded Answer Synthesis
-        answer, citations = self.generate_answer(query, top_chunks)
+        # 3. Semantic Document Retrieval (augment query with active medicine names for better recall)
+        med_keywords = " ".join([m.get("name", "") for m in active_meds if m.get("name")])
+        retrieval_query = f"{query} {med_keywords}".strip()
+        top_chunks = self.retrieve(retrieval_query, top_k=4)
 
-        # 4. Side-effect correlation
-        suggested_feedback = self.detect_side_effects(query, user_medicines or [])
+        # Fallback to pure query retrieval if combined query yields no results
+        if not top_chunks:
+            top_chunks = self.retrieve(query, top_k=3)
+
+        # 4. Grounded, Personalized Answer Synthesis
+        answer, citations = self.generate_answer(query, top_chunks, norm_ctx)
+
+        # 5. Side-effect correlation
+        suggested_feedback = self.detect_side_effects(query, active_meds)
 
         return answer, citations, suggested_feedback
 

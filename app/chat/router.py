@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
@@ -37,12 +37,12 @@ async def query_medical_chat(
     if not user_id:
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    # Fetch active user medicines to correlate side effects
+    # 1. Fetch active medicines with full regimen details
     user_medicines: list[dict] = []
     try:
         med_res = (
             supabase.table("medicines")
-            .select("id, name, dosage_amount, dosage_unit")
+            .select("id, name, dosage_amount, dosage_unit, route, frequency_type, instructions")
             .eq("user_id", user_id)
             .eq("is_active", True)
             .execute()
@@ -51,10 +51,73 @@ async def query_medical_chat(
     except Exception as e:
         logger.warning("Could not fetch user medicines for chat context: %s", str(e))
 
+    # 2. Fetch basic profile info
+    user_profile: dict = {}
+    try:
+        prof_res = (
+            supabase.table("profiles")
+            .select("full_name, date_of_birth, blood_group, timezone")
+            .eq("id", user_id)
+            .execute()
+        )
+        if prof_res.data:
+            user_profile = prof_res.data[0]
+    except Exception as e:
+        logger.warning("Could not fetch user profile for chat context: %s", str(e))
+
+    # 3. Fetch recent feedback / side-effect logs (last 30 days)
+    user_feedback: list[dict] = []
+    try:
+        d30 = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        fb_res = (
+            supabase.table("feedback")
+            .select("severity, description, medicine_id, created_at")
+            .eq("user_id", user_id)
+            .gte("created_at", d30)
+            .order("created_at", desc=True)
+            .limit(5)
+            .execute()
+        )
+        user_feedback = fb_res.data or []
+    except Exception as e:
+        logger.warning("Could not fetch user feedback for chat context: %s", str(e))
+
+    # 4. Fetch adherence summary (last 7 days)
+    adherence_summary: dict = {}
+    try:
+        d7 = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        adh_res = (
+            supabase.table("adherence")
+            .select("status")
+            .eq("user_id", user_id)
+            .gte("scheduled_utc", d7)
+            .execute()
+        )
+        adh_data = adh_res.data or []
+        taken_count = sum(1 for r in adh_data if r.get("status") == "taken")
+        missed_count = sum(1 for r in adh_data if r.get("status") == "missed")
+        total_adh = taken_count + missed_count
+        weekly_rate = round((taken_count / total_adh) * 100) if total_adh > 0 else None
+        adherence_summary = {
+            "weekly_rate": weekly_rate,
+            "missed_doses_7d": missed_count,
+            "total_scheduled_7d": total_adh,
+        }
+    except Exception as e:
+        logger.warning("Could not fetch adherence summary for chat context: %s", str(e))
+
+    patient_context = {
+        "medicines": user_medicines,
+        "profile": user_profile,
+        "recent_feedback": user_feedback,
+        "adherence_summary": adherence_summary,
+    }
+
     # Process query through RAG Engine
     answer, citations, suggested_feedback = rag_engine.process_query(
         query=payload.message,
-        user_medicines=user_medicines
+        user_medicines=user_medicines,
+        patient_context=patient_context,
     )
 
     now_iso = datetime.now(timezone.utc).isoformat()
