@@ -101,20 +101,66 @@ async def dose_snooze(request: Request, reminder_id: str, user: dict = Depends(g
         raise HTTPException(status_code=404, detail="Reminder not found")
     reminder = rem_res.data[0]
     scheduled_utc = get_scheduled_utc_for_today(reminder)
-    today_start_utc = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-    snooze_count_res = supabase.table("adherence").select("id").eq("reminder_id", reminder_id).eq("user_id", user["user_id"]).eq("status", "snoozed").gte("scheduled_utc", today_start_utc).execute()
-    if len(snooze_count_res.data) >= 3:
-        raise HTTPException(status_code=422, detail="Maximum snooze count (3) reached for this dose.")
+
+    # Check previous snooze count in snooze_log
+    snooze_count = 0
+    try:
+        snooze_res = (
+            supabase.table("snooze_log")
+            .select("snooze_count")
+            .eq("reminder_id", reminder_id)
+            .eq("user_id", user["user_id"])
+            .eq("scheduled_utc", scheduled_utc)
+            .order("snooze_count", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if snooze_res.data and len(snooze_res.data) > 0:
+            snooze_count = int(snooze_res.data[0].get("snooze_count", 0))
+    except Exception as ex:
+        # Fallback to adherence table count if snooze_log query fails
+        try:
+            today_start_utc = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+            adh_snooze = (
+                supabase.table("adherence")
+                .select("id")
+                .eq("reminder_id", reminder_id)
+                .eq("user_id", user["user_id"])
+                .eq("status", "snoozed")
+                .gte("scheduled_utc", today_start_utc)
+                .execute()
+            )
+            snooze_count = len(adh_snooze.data or [])
+        except Exception:
+            snooze_count = 0
+
+    if snooze_count >= 3:
+        raise HTTPException(status_code=409, detail="Maximum snooze limit (3) reached for this dose.")
+
+    new_count = snooze_count + 1
     # Snooze = reschedule 10 minutes from now
-    snoozed_utc = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
+    snoozed_until = (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
+
+    try:
+        supabase.table("snooze_log").insert({
+            "reminder_id": reminder_id,
+            "user_id": user["user_id"],
+            "scheduled_utc": scheduled_utc,
+            "snoozed_at": datetime.now(timezone.utc).isoformat(),
+            "resume_at": snoozed_until,
+            "snooze_count": new_count
+        }).execute()
+    except Exception as log_err:
+        pass
+
     res = supabase.table("adherence").insert({
         "reminder_id": reminder_id,
         "user_id": user["user_id"],
         "scheduled_utc": scheduled_utc,
         "status": "snoozed",
-        "outcome_utc": snoozed_utc
+        "outcome_utc": snoozed_until
     }).execute()
-    return SuccessResponse(data=res.data[0])
+    return SuccessResponse(data=res.data[0] if res.data else {"snoozed": True, "snooze_count": new_count})
 
 @router.get("/upcoming", response_model=SuccessResponse[list])
 @limiter.limit("60/minute")

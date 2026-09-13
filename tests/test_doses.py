@@ -46,15 +46,36 @@ def test_dose_snooze_max_limit(mock_supabase):
     query_mock = MagicMock()
     query_mock.eq.return_value = query_mock
     query_mock.gte.return_value = query_mock
+    query_mock.order.return_value = query_mock
+    query_mock.limit.return_value = query_mock
     query_mock.execute.side_effect = [
         MagicMock(data=[{"user_id": "11111111-1111-1111-1111-111111111111", "dose_time_utc": "08:00:00"}]),
         MagicMock(data=[{"timezone": "UTC"}]),
-        MagicMock(data=[{"id": "s1"}, {"id": "s2"}, {"id": "s3"}])
+        MagicMock(data=[{"snooze_count": 3}])
     ]
     mock_supabase.table.return_value.select.return_value = query_mock
     res = client.post("/v1/doses/r1/snooze", headers=headers())
-    assert res.status_code == 422
-    assert "Maximum snooze count" in res.json()["error"]["message"]
+    assert res.status_code == 409
+    assert "Maximum snooze limit" in res.json()["error"]["message"]
+
+
+@patch("app.doses.router.supabase")
+def test_snooze_limit_enforced(mock_supabase):
+    """Verify 4th snooze returns HTTP 409."""
+    query_mock = MagicMock()
+    query_mock.eq.return_value = query_mock
+    query_mock.gte.return_value = query_mock
+    query_mock.order.return_value = query_mock
+    query_mock.limit.return_value = query_mock
+    query_mock.execute.side_effect = [
+        MagicMock(data=[{"user_id": "11111111-1111-1111-1111-111111111111", "dose_time_utc": "08:00:00"}]),
+        MagicMock(data=[{"timezone": "UTC"}]),
+        MagicMock(data=[{"snooze_count": 3}])
+    ]
+    mock_supabase.table.return_value.select.return_value = query_mock
+    res = client.post("/v1/doses/r1/snooze", headers=headers())
+    assert res.status_code == 409
+
 
 @patch("app.doses.router.supabase")
 def test_dose_snooze_not_found(mock_supabase):
