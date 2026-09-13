@@ -134,7 +134,7 @@ export const ProviderPatientDetail: React.FC = () => {
       setLoading(true);
       const [patientRes, medsRes, fbRes, flagsRes, adhRes, trendRes, wellnessRes] = await Promise.allSettled([
         api.get<Profile>(`/provider/patients/${id}`),
-        api.get<Medicine[]>(`/provider/patients/${id}/medicines`),
+        api.get<Medicine[]>(`/medicines/?patient_id=${id}`),
         api.get<Feedback[]>(`/feedback/?patient_id=${id}`),
         api.get<PatientFlag[]>(`/provider/patients/${id}/flags`),
         api.get<any>(`/analytics/adherence?patient_id=${id}`),
