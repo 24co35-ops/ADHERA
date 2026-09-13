@@ -42,6 +42,7 @@
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: #e2e2e8;
+    color-scheme: dark;
     transition: all 0.15s ease;
   }
   .glass-input:focus {
@@ -49,6 +50,10 @@
     border-color: #00dbe7;
     box-shadow: 0 0 0 2px rgba(0, 219, 231, 0.2);
     background: rgba(255, 255, 255, 0.05);
+  }
+  .glass-input option {
+    background-color: #1a1c23;
+    color: #e2e2e8;
   }
 
   .specular-border {

@@ -41,7 +41,7 @@ export const Modal: React.FC<ModalProps> = ({
   }[maxWidth];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/70 backdrop-blur-md transition-opacity"
@@ -51,12 +51,12 @@ export const Modal: React.FC<ModalProps> = ({
       {/* Modal Dialog */}
       <div
         className={clsx(
-          'relative w-full rounded-3xl glass-panel p-6 shadow-2xl border border-white/10 z-10 animate-in fade-in zoom-in-95 duration-150',
+          'relative w-full max-h-[calc(100dvh-2rem)] flex flex-col rounded-3xl glass-panel p-4 sm:p-6 shadow-2xl border border-white/10 z-10 animate-in fade-in zoom-in-95 duration-150 my-auto',
           maxWidthClass
         )}
       >
-        <div className="flex items-center justify-between pb-4 border-b border-white/10">
-          <h3 className="text-lg font-bold text-white tracking-tight">{title}</h3>
+        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-white/10 flex-shrink-0">
+          <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">{title}</h3>
           <button
             onClick={onClose}
             aria-label="Close dialog"
@@ -66,7 +66,7 @@ export const Modal: React.FC<ModalProps> = ({
           </button>
         </div>
 
-        <div className="mt-4">{children}</div>
+        <div className="mt-3 sm:mt-4 overflow-y-auto overscroll-contain pr-1 flex-1">{children}</div>
       </div>
     </div>
   );

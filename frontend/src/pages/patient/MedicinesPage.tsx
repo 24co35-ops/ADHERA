@@ -497,7 +497,7 @@ export const MedicinesPage: React.FC = () => {
                     if (fieldErrors.dosage_amount) setFieldErrors((prev) => ({ ...prev, dosage_amount: '' }));
                   }}
                   placeholder="e.g. 10"
-                  className={`w-2/3 px-3 py-2 rounded-xl glass-input text-sm ${
+                  className={`flex-[2] min-w-0 px-3 py-2 rounded-xl glass-input text-sm ${
                     fieldErrors.dosage_amount ? 'border-status-error focus:ring-status-error' : ''
                   }`}
                 />
@@ -509,7 +509,7 @@ export const MedicinesPage: React.FC = () => {
                     setDosageUnit(e.target.value as any);
                     if (fieldErrors.dosage_unit) setFieldErrors((prev) => ({ ...prev, dosage_unit: '' }));
                   }}
-                  className="w-1/3 px-3 py-2 rounded-xl glass-input text-sm bg-surface-container"
+                  className="flex-1 min-w-0 px-3 py-2 rounded-xl glass-input text-sm bg-surface-container"
                 >
                   <option value="mg">mg</option>
                   <option value="ml">ml</option>
@@ -688,7 +688,7 @@ export const MedicinesPage: React.FC = () => {
             <div className="space-y-2">
               {timings.map((timing, idx) => (
                 <div key={idx} className="p-3 rounded-xl bg-surface-container border border-white/5 space-y-2">
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     <select
                       id={`timing-label-${idx}`}
                       name={`timing_label_${idx}`}
@@ -698,7 +698,7 @@ export const MedicinesPage: React.FC = () => {
                         newT[idx].dose_label = e.target.value as any;
                         setTimings(newT);
                       }}
-                      className="px-2.5 py-1.5 rounded-lg glass-input text-xs bg-surface-container capitalize"
+                      className="w-full min-w-0 px-2.5 py-1.5 rounded-lg glass-input text-xs bg-surface-container capitalize"
                     >
                       <option value="morning">Morning</option>
                       <option value="afternoon">Afternoon</option>
@@ -716,10 +716,10 @@ export const MedicinesPage: React.FC = () => {
                         newT[idx].dose_time = e.target.value;
                         setTimings(newT);
                       }}
-                      className="px-2.5 py-1.5 rounded-lg glass-input text-xs text-white"
+                      className="w-full min-w-0 px-2.5 py-1.5 rounded-lg glass-input text-xs text-white"
                     />
 
-                    <div className="flex items-center space-x-1">
+                    <div className="col-span-2 sm:col-span-1 flex items-center gap-1.5">
                       <select
                         id={`timing-recurrence-${idx}`}
                         name={`timing_recurrence_${idx}`}
@@ -729,7 +729,7 @@ export const MedicinesPage: React.FC = () => {
                           newT[idx].recurrence_type = e.target.value as any;
                           setTimings(newT);
                         }}
-                        className="w-full px-2 py-1.5 rounded-lg glass-input text-xs bg-surface-container"
+                        className="w-full min-w-0 px-2 py-1.5 rounded-lg glass-input text-xs bg-surface-container"
                       >
                         <option value="daily">Daily</option>
                         <option value="weekday">Weekday</option>
@@ -740,7 +740,8 @@ export const MedicinesPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleRemoveTimingRow(idx)}
-                          className="p-1.5 text-status-error hover:bg-status-error/10 rounded-lg"
+                          className="p-1.5 text-status-error hover:bg-status-error/10 rounded-lg flex-shrink-0"
+                          aria-label="Remove timing slot"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -768,7 +769,7 @@ export const MedicinesPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="pt-4 flex items-center justify-end space-x-2">
+          <div className="pt-4 border-t border-white/10 flex items-center justify-end space-x-2">
             <button
               type="button"
               onClick={() => setModalOpen(false)}
