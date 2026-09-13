@@ -191,7 +191,9 @@ export const PrivacyPage: React.FC = () => {
               If you have any questions regarding this Privacy Policy, your medical data rights, or platform security practices, please contact our Data Protection Officer:
             </p>
             <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 font-mono text-xs text-primary">
-              privacy@adhera.health • security@adhera.health
+              <a href="mailto:24co35@aiemgoa.ac.in" style={{color:'var(--accent,#00dbe7)'}}>24co35@aiemgoa.ac.in</a>
+              {' • '}
+              <a href="mailto:ashwithshetty02012006@gmail.com" style={{color:'var(--accent,#00dbe7)'}}>ashwithshetty02012006@gmail.com</a>
             </div>
           </GlassCard>
         </div>
