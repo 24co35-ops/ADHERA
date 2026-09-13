@@ -55,16 +55,28 @@ export const DirectoryPage: React.FC = () => {
       const params = new URLSearchParams();
       params.set('page', page.toString());
       params.set('limit', limit.toString());
-      if (roleFilter) params.set('role', roleFilter);
-      if (statusFilter) params.set('status', statusFilter);
+      if (roleFilter && roleFilter !== 'all') params.set('role', roleFilter);
+      if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
       if (debouncedSearch) params.set('search', debouncedSearch);
 
-      const res = await api.get<DirectoryPageType<DirectoryUser>>(`/admin/directory?${params.toString()}`);
-      if (res.success && res.data) {
-        setUsers(res.data.items || []);
-        setTotal(res.data.total || 0);
+      const res = await api.get<any>(`/admin/directory?${params.toString()}`);
+      if (res && res.success && res.data) {
+        if (Array.isArray(res.data)) {
+          setUsers(res.data);
+          setTotal(res.data.length);
+        } else if (res.data.items && Array.isArray(res.data.items)) {
+          setUsers(res.data.items);
+          setTotal(typeof res.data.total === 'number' ? res.data.total : res.data.items.length);
+        } else {
+          setUsers([]);
+          setTotal(0);
+        }
+      } else if (Array.isArray(res)) {
+        setUsers(res);
+        setTotal(res.length);
       }
     } catch (err: any) {
+      console.error('[Directory] Failed to load directory:', err);
       addToast('error', err.message || 'Failed to load identity directory');
     } finally {
       setLoading(false);
