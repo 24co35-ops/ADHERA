@@ -1,14 +1,12 @@
 {
   "version": 2,
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 60
-    }
-  },
   "builds": [
     {
       "src": "api/index.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxDuration": 60
+      }
     },
     {
       "src": "frontend/package.json",
@@ -21,7 +19,15 @@
   "routes": [
     {
       "src": "/v1/(.*)",
-      "dest": "api/index.py"
+      "dest": "api/index.py",
+      "headers": {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1; mode=block",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload"
+      }
     },
     {
       "src": "/sw.js",
@@ -52,24 +58,16 @@
     },
     {
       "src": "/(.*)",
-      "dest": "frontend/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options",       "value": "nosniff" },
-        { "key": "X-Frame-Options",               "value": "DENY" },
-        { "key": "X-XSS-Protection",              "value": "1; mode=block" },
-        { "key": "Referrer-Policy",               "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy",            "value": "camera=(), microphone=(), geolocation=()" },
-        { "key": "Strict-Transport-Security",     "value": "max-age=63072000; includeSubDomains; preload" },
-        {
-          "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co https://api.resend.com https://generativelanguage.googleapis.com; frame-ancestors 'none';"
-        }
-      ]
+      "dest": "frontend/index.html",
+      "headers": {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1; mode=block",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co https://api.resend.com https://generativelanguage.googleapis.com; frame-ancestors 'none';"
+      }
     }
   ]
 }
