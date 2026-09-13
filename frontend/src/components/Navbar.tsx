@@ -44,7 +44,6 @@ export const Navbar: React.FC = () => {
 
   const providerLinks = [
     { to: '/provider', label: t('nav.provider'), icon: Users },
-    { to: '/provider/chat', label: t('nav.clinical_ai'), icon: Bot },
     { to: '/profile', label: t('nav.profile'), icon: UserIcon },
   ];
 

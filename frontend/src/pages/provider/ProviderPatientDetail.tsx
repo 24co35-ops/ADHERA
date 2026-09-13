@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
@@ -17,10 +17,23 @@ import {
   Sparkles,
   ShieldCheck,
   TrendingUp,
+  Bot,
+  Send,
+  X,
+  ShieldAlert,
 } from 'lucide-react';
+import clsx from 'clsx';
 import { Profile, Medicine, Feedback, PatientFlag, AdherenceLog } from '../../types';
 import { useI18n } from '../../lib/i18n';
 import { usePageMeta } from '../../hooks/usePageMeta';
+
+const CLINICAL_PROMPTS = [
+  'Summarise adherence pattern (last 30 days)',
+  'List reported side effects & severity',
+  'Draft consultation talking points',
+  'Analyze potential reasons for missed doses',
+  'Identify red flags & clinical risks',
+];
 
 export const ProviderPatientDetail: React.FC = () => {
   usePageMeta('Patient Medical Chart', 'Detailed patient medication compliance, adherence curve, and clinical flags.');
@@ -38,12 +51,67 @@ export const ProviderPatientDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
+  // Clinical AI Assistant State
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiMessages, setAiMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string; created_at: string }>>([]);
+  const [aiInput, setAiInput] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const aiEndRef = useRef<HTMLDivElement>(null);
+
   const addToast = (type: 'success' | 'warning' | 'error' | 'info', message: string) => {
     setToasts((prev) => [...prev, { id: Math.random().toString(36).substring(2, 9), type, message }]);
   };
 
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const handleSendAi = async (queryText?: string) => {
+    const text = queryText || aiInput;
+    if (!text.trim() || aiLoading || !id) return;
+
+    const userMsg = {
+      id: Math.random().toString(36).substring(2, 9),
+      role: 'user' as const,
+      content: text.trim(),
+      created_at: new Date().toISOString(),
+    };
+
+    setAiMessages((prev) => [...prev, userMsg]);
+    if (!queryText) setAiInput('');
+    setAiLoading(true);
+
+    try {
+      const res = await api.post<any>('/chat/query', {
+        message: userMsg.content,
+        patient_id: id,
+      });
+
+      if (res.success && res.data) {
+        setAiMessages((prev) => [
+          ...prev,
+          {
+            id: res.data.id || Math.random().toString(36).substring(2, 9),
+            role: 'assistant',
+            content: res.data.content,
+            created_at: res.data.created_at || new Date().toISOString(),
+          },
+        ]);
+      }
+    } catch (err: any) {
+      setAiMessages((prev) => [
+        ...prev,
+        {
+          id: Math.random().toString(36).substring(2, 9),
+          role: 'assistant',
+          content: err.message || 'Unable to connect to clinical decision support.',
+          created_at: new Date().toISOString(),
+        },
+      ]);
+    } finally {
+      setAiLoading(false);
+      setTimeout(() => aiEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    }
   };
 
   const loadPatientData = async () => {
@@ -117,7 +185,7 @@ export const ProviderPatientDetail: React.FC = () => {
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
 
       {/* Top Breadcrumb / Back Navigation */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <button
           onClick={() => navigate('/provider')}
           className="btn-press inline-flex items-center space-x-2 text-xs font-semibold text-on-surface-variant hover:text-white"
@@ -126,13 +194,26 @@ export const ProviderPatientDetail: React.FC = () => {
           <span>{t('provider.back_to_roster')}</span>
         </button>
 
-        <span
-          className={`risk-badge-pill ${
-            adherenceRate >= 80 ? 'low' : adherenceRate >= 70 ? 'moderate' : 'critical'
-          }`}
-        >
-          {t('provider.adherence_rate_label')}: {adherenceRate}%
-        </span>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setAiOpen(true)}
+            className="btn-press inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 font-bold text-xs shadow-glow transition-all"
+          >
+            <Bot className="w-4 h-4" />
+            <span>Ask Clinical AI</span>
+            <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded font-mono uppercase">
+              Patient Context
+            </span>
+          </button>
+
+          <span
+            className={`risk-badge-pill ${
+              adherenceRate >= 80 ? 'low' : adherenceRate >= 70 ? 'moderate' : 'critical'
+            }`}
+          >
+            {t('provider.adherence_rate_label')}: {adherenceRate}%
+          </span>
+        </div>
       </div>
 
       {/* Patient Header Card */}
@@ -314,6 +395,178 @@ export const ProviderPatientDetail: React.FC = () => {
           </div>
         </GlassCard>
       </div>
+
+      {/* ── PATIENT-CONTEXTUAL CLINICAL AI ASSISTANT DRAWER ── */}
+      {aiOpen && (
+        <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+            onClick={() => setAiOpen(false)}
+          />
+
+          {/* Drawer Panel */}
+          <div className="relative w-full max-w-xl bg-surface border-l border-white/10 shadow-2xl flex flex-col h-full z-10 animate-in slide-in-from-right duration-200">
+            {/* Header */}
+            <div className="p-4 border-b border-white/10 flex items-center justify-between bg-surface-container-low shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-glow">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-sm text-white">Clinical AI Assistant</h3>
+                    <span className="text-[10px] uppercase font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                      Decision Support
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-on-surface-variant flex items-center gap-1.5 mt-0.5">
+                    <span>Target: <strong className="text-white">{patient?.full_name || 'Selected Patient'}</strong></span>
+                    <span className="text-white/30">•</span>
+                    <span className="font-mono text-[10px] text-primary">{patient?.id ? `${patient.id.slice(0, 8)}...` : ''}</span>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setAiOpen(false)}
+                className="p-1.5 rounded-lg text-on-surface-variant hover:text-white hover:bg-white/10 transition-colors"
+                aria-label="Close assistant"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Injected Patient Context Pills */}
+            <div className="bg-white/[0.02] border-b border-white/5 px-4 py-2 flex flex-wrap items-center gap-2 text-[11px] shrink-0">
+              <span className="text-on-surface-variant font-semibold">Active Context:</span>
+              <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                {medicines.length} Active Rx
+              </span>
+              <span className="px-2 py-0.5 rounded bg-white/5 text-white font-medium">
+                {adherenceRate}% Adherence
+              </span>
+              {flags.length > 0 && (
+                <span className="px-2 py-0.5 rounded bg-status-warning/10 text-status-warning font-medium">
+                  {flags.length} AI Flag{flags.length > 1 ? 's' : ''}
+                </span>
+              )}
+              {feedback.length > 0 && (
+                <span className="px-2 py-0.5 rounded bg-status-error/10 text-status-error font-medium">
+                  {feedback.length} Adverse Event{feedback.length > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+
+            {/* Clinical Safety Disclaimer Banner */}
+            <div className="bg-primary/5 border-b border-primary/10 px-4 py-2 flex items-center gap-2 text-[11px] text-primary shrink-0">
+              <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+              <span>Restricted to patient-specific decision support. Does not replace clinical judgement.</span>
+            </div>
+
+            {/* Chat Stream */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {aiMessages.length === 0 ? (
+                <div className="text-center py-6 space-y-4">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mx-auto shadow-glow">
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-white">
+                      Ask about {patient?.full_name || 'this patient'}
+                    </h4>
+                    <p className="text-xs text-on-surface-variant max-w-sm mx-auto mt-1">
+                      Query adherence patterns, adverse events, or generate consultation talking points grounded in this patient's records.
+                    </p>
+                  </div>
+
+                  {/* Suggested Clinical Prompts */}
+                  <div className="pt-2 text-left space-y-2 max-w-md mx-auto">
+                    <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">
+                      Suggested Inquiries
+                    </span>
+                    {CLINICAL_PROMPTS.map((prompt) => (
+                      <button
+                        key={prompt}
+                        onClick={() => handleSendAi(prompt)}
+                        className="w-full text-left p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-primary/30 text-xs text-on-surface transition-all flex items-center justify-between group"
+                      >
+                        <span>{prompt}</span>
+                        <span className="text-primary opacity-0 group-hover:opacity-100 transition-opacity">&rarr;</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                aiMessages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={clsx('flex flex-col', msg.role === 'user' ? 'items-end' : 'items-start')}
+                  >
+                    <div className="flex items-start gap-2.5 max-w-[90%]">
+                      {msg.role === 'assistant' && (
+                        <div className="w-7 h-7 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center text-primary shrink-0 mt-0.5">
+                          <Bot className="w-3.5 h-3.5" />
+                        </div>
+                      )}
+                      <div
+                        className={clsx(
+                          'p-3.5 rounded-2xl text-xs leading-relaxed whitespace-pre-wrap shadow-sm',
+                          msg.role === 'user'
+                            ? 'bg-primary text-surface font-medium rounded-tr-sm'
+                            : 'bg-surface-container border border-white/10 text-on-surface rounded-tl-sm'
+                        )}
+                      >
+                        {msg.content}
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-on-surface-variant/60 mt-1 px-1">
+                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                ))
+              )}
+
+              {aiLoading && (
+                <div className="flex items-center gap-2 text-xs text-on-surface-variant py-2">
+                  <div className="w-5 h-5 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+                  <span>Synthesizing patient-contextual decision support...</span>
+                </div>
+              )}
+              <div ref={aiEndRef} />
+            </div>
+
+            {/* Input Bar */}
+            <div className="p-4 border-t border-white/10 bg-surface-container-low shrink-0">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendAi();
+                }}
+                className="flex items-center gap-2"
+              >
+                <input
+                  type="text"
+                  value={aiInput}
+                  onChange={(e) => setAiInput(e.target.value)}
+                  placeholder={`Ask about ${patient?.full_name || 'patient'}'s adherence or symptoms...`}
+                  disabled={aiLoading}
+                  className="flex-1 bg-surface-container border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-on-surface-variant focus:outline-none focus:border-primary/50 disabled:opacity-50"
+                />
+                <button
+                  type="submit"
+                  disabled={!aiInput.trim() || aiLoading}
+                  className="p-2.5 rounded-xl bg-primary text-surface hover:bg-primary-light disabled:opacity-30 transition-all shadow-glow shrink-0"
+                  aria-label="Send clinical inquiry"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

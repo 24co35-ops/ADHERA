@@ -18,6 +18,7 @@ class SuggestedFeedback(BaseModel):
 
 class ChatQueryRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000, description="User question to the medical assistant")
+    patient_id: Optional[str] = Field(None, description="Target patient ID (required for providers)")
 
 
 class ChatQueryResponse(BaseModel):

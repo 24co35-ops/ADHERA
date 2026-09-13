@@ -17,7 +17,6 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useI18n } from '../../lib/i18n';
-import { ChatDrawer } from '../../components/ChatDrawer';
 import { usePageMeta } from '../../hooks/usePageMeta';
 
 export const ProviderDashboard: React.FC = () => {
@@ -321,9 +320,6 @@ export const ProviderDashboard: React.FC = () => {
           </div>
         )}
       </GlassCard>
-
-      {/* Floating Medical AI Assistant */}
-      <ChatDrawer />
     </div>
   );
 };

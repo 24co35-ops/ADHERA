@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { useI18n } from '../../lib/i18n';
@@ -17,6 +17,9 @@ import {
   ChevronUp,
   ExternalLink,
   Trash2,
+  Users,
+  ArrowLeft,
+  User as UserIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -49,15 +52,28 @@ const SAMPLE_QUESTIONS = [
   'How do my medicines interact with vitamins or supplements?',
 ];
 
+const PROVIDER_PROMPTS = [
+  'Summarise adherence pattern (last 30 days)',
+  'List reported side effects & severity',
+  'Draft consultation talking points',
+  'Analyze potential reasons for missed doses',
+  'Identify red flags & clinical risks',
+];
+
 export const ChatPage: React.FC = () => {
   const { user, role } = useAuthStore();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const searchParams = new URLSearchParams(location.search);
+  const patientId = searchParams.get('patient_id');
+
   usePageMeta(
-    role === 'provider' ? 'Clinical AI Assistant' : 'AI Health Assistant',
+    role === 'provider' ? 'Clinical Decision Support' : 'AI Health Assistant',
     'Ask questions about your medication schedules, side effects, drug precautions, and adherence tips.'
   );
   const { t } = useI18n();
-  const navigate = useNavigate();
 
+  const [patientData, setPatientData] = useState<any>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputQuery, setInputQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -69,17 +85,33 @@ export const ChatPage: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  useEffect(() => {
+    if (role === 'provider' && patientId) {
+      api.get<any>(`/provider/patients/${patientId}`).then((res) => {
+        if (res.success && res.data) {
+          setPatientData(res.data);
+        }
+      }).catch((err) => console.warn('Could not fetch patient info:', err));
+    }
+  }, [role, patientId]);
+
   const loadHistory = async () => {
+    if (role === 'provider' && !patientId) return;
     try {
-      const res = await api.get<ChatMessage[]>('/chat/history');
+      const url = patientId ? `/chat/history?patient_id=${patientId}` : '/chat/history';
+      const res = await api.get<ChatMessage[]>(url);
       if (res.success && res.data && res.data.length > 0) {
         setMessages(res.data);
       } else {
+        const greeting = role === 'provider'
+          ? `Clinical Decision Support active for ${patientData?.full_name || 'selected patient'}. Ask for adherence patterns, side effects, or consultation talking points.`
+          : `Hello ${user?.full_name || ''}! I am your clinical reference assistant on Adhera. I can answer questions regarding medication routines, missed doses, expected side effects, and lifestyle guidelines based directly on clinical literature.`;
+
         setMessages([
           {
             id: 'welcome',
             role: 'assistant',
-            content: `Hello ${user?.full_name || ''}! I am your clinical reference assistant on Adhera. I can answer questions regarding medication routines, missed doses, expected side effects, and lifestyle guidelines based directly on clinical literature.`,
+            content: greeting,
             created_at: new Date().toISOString(),
           },
         ]);
@@ -91,7 +123,7 @@ export const ChatPage: React.FC = () => {
 
   useEffect(() => {
     loadHistory();
-  }, []);
+  }, [patientId, patientData]);
 
   useEffect(() => {
     scrollToBottom();
@@ -100,6 +132,10 @@ export const ChatPage: React.FC = () => {
   const handleSend = async (queryText?: string) => {
     const text = queryText || inputQuery;
     if (!text.trim() || loading) return;
+
+    if (role === 'provider' && !patientId) {
+      return;
+    }
 
     const userMsg: ChatMessage = {
       id: Math.random().toString(36).substring(2, 9),
@@ -113,7 +149,12 @@ export const ChatPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const res = await api.post<any>('/chat/query', { message: userMsg.content });
+      const body: any = { message: userMsg.content };
+      if (role === 'provider' && patientId) {
+        body.patient_id = patientId;
+      }
+
+      const res = await api.post<any>('/chat/query', body);
       if (res.success && res.data) {
         setMessages((prev) => [
           ...prev,
@@ -127,14 +168,14 @@ export const ChatPage: React.FC = () => {
           },
         ]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Chat query failed:', err);
       setMessages((prev) => [
         ...prev,
         {
           id: Math.random().toString(36).substring(2, 9),
           role: 'assistant',
-          content: 'Unable to reach the clinical knowledge base. Please consult your physician.',
+          content: err.message || 'Unable to reach the clinical decision support service.',
           created_at: new Date().toISOString(),
         },
       ]);
@@ -153,22 +194,102 @@ export const ChatPage: React.FC = () => {
     navigate(`/feedback?${params.toString()}`);
   };
 
+  // Provider empty state when no patient is selected
+  if (role === 'provider' && !patientId) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16">
+        <GlassCard className="p-8 sm:p-12 text-center space-y-6 shadow-2xl border-white/10">
+          <div className="w-16 h-16 rounded-3xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mx-auto shadow-glow">
+            <Users className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-2 max-w-md mx-auto">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+              Select a Patient First
+            </h2>
+            <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+              To prevent ungrounded generic advice, the Clinical AI Assistant operates strictly within a selected patient's active medical chart and adherence records.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 text-xs text-on-surface-variant max-w-md mx-auto text-left space-y-2">
+            <div className="flex items-center gap-2 text-white font-semibold">
+              <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
+              <span>Contextual Decision Support Features</span>
+            </div>
+            <ul className="list-disc list-inside space-y-1 text-on-surface-variant pl-1">
+              <li>Summarise 30-day adherence patterns & missed dose clustering</li>
+              <li>Track patient-reported adverse events & severity</li>
+              <li>Draft tailored consultation talking points</li>
+            </ul>
+          </div>
+
+          <div className="pt-2">
+            <Link
+              to="/provider"
+              className="inline-flex items-center space-x-2 px-6 py-3 rounded-xl bg-primary text-surface font-bold text-xs shadow-glow hover:bg-primary-light transition-all"
+            >
+              <Users className="w-4 h-4" />
+              <span>Open Patient Roster</span>
+            </Link>
+          </div>
+        </GlassCard>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 h-[calc(100vh-6rem)] flex flex-col">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 shrink-0">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
-            <Bot className="w-7 h-7 text-primary" />
-            <span>{t('chat.title')}</span>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
+              <Bot className="w-7 h-7 text-primary" />
+              <span>{role === 'provider' ? 'Clinical Decision Support' : t('chat.title')}</span>
+            </h1>
             <span className="text-xs uppercase font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/20">
-              RAG Grounded
+              {role === 'provider' ? 'Patient Context' : 'RAG Grounded'}
             </span>
-          </h1>
-          <p className="text-xs sm:text-sm text-on-surface-variant mt-1">
-            {t('chat.subtitle')}
-          </p>
+          </div>
+
+          {role === 'provider' && patientData ? (
+            <div className="flex items-center gap-2 mt-1 text-xs text-on-surface-variant">
+              <span>Patient: <strong className="text-white">{patientData.full_name}</strong></span>
+              <span>•</span>
+              <span className="font-mono text-[11px] text-primary">{patientId}</span>
+              {patientData.age && (
+                <>
+                  <span>•</span>
+                  <span>Age: {patientData.age}</span>
+                </>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs sm:text-sm text-on-surface-variant mt-1">
+              {t('chat.subtitle')}
+            </p>
+          )}
         </div>
+
+        {role === 'provider' && patientId && (
+          <div className="flex items-center gap-2">
+            <Link
+              to={`/provider/patient/${patientId}`}
+              className="btn-press px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-semibold flex items-center gap-1.5 border border-white/10"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Patient Chart</span>
+            </Link>
+            <Link
+              to="/provider"
+              className="btn-press px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-on-surface-variant text-xs font-semibold flex items-center gap-1.5 border border-white/10"
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Switch Patient</span>
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Main Chat Container */}
@@ -177,7 +298,9 @@ export const ChatPage: React.FC = () => {
         <div className="bg-primary/5 border-b border-primary/10 px-4 py-2.5 flex items-center gap-2 text-xs text-primary shrink-0">
           <ShieldCheck className="w-4 h-4 shrink-0" />
           <span>
-            {t('chat.disclaimer')}
+            {role === 'provider'
+              ? 'Restricted to patient-specific decision support. Does not replace clinical judgement.'
+              : t('chat.disclaimer')}
           </span>
         </div>
 
@@ -289,10 +412,10 @@ export const ChatPage: React.FC = () => {
         {messages.length <= 2 && (
           <div className="p-3 border-t border-white/5 bg-surface-container-lowest/40 shrink-0">
             <span className="text-[10px] uppercase font-bold text-on-surface-variant mb-1.5 block">
-              Suggested Topics:
+              {role === 'provider' ? 'Suggested Patient Inquiries:' : 'Suggested Topics:'}
             </span>
             <div className="flex flex-wrap gap-2">
-              {SAMPLE_QUESTIONS.map((q, idx) => (
+              {(role === 'provider' ? PROVIDER_PROMPTS : SAMPLE_QUESTIONS).map((q, idx) => (
                 <button
                   key={idx}
                   type="button"
