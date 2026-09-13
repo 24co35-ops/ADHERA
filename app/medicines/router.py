@@ -7,13 +7,34 @@ from app.db.supabase import supabase
 from app.medicines.schemas import MedicineCreate, MedicineUpdate
 from app.services.audit import log_audit_action
 
+import logging
+from collections import Counter
+from datetime import datetime, timedelta, timezone
+
+logger = logging.getLogger("adhera.medicines")
 router = APIRouter()
 
 def _check_assignment(provider_id: str, patient_id: str):
-    """Verify provider is assigned to patient. Raises 403 if not."""
-    res = supabase.table("assignments").select("id").eq("provider_id", provider_id).eq("patient_id", patient_id).eq("status", "active").execute()
-    if not res.data:
-        raise HTTPException(status_code=403, detail="Not assigned to this patient")
+    """Verify provider is assigned to patient. Raises 403 or 504 on failure."""
+    try:
+        res = (
+            supabase.table("assignments")
+            .select("id")
+            .eq("provider_id", provider_id)
+            .eq("patient_id", patient_id)
+            .eq("status", "active")
+            .execute()
+        )
+        if not res.data:
+            raise HTTPException(status_code=403, detail="Not assigned to this patient")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error checking assignment %s -> %s: %s", provider_id, patient_id, str(e))
+        from app.core.exceptions import is_timeout_error
+        if is_timeout_error(e):
+            raise HTTPException(status_code=504, detail="Database timeout checking patient assignment")
+        raise HTTPException(status_code=503, detail="Unable to verify patient assignment")
 
 def _resolve_user_id(user: dict, patient_id: str = None):
     """Resolve the target user_id based on role and patient_id param."""
@@ -51,13 +72,30 @@ async def create_medicine(request: Request, medicine: MedicineCreate, user: dict
 @limiter.limit("60/minute")
 async def list_medicines(request: Request, patient_id: str = Query(None), user: dict = Depends(get_current_user)):
     uid = _resolve_user_id(user, patient_id)
-    res = supabase.table("medicines").select("*").eq("user_id", uid).eq("is_active", True).execute()
-    medicines = res.data or []
+    try:
+        res = supabase.table("medicines").select("*").eq("user_id", uid).eq("is_active", True).execute()
+        medicines = res.data or []
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error fetching medicines for %s: %s", uid, str(e), exc_info=True)
+        from app.core.exceptions import is_timeout_error
+        if is_timeout_error(e):
+            raise HTTPException(status_code=504, detail="Database query timed out while loading medicines.")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch medicines: {str(e)}")
 
     try:
-        from collections import Counter
+        d30 = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
         reminders_res = supabase.table("reminders").select("*").eq("user_id", uid).eq("is_active", True).execute()
-        adherence_res = supabase.table("adherence").select("reminder_id").eq("user_id", uid).eq("status", "missed").execute()
+        adherence_res = (
+            supabase.table("adherence")
+            .select("reminder_id")
+            .eq("user_id", uid)
+            .eq("status", "missed")
+            .gte("scheduled_utc", d30)
+            .limit(500)
+            .execute()
+        )
 
         reminders_by_med: dict[str, list] = {}
         reminder_med_map: dict[str, str] = {}
@@ -80,7 +118,8 @@ async def list_medicines(request: Request, patient_id: str = Query(None), user: 
                 med["dosage"] = f"{med.get('dosage_amount', '')} {med.get('dosage_unit', '')}".strip()
             if "frequency" not in med:
                 med["frequency"] = med.get("frequency_type", "")
-    except Exception:
+    except Exception as enrich_err:
+        logger.warning("Could not enrich medicines with reminders/adherence for %s: %s", uid, str(enrich_err))
         for med in medicines:
             med["missed_count"] = 0
             med["reminders"] = []

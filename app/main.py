@@ -32,13 +32,21 @@ from slowapi.middleware import SlowAPIMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
+import httpx
+from postgrest.exceptions import APIError
+
 from app.admin.router import router as admin_router
 from app.analytics.router import router as analytics_router
 from app.auth.dependencies import prime_jwks_cache
 from app.auth.router import router as auth_router
 from app.chat.router import router as chat_router
 from app.config import settings
-from app.core.exceptions import create_error_response, global_exception_handler
+from app.core.exceptions import (
+    create_error_response,
+    global_exception_handler,
+    postgrest_exception_handler,
+    timeout_exception_handler,
+)
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
 from app.db.supabase import supabase
@@ -147,8 +155,10 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         403: "FORBIDDEN",
         404: "NOT_FOUND",
         409: "CONFLICT",
+        422: "VALIDATION_ERROR",
         429: "RATE_LIMITED",
-        503: "SERVICE_UNAVAILABLE"
+        503: "SERVICE_UNAVAILABLE",
+        504: "GATEWAY_TIMEOUT",
     }
     code = code_map.get(exc.status_code, "SERVICE_UNAVAILABLE")
     if isinstance(exc.detail, dict):
@@ -185,6 +195,8 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         details=details,
     )
 
+app.add_exception_handler(APIError, postgrest_exception_handler)
+app.add_exception_handler(httpx.TimeoutException, timeout_exception_handler)
 app.add_exception_handler(Exception, global_exception_handler)
 
 @app.get("/v1/health", response_model=SuccessResponse[dict])
