@@ -46,6 +46,15 @@ async def dose_taken(request: Request, reminder_id: str, background_tasks: Backg
     reminder = rem_res.data[0]
     scheduled_utc = get_scheduled_utc_for_today(reminder)
 
+    try:
+        existing = supabase.table("adherence").select("id") \
+            .eq("reminder_id", reminder_id).eq("user_id", user["user_id"]) \
+            .eq("status", "taken").eq("scheduled_utc", scheduled_utc).execute()
+        if existing and isinstance(existing.data, list) and existing.data:
+            return SuccessResponse(data=existing.data[0])
+    except Exception:
+        pass
+
     res = supabase.table("adherence").insert({
         "reminder_id": reminder_id,
         "user_id": user["user_id"],
@@ -64,6 +73,15 @@ async def dose_missed(request: Request, reminder_id: str, background_tasks: Back
         raise HTTPException(status_code=404, detail="Reminder not found")
     reminder = rem_res.data[0]
     scheduled_utc = get_scheduled_utc_for_today(reminder)
+
+    try:
+        existing = supabase.table("adherence").select("id") \
+            .eq("reminder_id", reminder_id).eq("user_id", user["user_id"]) \
+            .eq("status", "missed").eq("scheduled_utc", scheduled_utc).execute()
+        if existing and isinstance(existing.data, list) and existing.data:
+            return SuccessResponse(data=existing.data[0])
+    except Exception:
+        pass
 
     res = supabase.table("adherence").insert({
         "reminder_id": reminder_id,
@@ -178,7 +196,13 @@ async def doses_upcoming(request: Request, user: dict = Depends(get_current_user
                 is_completed = False
                 for comp_rem_id, comp_dt in completed:
                     if comp_rem_id == reminder["id"]:
+                        # Same UTC slot (normal idempotency)
                         if abs((comp_dt - occurrence_utc).total_seconds()) < 60:
+                            is_completed = True
+                            break
+                        # DST fallback: different UTC but same local wall-clock time
+                        comp_local = comp_dt.astimezone(user_tz)
+                        if comp_local.time() == occurrence_local.time() and comp_local.date() == occurrence_local.date():
                             is_completed = True
                             break
 

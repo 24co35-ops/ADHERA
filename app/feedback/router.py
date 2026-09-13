@@ -49,9 +49,11 @@ async def create_feedback(request: Request, feedback: FeedbackCreate, background
                 except Exception:
                     provider_email = None
             cont = supabase.table("emergency_contacts").select("email").eq("user_id", user["user_id"]).execute()
+            med_res = supabase.table("medicines").select("name").eq("id", feedback.medicine_id).execute() if feedback.medicine_id else None
+            medicine_name = (med_res.data[0].get("name") if med_res and med_res.data else None) or str(feedback.medicine_id or "")
             payload = {
                 "patient_id": user["user_id"],
-                "medicine_name": feedback.medicine_id,
+                "medicine_name": medicine_name,
                 "description": feedback.description,
                 "severity": feedback.severity,
                 "provider_email": provider_email,
