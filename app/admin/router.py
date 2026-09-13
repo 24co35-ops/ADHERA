@@ -36,6 +36,7 @@ router = APIRouter()
 @router.get("/stats")
 @limiter.limit("60/minute")
 async def get_platform_stats(request: Request, user: dict = Depends(require_role("admin"))):
+    from datetime import timedelta
     try:
         total_users = supabase.table("profiles").select("id", count="exact").execute().count or 0
     except Exception:
@@ -57,9 +58,12 @@ async def get_platform_stats(request: Request, user: dict = Depends(require_role
     except Exception:
         total_medicines = 0
     try:
-        adherence_data = supabase.table("adherence").select("status").execute().data or []
-        taken = sum(1 for r in adherence_data if r.get("status") == "taken")
-        rate = round((taken / len(adherence_data)) * 100) if adherence_data else 0
+        # ponytail: count taken/missed separately for rate — avoids fetching all rows
+        d90 = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
+        taken_count = supabase.table("adherence").select("id", count="exact").eq("status", "taken").gte("scheduled_utc", d90).execute().count or 0
+        missed_count = supabase.table("adherence").select("id", count="exact").eq("status", "missed").gte("scheduled_utc", d90).execute().count or 0
+        total_final = taken_count + missed_count
+        rate = round((taken_count / total_final) * 100) if total_final else 0
     except Exception:
         rate = 0
     try:
@@ -140,8 +144,10 @@ async def mark_feedback_reviewed(request: Request, feedback_id: str, user: dict 
 @router.get("/analytics/adherence-trend")
 @limiter.limit("30/minute")
 async def adherence_trend(request: Request, user: dict = Depends(require_role("admin"))):
+    from datetime import timedelta
     try:
-        result = supabase.table("adherence").select("status, created_at").order("created_at").execute()
+        d30 = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        result = supabase.table("adherence").select("status, created_at").gte("created_at", d30).order("created_at").execute()
         daily: dict = defaultdict(lambda: {"taken": 0, "total": 0})
         for r in (result.data or []):
             day = (r.get("created_at") or "")[:10]
@@ -151,7 +157,7 @@ async def adherence_trend(request: Request, user: dict = Depends(require_role("a
                     daily[day]["taken"] += 1
         trend = [
             {"date": d, "rate": round(v["taken"] / v["total"] * 100) if v["total"] > 0 else 0}
-            for d, v in sorted(daily.items())[-30:]
+            for d, v in sorted(daily.items())
         ]
     except Exception:
         trend = []
@@ -173,15 +179,17 @@ async def top_side_effects(request: Request, user: dict = Depends(require_role("
 @router.get("/analytics/daily-active-users")
 @limiter.limit("30/minute")
 async def daily_active_users(request: Request, user: dict = Depends(require_role("admin"))):
+    from datetime import timedelta
     try:
-        result = supabase.table("adherence").select("user_id, created_at").order("created_at").execute()
+        d30 = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        result = supabase.table("adherence").select("user_id, created_at").gte("created_at", d30).order("created_at").execute()
         daily: dict = defaultdict(set)
         for r in (result.data or []):
             day = (r.get("created_at") or "")[:10]
             uid = r.get("user_id")
             if day and uid:
                 daily[day].add(uid)
-        dau = [{"date": d, "users": len(uids)} for d, uids in sorted(daily.items())[-30:]]
+        dau = [{"date": d, "users": len(uids)} for d, uids in sorted(daily.items())]
     except Exception:
         dau = []
     return SuccessResponse(data=dau)

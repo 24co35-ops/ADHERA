@@ -1,32 +1,35 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Navbar } from './components/Navbar';
 
-// Auth Pages
+// Auth Pages — eager (needed immediately)
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { ConfirmAuthPage } from './pages/auth/ConfirmAuthPage';
 
-// Patient Pages
-import { PatientDashboard } from './pages/patient/PatientDashboard';
-import { MedicinesPage } from './pages/patient/MedicinesPage';
-import { FeedbackPage } from './pages/patient/FeedbackPage';
-import { WellnessPage } from './pages/patient/WellnessPage';
-import { ProfilePage } from './pages/patient/ProfilePage';
-import { ChatPage } from './pages/chat/ChatPage';
+// All other pages — lazy loaded (split into separate async chunks)
+const PatientDashboard = lazy(() => import('./pages/patient/PatientDashboard').then(m => ({ default: m.PatientDashboard })));
+const MedicinesPage = lazy(() => import('./pages/patient/MedicinesPage').then(m => ({ default: m.MedicinesPage })));
+const FeedbackPage = lazy(() => import('./pages/patient/FeedbackPage').then(m => ({ default: m.FeedbackPage })));
+const WellnessPage = lazy(() => import('./pages/patient/WellnessPage').then(m => ({ default: m.WellnessPage })));
+const ProfilePage = lazy(() => import('./pages/patient/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const ChatPage = lazy(() => import('./pages/chat/ChatPage').then(m => ({ default: m.ChatPage })));
+const ProviderDashboard = lazy(() => import('./pages/provider/ProviderDashboard').then(m => ({ default: m.ProviderDashboard })));
+const ProviderPatientDetail = lazy(() => import('./pages/provider/ProviderPatientDetail').then(m => ({ default: m.ProviderPatientDetail })));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const DirectoryPage = lazy(() => import('./pages/admin/DirectoryPage').then(m => ({ default: m.DirectoryPage })));
+const DirectoryUserDetail = lazy(() => import('./pages/admin/DirectoryUserDetail').then(m => ({ default: m.DirectoryUserDetail })));
 
-// Provider Pages
-import { ProviderDashboard } from './pages/provider/ProviderDashboard';
-import { ProviderPatientDetail } from './pages/provider/ProviderPatientDetail';
+const PageLoader = () => (
+  <div className="min-h-screen bg-surface flex items-center justify-center">
+    <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin shadow-glow" />
+  </div>
+);
 
-// Admin Pages
-import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { DirectoryPage } from './pages/admin/DirectoryPage';
-import { DirectoryUserDetail } from './pages/admin/DirectoryUserDetail';
 
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
@@ -71,6 +74,7 @@ export const App: React.FC = () => {
 
   return (
     <BrowserRouter>
+      <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* Public Auth Routes */}
         <Route path="/login" element={<LoginPage />} />
@@ -211,6 +215,7 @@ export const App: React.FC = () => {
         <Route path="/" element={<RootRedirect />} />
         <Route path="*" element={<RootRedirect />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 };
