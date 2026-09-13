@@ -452,3 +452,97 @@ class TestDashboardPatientCount:
 
         # Flags degrade gracefully to empty list
         assert data["insight_flags"] == []
+
+
+# ── /provider/patients/{id}/wellness ──────────────────────────────────────────
+
+class TestGetPatientWellness:
+    @patch("app.provider.router.supabase")
+    def test_assigned_provider_with_sessions(self, mock_sb):
+        from datetime import datetime, timedelta, timezone
+        now = datetime.now(timezone.utc)
+
+        def table_side_effect(table_name):
+            mock_table = MagicMock()
+            if table_name == "assignments":
+                mock_table.select.return_value.eq.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+                    data=[{"id": "a1"}]
+                )
+            elif table_name == "wellness_sessions":
+                mock_table.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = MagicMock(
+                    data=[
+                        {
+                            "id": "w1",
+                            "pattern_name": "Calm (4-7-8)",
+                            "duration_seconds": 300,
+                            "completed_at": (now - timedelta(days=2)).isoformat(),
+                        },
+                        {
+                            "id": "w2",
+                            "pattern_name": "Calm (4-7-8)",
+                            "duration_seconds": 180,
+                            "completed_at": (now - timedelta(days=5)).isoformat(),
+                        },
+                        {
+                            "id": "w3",
+                            "pattern_name": "Focus",
+                            "duration_seconds": 120,
+                            "completed_at": (now - timedelta(days=40)).isoformat(),
+                        },
+                    ]
+                )
+            return mock_table
+
+        mock_sb.table.side_effect = table_side_effect
+
+        response = client.get(f"/v1/provider/patients/{TEST_PATIENT_ID}/wellness", headers=make_token())
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["total_sessions_all_time"] == 3
+        assert data["total_sessions_30d"] == 2
+        assert data["most_used_pattern"] == "Calm (4-7-8)"
+        assert data["avg_duration_seconds"] == 200
+        assert len(data["recent_sessions"]) == 3
+        assert data["last_session_at"] is not None
+
+    @patch("app.provider.router.supabase")
+    def test_assigned_provider_no_sessions(self, mock_sb):
+        def table_side_effect(table_name):
+            mock_table = MagicMock()
+            if table_name == "assignments":
+                mock_table.select.return_value.eq.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+                    data=[{"id": "a1"}]
+                )
+            elif table_name == "wellness_sessions":
+                mock_table.select.return_value.eq.return_value.order.return_value.limit.return_value.execute.return_value = MagicMock(
+                    data=[]
+                )
+            return mock_table
+
+        mock_sb.table.side_effect = table_side_effect
+
+        response = client.get(f"/v1/provider/patients/{TEST_PATIENT_ID}/wellness", headers=make_token())
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["total_sessions_all_time"] == 0
+        assert data["total_sessions_30d"] == 0
+        assert data["most_used_pattern"] is None
+        assert data["avg_duration_seconds"] == 0
+        assert data["recent_sessions"] == []
+        assert data["last_session_at"] is None
+
+    @patch("app.provider.router.supabase")
+    def test_unassigned_provider_forbidden(self, mock_sb):
+        mock_sb.table.return_value.select.return_value.eq.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(
+            data=[]
+        )
+        response = client.get(f"/v1/provider/patients/{TEST_PATIENT_ID}/wellness", headers=make_token())
+        assert response.status_code == 403
+
+    def test_patient_role_forbidden(self):
+        response = client.get(
+            f"/v1/provider/patients/{TEST_PATIENT_ID}/wellness",
+            headers=make_token(role="patient", user_id=TEST_PATIENT_ID)
+        )
+        assert response.status_code == 403
+

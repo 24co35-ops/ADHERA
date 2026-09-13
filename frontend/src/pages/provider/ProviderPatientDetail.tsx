@@ -21,6 +21,9 @@ import {
   Send,
   X,
   ShieldAlert,
+  Wind,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { Profile, Medicine, Feedback, PatientFlag, AdherenceLog } from '../../types';
@@ -50,6 +53,17 @@ export const ProviderPatientDetail: React.FC = () => {
   const [adherenceRate, setAdherenceRate] = useState<number>(100);
   const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Wellness Activity State
+  const [wellnessData, setWellnessData] = useState<{
+    total_sessions_30d: number;
+    total_sessions_all_time: number;
+    last_session_at: string | null;
+    most_used_pattern: string | null;
+    avg_duration_seconds: number;
+    recent_sessions: Array<{ id: string; pattern_name: string; duration_seconds: number; completed_at: string }>;
+  } | null>(null);
+  const [wellnessExpanded, setWellnessExpanded] = useState(false);
 
   // Clinical AI Assistant State
   const [aiOpen, setAiOpen] = useState(false);
@@ -118,13 +132,14 @@ export const ProviderPatientDetail: React.FC = () => {
     if (!id) return;
     try {
       setLoading(true);
-      const [patientRes, medsRes, fbRes, flagsRes, adhRes, trendRes] = await Promise.allSettled([
+      const [patientRes, medsRes, fbRes, flagsRes, adhRes, trendRes, wellnessRes] = await Promise.allSettled([
         api.get<Profile>(`/provider/patients/${id}`),
         api.get<Medicine[]>(`/provider/patients/${id}/medicines`),
         api.get<Feedback[]>(`/feedback/?patient_id=${id}`),
         api.get<PatientFlag[]>(`/provider/patients/${id}/flags`),
         api.get<any>(`/analytics/adherence?patient_id=${id}`),
         api.get<any[]>(`/analytics/trend?patient_id=${id}`),
+        api.get<any>(`/provider/patients/${id}/wellness`),
       ]);
 
       if (patientRes.status === 'fulfilled' && patientRes.value.success) {
@@ -145,6 +160,9 @@ export const ProviderPatientDetail: React.FC = () => {
       }
       if (trendRes.status === 'fulfilled' && trendRes.value.success) {
         setTrendData(trendRes.value.data || []);
+      }
+      if (wellnessRes.status === 'fulfilled' && wellnessRes.value.success) {
+        setWellnessData(wellnessRes.value.data);
       }
     } catch (err: any) {
       addToast('error', err.message || 'Failed to load patient details');
@@ -395,6 +413,85 @@ export const ProviderPatientDetail: React.FC = () => {
           </div>
         </GlassCard>
       </div>
+
+      {/* Wellness Activity */}
+      <GlassCard className="p-6 opacity-90">
+        <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+          <div className="flex items-center space-x-2">
+            <Wind className="w-5 h-5 text-primary/70" />
+            <h3 className="text-base font-bold text-white">Wellness Activity</h3>
+            <span className="text-[10px] uppercase font-semibold text-on-surface-variant bg-white/5 px-1.5 py-0.5 rounded">Breathing Sessions</span>
+          </div>
+          {wellnessData && wellnessData.total_sessions_all_time > 0 && (
+            <button
+              onClick={() => setWellnessExpanded((v) => !v)}
+              className="btn-press inline-flex items-center space-x-1 text-xs text-on-surface-variant hover:text-white transition-colors"
+            >
+              {wellnessExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              <span>{wellnessExpanded ? 'Hide sessions' : 'View sessions'}</span>
+            </button>
+          )}
+        </div>
+
+        {!wellnessData || wellnessData.total_sessions_all_time === 0 ? (
+          <p className="text-xs text-on-surface-variant py-4 text-center">
+            This patient has not recorded any breathing sessions yet.
+          </p>
+        ) : (
+          <>
+            {/* Summary stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-center">
+                <p className="text-xl font-extrabold text-white">{wellnessData.total_sessions_30d}</p>
+                <p className="text-[10px] text-on-surface-variant mt-0.5">Sessions (30d)</p>
+              </div>
+              <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-center">
+                <p className="text-xs font-bold text-white leading-snug">
+                  {wellnessData.last_session_at
+                    ? new Date(wellnessData.last_session_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                    : 'No sessions yet'}
+                </p>
+                <p className="text-[10px] text-on-surface-variant mt-0.5">Last Session</p>
+              </div>
+              <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-center">
+                <p className="text-xs font-bold text-white leading-snug">{wellnessData.most_used_pattern ?? '—'}</p>
+                <p className="text-[10px] text-on-surface-variant mt-0.5">Fav. Pattern</p>
+              </div>
+              <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-center">
+                <p className="text-xs font-bold text-white leading-snug">
+                  {wellnessData.avg_duration_seconds > 0
+                    ? wellnessData.avg_duration_seconds >= 60
+                      ? `${Math.floor(wellnessData.avg_duration_seconds / 60)}m ${wellnessData.avg_duration_seconds % 60}s`
+                      : `${wellnessData.avg_duration_seconds}s`
+                    : '—'}
+                </p>
+                <p className="text-[10px] text-on-surface-variant mt-0.5">Avg Duration</p>
+              </div>
+            </div>
+
+            {/* Expandable recent sessions list */}
+            {wellnessExpanded && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-2">Recent Sessions</p>
+                {wellnessData.recent_sessions.map((s) => {
+                  const dur = s.duration_seconds >= 60
+                    ? `${Math.floor(s.duration_seconds / 60)}m ${s.duration_seconds % 60}s`
+                    : `${s.duration_seconds}s`;
+                  return (
+                    <div key={s.id} className="flex items-center justify-between px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs">
+                      <span className="text-on-surface-variant text-[11px]">
+                        {new Date(s.completed_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <span className="font-semibold text-white">{s.pattern_name}</span>
+                      <span className="text-on-surface-variant font-mono">{dur}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </GlassCard>
 
       {/* ── PATIENT-CONTEXTUAL CLINICAL AI ASSISTANT DRAWER ── */}
       {aiOpen && (

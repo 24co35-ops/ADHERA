@@ -1,5 +1,5 @@
 import logging
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, time, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -275,6 +275,47 @@ async def get_patient_report(request: Request, id: str, user: dict = Depends(req
         raise HTTPException(status_code=403, detail="Not assigned to this patient")
     res = supabase.table("reports").select("*").eq("user_id", id).order("created_at", desc=True).limit(1).execute()
     return SuccessResponse(data=res.data[0] if res.data else {})
+
+@router.get("/patients/{id}/wellness", response_model=SuccessResponse[dict])
+@limiter.limit("60/minute")
+async def get_patient_wellness(request: Request, id: str, user: dict = Depends(require_role("provider"))):
+    # IDOR guard: verify this provider is assigned to the patient
+    assignment = supabase.table("assignments").select("id").eq("provider_id", user["user_id"]).eq("patient_id", id).eq("status", "active").execute()
+    if not assignment.data:
+        raise HTTPException(status_code=403, detail="Not assigned to this patient")
+
+    try:
+        res = (
+            supabase.table("wellness_sessions")
+            .select("id, pattern_name, duration_seconds, completed_at")
+            .eq("user_id", id)
+            .order("completed_at", desc=True)
+            .limit(100)
+            .execute()
+        )
+        sessions = res.data or []
+    except Exception as e:
+        logger.warning("Error fetching patient wellness sessions for %s: %s", id, str(e))
+        sessions = []
+
+    now = datetime.now(timezone.utc)
+    d30 = (now - timedelta(days=30)).isoformat()
+    sessions_30d = [s for s in sessions if s.get("completed_at", "") >= d30]
+
+    pattern_counts = Counter(s.get("pattern_name") for s in sessions if s.get("pattern_name"))
+    most_used = pattern_counts.most_common(1)[0][0] if pattern_counts else None
+
+    durations = [s.get("duration_seconds", 0) for s in sessions if isinstance(s.get("duration_seconds"), (int, float))]
+    avg_duration = round(sum(durations) / len(durations)) if durations else 0
+
+    return SuccessResponse(data={
+        "total_sessions_30d": len(sessions_30d),
+        "total_sessions_all_time": len(sessions),
+        "last_session_at": sessions[0].get("completed_at") if sessions else None,
+        "most_used_pattern": most_used,
+        "avg_duration_seconds": avg_duration,
+        "recent_sessions": sessions[:15],
+    })
 
 # ── Pending patient requests ──────────────────────────────────────────────────
 
