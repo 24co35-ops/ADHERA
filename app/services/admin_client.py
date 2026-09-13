@@ -14,6 +14,7 @@ It is strictly reserved for:
 ================================================================================
 """
 import logging
+
 from app.config import settings
 from supabase import Client, create_client
 

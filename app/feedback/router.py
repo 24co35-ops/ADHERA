@@ -1,4 +1,3 @@
-import httpx
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -10,13 +9,11 @@ from fastapi import (
 )
 
 from app.auth.dependencies import get_current_user
-from app.config import settings
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
 from app.db.supabase import supabase
 from app.feedback.schemas import FeedbackCreate
 from app.insights.engine import run_insights_for_patient
-from app.services.audit import log_audit_action
 
 router = APIRouter()
 

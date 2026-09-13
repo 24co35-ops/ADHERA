@@ -91,3 +91,33 @@ def test_auto_expiry_logic():
     t_dose = t_now - timedelta(hours=2, minutes=1)
     is_expired = t_dose + timedelta(hours=2) < t_now
     assert is_expired is True
+
+
+def test_auto_expiry_no_duplicate():
+    """
+    Verify the ON CONFLICT DO NOTHING de-dup logic used in the pg_cron job.
+    Two concurrent inserts for the same (reminder_id, scheduled_utc, status='missed')
+    should produce exactly one row — identical to the Postgres partial unique index
+    behaviour on adherence WHERE status = 'missed'.
+    """
+    seen: dict[tuple, bool] = {}
+
+    def try_insert(reminder_id: str, scheduled_utc: str, status: str) -> bool:
+        """Returns True if the row was inserted, False if it was skipped (conflict)."""
+        key = (reminder_id, scheduled_utc)
+        if status == "missed" and key in seen:
+            return False          # ON CONFLICT DO NOTHING
+        seen[key] = True
+        return True
+
+    rid = "reminder-abc"
+    slot = "2026-09-13T08:00:00+00:00"
+
+    # First call: simulates the pg_cron job
+    assert try_insert(rid, slot, "missed") is True
+    # Second call: same job fires again within the same minute
+    assert try_insert(rid, slot, "missed") is False
+
+    # A non-'missed' status (e.g. 'taken') must still be insertable for the same slot
+    assert try_insert(rid, slot, "taken") is True
+

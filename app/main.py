@@ -24,16 +24,15 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from postgrest.exceptions import APIError
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
-
-import httpx
-from postgrest.exceptions import APIError
 
 from app.admin.router import router as admin_router
 from app.analytics.router import router as analytics_router

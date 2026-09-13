@@ -2,7 +2,11 @@
 -- Expected p95 latency reduction: removes ~800-1200ms Vercel cold-start + HTTP roundtrip down to <50ms PostgreSQL background trigger
 
 CREATE OR REPLACE FUNCTION public.handle_severity4_feedback_alert()
-RETURNS trigger AS $$
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 DECLARE
   v_provider_id uuid;
   v_provider_email text;
@@ -44,7 +48,10 @@ EXCEPTION WHEN OTHERS THEN
   RAISE WARNING 'Severity-4 alert trigger failed: %', SQLERRM;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.handle_severity4_feedback_alert() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.handle_severity4_feedback_alert() TO service_role, postgres;
 
 DROP TRIGGER IF EXISTS trg_feedback_severity4_alert ON public.feedback;
 CREATE TRIGGER trg_feedback_severity4_alert

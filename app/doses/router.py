@@ -117,7 +117,7 @@ async def dose_snooze(request: Request, reminder_id: str, user: dict = Depends(g
         )
         if snooze_res.data and len(snooze_res.data) > 0:
             snooze_count = int(snooze_res.data[0].get("snooze_count", 0))
-    except Exception as ex:
+    except Exception:
         # Fallback to adherence table count if snooze_log query fails
         try:
             today_start_utc = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
@@ -150,7 +150,7 @@ async def dose_snooze(request: Request, reminder_id: str, user: dict = Depends(g
             "resume_at": snoozed_until,
             "snooze_count": new_count
         }).execute()
-    except Exception as log_err:
+    except Exception:
         pass
 
     res = supabase.table("adherence").insert({
