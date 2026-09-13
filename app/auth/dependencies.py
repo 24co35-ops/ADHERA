@@ -128,7 +128,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
                         if not user_res or not user_res.user:
                             raise HTTPException(status_code=401, detail="Invalid token")
                         u = user_res.user
-                        role = (u.app_metadata or {}).get("role") or (u.user_metadata or {}).get("role") or "patient"
+                        role = (u.app_metadata or {}).get("role") or "patient"
                         return {"user_id": u.id, "role": role}
                     except HTTPException:
                         raise
@@ -143,7 +143,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             "user_id": payload.get("sub"),
             "role": (
                 payload.get("app_metadata", {}).get("role")
-                or payload.get("user_metadata", {}).get("role")
                 or (payload.get("role") if payload.get("role") not in ("authenticated", "anon", None) else None)
                 or "patient"
             ),
