@@ -33,8 +33,10 @@ def get_db():
 
 try:
     from supabase_auth.errors import AuthApiError
+    from supabase_auth.types import AdminUserAttributes
 except ImportError:
     AuthApiError = Exception
+    AdminUserAttributes = dict
 
 
 router = APIRouter()
@@ -911,7 +913,7 @@ async def admin_invite_user(request: Request, payload: InviteUser, user: dict = 
         try:
             # Call invite_user_by_email using reset-password.html redirect
             redirect_url = f"{settings.FRONTEND_URL}/reset-password"
-            supabase.auth.admin.invite_user_by_email(
+            invite_res = supabase.auth.admin.invite_user_by_email(
                 email,
                 options={
                     "data": {
@@ -921,6 +923,16 @@ async def admin_invite_user(request: Request, payload: InviteUser, user: dict = 
                     "redirect_to": redirect_url
                 }
             )
+            # Stamp role in app_metadata (server-controlled) so JWTs carry
+            # the correct role. invite_user_by_email only sets user_metadata.
+            if invite_res and getattr(invite_res, "user", None):
+                try:
+                    supabase.auth.admin.update_user_by_id(
+                        invite_res.user.id,
+                        AdminUserAttributes(app_metadata={"role": role})
+                    )
+                except Exception as meta_err:
+                    logger.warning("Failed to stamp app_metadata.role on invite: %r", meta_err)
         except AuthApiError as e:
             msg = getattr(e, "message", str(e)).lower()
             if ("already" in msg and "registered" in msg) or "already exists" in msg:

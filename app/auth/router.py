@@ -82,6 +82,18 @@ async def register(request: Request, user_data: UserRegister):
             })
             if not res.user:
                 raise Exception("Registration failed: user profile not created.")
+
+            # Stamp role in app_metadata (server-controlled) so JWTs carry the
+            # correct role claim. user_metadata is user-writable and cannot be
+            # trusted for authorization.
+            try:
+                supabase.auth.admin.update_user_by_id(
+                    res.user.id,
+                    AdminUserAttributes(app_metadata={"role": user_data.role})
+                )
+            except Exception as meta_err:
+                logger.warning("Failed to stamp app_metadata.role: %r", meta_err)
+
         except AuthApiError as e:
             err_str = str(e).lower()
             if "already registered" in err_str or "user already registered" in err_str or "already exists" in err_str:

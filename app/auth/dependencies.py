@@ -139,14 +139,21 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         if payload.get("mfa_pending"):
             raise HTTPException(status_code=401, detail="MFA verification required")
 
-        return {
-            "user_id": payload.get("sub"),
-            "role": (
-                payload.get("app_metadata", {}).get("role")
-                or (payload.get("role") if payload.get("role") not in ("authenticated", "anon", None) else None)
-                or "patient"
-            ),
-        }
+        user_id = payload.get("sub")
+        role = (
+            payload.get("app_metadata", {}).get("role")
+            or (payload.get("role") if payload.get("role") not in ("authenticated", "anon", None) else None)
+        )
+        if not role:
+            # Fallback for existing users registered before app_metadata stamping:
+            # query profiles table (service-role client bypasses RLS).
+            try:
+                from app.db.supabase import supabase as _sb
+                row = _sb.table("profiles").select("role").eq("id", user_id).single().execute()
+                role = (row.data or {}).get("role") or "patient"
+            except Exception:
+                role = "patient"
+        return {"user_id": user_id, "role": role}
     except HTTPException:
         raise
     except pyjwt.ExpiredSignatureError as e:
