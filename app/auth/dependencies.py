@@ -19,6 +19,26 @@ _KEY_CACHE: dict[str, tuple] = {}  # kid -> (key_object, cached_at_timestamp)
 _KEY_CACHE_TTL = 3600  # 1 hour
 
 
+async def prime_jwks_cache() -> None:
+    """Pre-warm the JWKS cache on startup to avoid cold-start 401s."""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(_JWKS_URL, timeout=10.0)
+            if resp.status_code == 200:
+                jwks = resp.json()
+                now = time.time()
+                for key_dict in jwks.get("keys", []):
+                    k = key_dict.get("kid")
+                    kty = key_dict.get("kty")
+                    if k and kty == "EC":
+                        _KEY_CACHE[k] = (ECAlgorithm.from_jwk(json.dumps(key_dict)), now)
+                    elif k and kty == "RSA":
+                        _KEY_CACHE[k] = (RSAAlgorithm.from_jwk(json.dumps(key_dict)), now)
+                logger.info("JWKS cache primed with %d key(s)", len(_KEY_CACHE))
+    except Exception as e:
+        logger.warning("Failed to prime JWKS cache on startup: %r", e)
+
+
 async def _get_signing_key(kid: str):
     """Retrieve signing key from in-memory cache or fetch dynamically via HTTPX."""
     if kid in _KEY_CACHE:
@@ -30,7 +50,7 @@ async def _get_signing_key(kid: str):
 
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get(_JWKS_URL, timeout=5.0)
+            resp = await client.get(_JWKS_URL, timeout=8.0)
             if resp.status_code == 200:
                 jwks = resp.json()
                 for key_dict in jwks.get("keys", []):
@@ -77,26 +97,48 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
                 audience="authenticated",
             )
         else:
-            # Production path: asymmetric JWKS verification with Supabase API fallback
+            # Production path: asymmetric JWKS verification
+            # Fallback chain: JWKS → HS256 secret → Supabase Auth API
             try:
                 kid = header.get("kid", "")
                 payload = await _decode_with_jwks(token, kid)
             except Exception as jwks_err:
-                logger.info("JWKS verification missed, validating via Supabase Auth API: %r", jwks_err)
-                from app.db.supabase import supabase_auth
-                user_res = supabase_auth.auth.get_user(token)
-                if not user_res or not user_res.user:
-                    raise HTTPException(status_code=401, detail="Invalid token")
-                u = user_res.user
-                role = (
-                    (u.app_metadata or {}).get("role")
-                    or (u.user_metadata or {}).get("role")
-                    or "patient"
-                )
-                return {
-                    "user_id": u.id,
-                    "role": role,
-                }
+                logger.info("JWKS verification failed, trying HS256 fallback: %r", jwks_err)
+                # Fallback 1: HS256 with JWT secret (fast, no outbound call)
+                if settings.SUPABASE_JWT_SECRET:
+                    try:
+                        payload = jose_jwt.decode(
+                            token,
+                            settings.SUPABASE_JWT_SECRET,
+                            algorithms=["HS256"],
+                            audience="authenticated",
+                        )
+                        # Fall through to payload extraction below
+                    except Exception:
+                        payload = None
+                else:
+                    payload = None
+
+                if payload is None:
+                    # Fallback 2: Supabase Auth API (last resort)
+                    logger.info("HS256 fallback failed, validating via Supabase Auth API")
+                    try:
+                        from app.db.supabase import supabase_auth
+                        user_res = supabase_auth.auth.get_user(token)
+                        if not user_res or not user_res.user:
+                            raise HTTPException(status_code=401, detail="Invalid token")
+                        u = user_res.user
+                        role = (
+                            (u.app_metadata or {}).get("role")
+                            or (u.user_metadata or {}).get("role")
+                            or "patient"
+                        )
+                        return {"user_id": u.id, "role": role}
+                    except HTTPException:
+                        raise
+                    except Exception as api_err:
+                        logger.warning("Supabase Auth API fallback failed: %r", api_err)
+                        raise HTTPException(status_code=401, detail="Invalid token")
 
         if payload.get("mfa_pending"):
             raise HTTPException(status_code=401, detail="MFA verification required")

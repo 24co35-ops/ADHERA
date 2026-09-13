@@ -34,6 +34,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.admin.router import router as admin_router
 from app.analytics.router import router as analytics_router
+from app.auth.dependencies import prime_jwks_cache
 from app.auth.router import router as auth_router
 from app.chat.router import router as chat_router
 from app.config import settings
@@ -114,6 +115,7 @@ def _get_cors_origins() -> list[str]:
 @asynccontextmanager
 async def lifespan(app):
     _get_cors_origins()  # fail fast on bad config before accepting traffic
+    await prime_jwks_cache()  # pre-warm JWT signing key cache
     yield
 
 
