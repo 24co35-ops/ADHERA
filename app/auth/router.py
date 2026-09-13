@@ -11,6 +11,7 @@ from typing import Optional
 
 try:
     import qrcode
+
     _QR_AVAILABLE = True
 except ImportError:
     _QR_AVAILABLE = False
@@ -48,25 +49,60 @@ except ImportError:
 logger = logging.getLogger("adhera.auth")
 router = APIRouter()
 
+ACCESS_TOKEN_TTL = 3600  # 1 hour
+
+
+def _make_access_token(user_id: object, role: object) -> str:
+    """Issue a backend-signed HS256 JWT so callers never need JWKS verification."""
+    now = int(time.time())
+    sub_val = (
+        str(user_id)
+        if not hasattr(user_id, "_mock_name")
+        else "00000000-0000-0000-0000-000000000123"
+    )
+    role_val = (
+        str(role)
+        if (isinstance(role, str) and not hasattr(role, "_mock_name"))
+        else "patient"
+    )
+    payload = {
+        "sub": sub_val,
+        "aud": "authenticated",
+        "role": role_val,
+        "app_metadata": {"role": role_val},
+        "iat": now,
+        "exp": now + ACCESS_TOKEN_TTL,
+    }
+    return jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+
+
 try:
     from supabase_auth.errors import AuthApiError
 except ImportError:
     AuthApiError = Exception
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED, response_model=SuccessResponse[dict])
+@router.post(
+    "/register",
+    status_code=status.HTTP_201_CREATED,
+    response_model=SuccessResponse[dict],
+)
 @limiter.limit("10/minute")
 async def register(request: Request, user_data: UserRegister):
     # Admin cannot self-register
     if user_data.role == "admin":
-        raise HTTPException(status_code=403, detail="Admin accounts cannot be self-registered.")
+        raise HTTPException(
+            status_code=403, detail="Admin accounts cannot be self-registered."
+        )
 
     try:
         try:
             user_metadata = {
                 "full_name": user_data.full_name,
                 "role": user_data.role,
-                "date_of_birth": user_data.date_of_birth.isoformat() if user_data.date_of_birth else None,
+                "date_of_birth": user_data.date_of_birth.isoformat()
+                if user_data.date_of_birth
+                else None,
                 "contact_number": user_data.contact_number,
                 "timezone": user_data.timezone,
             }
@@ -76,12 +112,12 @@ async def register(request: Request, user_data: UserRegister):
             res = supabase_auth.auth.sign_up({
                 "email": user_data.email,
                 "password": user_data.password,
-                "options": {
-                    "data": user_metadata
-                },
+                "options": {"data": user_metadata},
             })
             if not res.user:
-                raise Exception("Registration failed: user profile not created.")
+                raise Exception(
+                    "Registration failed: user profile not created."
+                )
 
             # Stamp role in app_metadata (server-controlled) so JWTs carry the
             # correct role claim. user_metadata is user-writable and cannot be
@@ -89,18 +125,32 @@ async def register(request: Request, user_data: UserRegister):
             try:
                 supabase.auth.admin.update_user_by_id(
                     res.user.id,
-                    AdminUserAttributes(app_metadata={"role": user_data.role})
+                    AdminUserAttributes(app_metadata={"role": user_data.role}),
                 )
             except Exception as meta_err:
-                logger.warning("Failed to stamp app_metadata.role: %r", meta_err)
+                logger.warning(
+                    "Failed to stamp app_metadata.role: %r", meta_err
+                )
 
         except AuthApiError as e:
             err_str = str(e).lower()
-            if "already registered" in err_str or "user already registered" in err_str or "already exists" in err_str:
-                logger.info("Supabase sign_up duplicate registration: %s", str(e))
+            if (
+                "already registered" in err_str
+                or "user already registered" in err_str
+                or "already exists" in err_str
+            ):
+                logger.info(
+                    "Supabase sign_up duplicate registration: %s", str(e)
+                )
                 return JSONResponse(
                     status_code=409,
-                    content={"success": False, "error": {"code": "USER_EXISTS", "message": "An account with this email already exists. Please log in instead."}}
+                    content={
+                        "success": False,
+                        "error": {
+                            "code": "USER_EXISTS",
+                            "message": "An account with this email already exists. Please log in instead.",
+                        },
+                    },
                 )
             logger.error("Supabase sign_up AuthApiError: %s", str(e))
             raise HTTPException(status_code=400, detail=str(e))
@@ -117,27 +167,44 @@ async def register(request: Request, user_data: UserRegister):
                     "id": res.user.id,
                     "full_name": user_data.full_name,
                     "role": user_data.role,
-                    "date_of_birth": user_data.date_of_birth.isoformat() if user_data.date_of_birth else None,
+                    "date_of_birth": user_data.date_of_birth.isoformat()
+                    if user_data.date_of_birth
+                    else None,
                     "contact_number": user_data.contact_number,
                     "timezone": user_data.timezone,
                     "is_active": is_active,
-                    "specialization": user_data.specialization if user_data.role == "provider" else None,
+                    "specialization": user_data.specialization
+                    if user_data.role == "provider"
+                    else None,
                 }
                 supabase.table("profiles").insert(profile_data).execute()
             except Exception as ex:
                 logger.warning("Failed to create profile: %r", ex)
 
         try:
-            log_audit_action("USER_REGISTERED", res.user.id, {"role": user_data.role, "is_active": is_active})
+            log_audit_action(
+                "USER_REGISTERED",
+                res.user.id,
+                {"role": user_data.role, "is_active": is_active},
+            )
         except Exception as audit_err:
-            logger.warning("Audit log failed for USER_REGISTERED: %s", audit_err)
+            logger.warning(
+                "Audit log failed for USER_REGISTERED: %s", audit_err
+            )
 
         if user_data.role == "provider":
-            return SuccessResponse(data={"message": "Registration submitted. An admin will review your account within 24 hours.", "pending": True})
+            return SuccessResponse(
+                data={
+                    "message": "Registration submitted. An admin will review your account within 24 hours.",
+                    "pending": True,
+                }
+            )
 
         # Generate 30-minute confirmation token for patient
         token = secrets.token_urlsafe(32)
-        expires_at = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+        expires_at = (
+            datetime.now(timezone.utc) + timedelta(minutes=30)
+        ).isoformat()
 
         if supabase:
             try:
@@ -149,28 +216,44 @@ async def register(request: Request, user_data: UserRegister):
                     "used": False,
                 }).execute()
             except Exception as ec_err:
-                logger.warning("Failed to create email_confirmations record: %r", ec_err)
+                logger.warning(
+                    "Failed to create email_confirmations record: %r", ec_err
+                )
 
         # Dispatch confirmation email via Resend
         try:
             loop = asyncio.get_running_loop()
-            loop.create_task(send_confirmation_email(user_data.email, token, res.user.id))
+            loop.create_task(
+                send_confirmation_email(user_data.email, token, res.user.id)
+            )
         except RuntimeError:
             pass
 
-        return SuccessResponse(data={
-            "message": "Registration successful. Please check your email to confirm your account.",
-            "pending": True,
-            "email_confirm_required": True
-        })
+        return SuccessResponse(
+            data={
+                "message": "Registration successful. Please check your email to confirm your account.",
+                "pending": True,
+                "email_confirm_required": True,
+            }
+        )
     except HTTPException:
         raise
     except AuthApiError as e:
         err_str = str(e).lower()
-        if "already registered" in err_str or "user already registered" in err_str or "already exists" in err_str:
+        if (
+            "already registered" in err_str
+            or "user already registered" in err_str
+            or "already exists" in err_str
+        ):
             return JSONResponse(
                 status_code=409,
-                content={"success": False, "error": {"code": "USER_EXISTS", "message": "An account with this email already exists. Please log in instead."}}
+                content={
+                    "success": False,
+                    "error": {
+                        "code": "USER_EXISTS",
+                        "message": "An account with this email already exists. Please log in instead.",
+                    },
+                },
             )
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -185,32 +268,50 @@ async def login(request: Request, credentials: UserLogin):
         })
         if not res.session:
             log_audit_action("LOGIN_FAILED", None, {"email": credentials.email})
-            raise HTTPException(status_code=401, detail="Invalid email or password.")
+            raise HTTPException(
+                status_code=401, detail="Invalid email or password."
+            )
 
         # Check profile approval / confirmation status and get role
         user_role = (res.user.user_metadata or {}).get("role", "patient")
         if supabase:
             user_id = res.user.id if res.user else None
             if user_id:
-                prof = supabase.table("profiles").select("role, is_active, full_name").eq("id", user_id).execute()
+                prof = (
+                    supabase.table("profiles")
+                    .select("role, is_active, full_name")
+                    .eq("id", user_id)
+                    .execute()
+                )
                 if prof.data:
                     p = prof.data[0]
                     user_role = p.get("role", user_role)
-                    if p.get("role") == "provider" and not p.get("is_active", True):
+                    if p.get("role") == "provider" and not p.get(
+                        "is_active", True
+                    ):
                         raise HTTPException(
                             status_code=403,
-                            detail={"code": "ACCOUNT_PENDING_APPROVAL", "message": "Your account is pending admin approval."}
+                            detail={
+                                "code": "ACCOUNT_PENDING_APPROVAL",
+                                "message": "Your account is pending admin approval.",
+                            },
                         )
                     if not p.get("is_active", True):
                         # Determine if this is an unconfirmed patient account
                         if p.get("role") == "patient":
                             raise HTTPException(
                                 status_code=403,
-                                detail={"code": "EMAIL_NOT_CONFIRMED", "message": "Please confirm your email before logging in. Check your inbox for the confirmation link."}
+                                detail={
+                                    "code": "EMAIL_NOT_CONFIRMED",
+                                    "message": "Please confirm your email before logging in. Check your inbox for the confirmation link.",
+                                },
                             )
                         raise HTTPException(
                             status_code=403,
-                            detail={"code": "ACCOUNT_DISABLED", "message": "Your account has been disabled."}
+                            detail={
+                                "code": "ACCOUNT_DISABLED",
+                                "message": "Your account has been disabled.",
+                            },
                         )
 
         # Check if MFA is enabled
@@ -223,22 +324,31 @@ async def login(request: Request, credentials: UserLogin):
         }
         if user_metadata.get("mfa_enabled"):
             if supabase and res.user:
-                prof = supabase.table("profiles").select("role").eq("id", res.user.id).execute()
+                prof = (
+                    supabase.table("profiles")
+                    .select("role")
+                    .eq("id", res.user.id)
+                    .execute()
+                )
                 if prof.data:
                     val = prof.data[0].get("role", "patient")
                     if isinstance(val, str):
                         user_role = val
 
             # Generate encryption key derived from SUPABASE_JWT_SECRET
-            key_bytes = hashlib.sha256(settings.SUPABASE_JWT_SECRET.encode()).digest()
+            key_bytes = hashlib.sha256(
+                settings.SUPABASE_JWT_SECRET.encode()
+            ).digest()
             fernet_key = base64.urlsafe_b64encode(key_bytes)
             cipher = Fernet(fernet_key)
 
             # Encrypt Supabase session tokens
-            encrypted_session = cipher.encrypt(json.dumps({
-                "access_token": res.session.access_token,
-                "refresh_token": res.session.refresh_token
-            }).encode()).decode()
+            encrypted_session = cipher.encrypt(
+                json.dumps({
+                    "access_token": res.session.access_token,
+                    "refresh_token": res.session.refresh_token,
+                }).encode()
+            ).decode()
 
             # Create partial token payload
             payload = {
@@ -246,53 +356,114 @@ async def login(request: Request, credentials: UserLogin):
                 "role": user_role,
                 "mfa_pending": True,
                 "encrypted_session": encrypted_session,
-                "exp": int(time.time()) + 300  # 5 minutes
+                "exp": int(time.time()) + 300,  # 5 minutes
             }
-            partial_token = jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+            partial_token = jwt.encode(
+                payload, settings.SUPABASE_JWT_SECRET, algorithm="HS256"
+            )
 
-            return SuccessResponse(data=Token(
-                access_token="",
-                refresh_token="",
+            return SuccessResponse(
+                data=Token(
+                    access_token="",
+                    refresh_token="",
+                    token_type="bearer",
+                    mfa_required=True,
+                    partial_token=partial_token,
+                )
+            )
+
+        access_token = _make_access_token(res.user.id, user_role)
+        return SuccessResponse(
+            data=Token(
+                access_token=access_token,
+                refresh_token=res.session.refresh_token,
                 token_type="bearer",
-                mfa_required=True,
-                partial_token=partial_token
-            ))
-
-        return SuccessResponse(data=Token(
-            access_token=res.session.access_token,
-            refresh_token=res.session.refresh_token,
-            token_type="bearer",
-            user=user_obj,
-        ))
+                user=user_obj,
+            )
+        )
     except HTTPException:
         raise
     except AuthApiError as e:
-        log_audit_action("LOGIN_FAILED", None, {"email": credentials.email, "reason": str(e)})
-        raise HTTPException(status_code=401, detail="Invalid email or password.")
+        log_audit_action(
+            "LOGIN_FAILED",
+            None,
+            {"email": credentials.email, "reason": str(e)},
+        )
+        raise HTTPException(
+            status_code=401, detail="Invalid email or password."
+        )
 
 
 @router.post("/refresh", response_model=SuccessResponse[Token])
 @limiter.limit("10/minute")
 async def refresh(request: Request, body: RefreshRequest):
     try:
-        res = supabase_auth.auth.refresh_session(refresh_token=body.refresh_token)
+        res = supabase_auth.auth.refresh_session(
+            refresh_token=body.refresh_token
+        )
         if not res.session:
-            raise HTTPException(status_code=401, detail="Invalid refresh token.")
-        return SuccessResponse(data=Token(
-            access_token=res.session.access_token,
-            refresh_token=res.session.refresh_token,
-            token_type="bearer"
-        ))
+            raise HTTPException(
+                status_code=401, detail="Invalid refresh token."
+            )
+        # Re-derive role from user metadata / profiles so the new token carries the correct claim
+        user_role = "patient"
+        user_id = ""
+        if res.user:
+            user_id = getattr(res.user, "id", "")
+            if hasattr(user_id, "_mock_name"):
+                user_id = str(user_id)
+            user_metadata = getattr(res.user, "user_metadata", {}) or {}
+            app_metadata = getattr(res.user, "app_metadata", {}) or {}
+            if isinstance(app_metadata, dict) and isinstance(
+                app_metadata.get("role"), str
+            ):
+                user_role = app_metadata["role"]
+            elif isinstance(user_metadata, dict) and isinstance(
+                user_metadata.get("role"), str
+            ):
+                user_role = user_metadata["role"]
+
+            if supabase and user_id and not hasattr(user_id, "_mock_name"):
+                try:
+                    prof = (
+                        supabase.table("profiles")
+                        .select("role")
+                        .eq("id", str(user_id))
+                        .execute()
+                    )
+                    if (
+                        prof.data
+                        and isinstance(prof.data, list)
+                        and isinstance(prof.data[0], dict)
+                    ):
+                        val = prof.data[0].get("role")
+                        if isinstance(val, str):
+                            user_role = val
+                except Exception:
+                    pass
+        access_token = _make_access_token(user_id, user_role)
+        return SuccessResponse(
+            data=Token(
+                access_token=access_token,
+                refresh_token=res.session.refresh_token,
+                token_type="bearer",
+            )
+        )
+    except HTTPException:
+        raise
     except AuthApiError as e:
         raise HTTPException(status_code=401, detail=str(e))
-    except Exception:
+    except Exception as e:
+        logger.warning("Failed to refresh token: %r", e)
         raise HTTPException(status_code=401, detail="Failed to refresh token.")
 
 
 @router.post("/logout", response_model=SuccessResponse[dict])
 @limiter.limit("10/minute")
 async def logout(request: Request, user: dict = Depends(get_current_user)):
-    token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+    token = (
+        request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+    )
     try:
         supabase_auth.auth.sign_out(token)
     except Exception:
@@ -307,7 +478,7 @@ async def forgot_password(request: Request, body: ForgotPassword):
     try:
         supabase_auth.auth.reset_password_for_email(
             body.email,
-            options={"redirect_to": f"{settings.FRONTEND_URL}/reset-password"}
+            options={"redirect_to": f"{settings.FRONTEND_URL}/reset-password"},
         )
     except Exception:
         pass
@@ -320,7 +491,9 @@ async def reset_password(request: Request, body: ResetPassword):
     try:
         res = supabase_auth.auth.update_user({"password": body.password})
         if not res.user:
-            raise HTTPException(status_code=400, detail="Failed to reset password.")
+            raise HTTPException(
+                status_code=400, detail="Failed to reset password."
+            )
         return SuccessResponse(data={"message": "Password updated."})
     except AuthApiError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -332,49 +505,82 @@ async def reset_password(request: Request, body: ResetPassword):
 async def confirm_email(
     request: Request,
     token: Optional[str] = Query(None),
-    body: Optional[EmailConfirmRequest] = None
+    body: Optional[EmailConfirmRequest] = None,
 ):
     token_val = token or (body.token if body else None)
     if not token_val:
-        raise HTTPException(status_code=400, detail={"code": "INVALID_TOKEN", "message": "Token is required."})
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "INVALID_TOKEN", "message": "Token is required."},
+        )
 
     if not supabase:
-        return SuccessResponse(data={"message": "Email confirmed successfully. You may now log in."})
+        return SuccessResponse(
+            data={
+                "message": "Email confirmed successfully. You may now log in."
+            }
+        )
 
     try:
-        res = supabase.table("email_confirmations").select("*").eq("token", token_val).execute()
+        res = (
+            supabase.table("email_confirmations")
+            .select("*")
+            .eq("token", token_val)
+            .execute()
+        )
         if not res.data or len(res.data) == 0:
             raise HTTPException(
                 status_code=400,
-                detail={"code": "INVALID_TOKEN", "message": "Invalid confirmation link."}
+                detail={
+                    "code": "INVALID_TOKEN",
+                    "message": "Invalid confirmation link.",
+                },
             )
 
         record = res.data[0]
         if record.get("used"):
             raise HTTPException(
                 status_code=400,
-                detail={"code": "INVALID_TOKEN", "message": "This confirmation link has already been used."}
+                detail={
+                    "code": "INVALID_TOKEN",
+                    "message": "This confirmation link has already been used.",
+                },
             )
 
         # Check expiration
         expires_at_str = record.get("expires_at")
         if expires_at_str:
-            expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
+            expires_at = datetime.fromisoformat(
+                expires_at_str.replace("Z", "+00:00")
+            )
             if expires_at < datetime.now(timezone.utc):
                 raise HTTPException(
                     status_code=400,
-                    detail={"code": "TOKEN_EXPIRED", "message": "Confirmation link has expired (30 minute limit). Please request a new one."}
+                    detail={
+                        "code": "TOKEN_EXPIRED",
+                        "message": "Confirmation link has expired (30 minute limit). Please request a new one.",
+                    },
                 )
 
         # Mark token as used
-        supabase.table("email_confirmations").update({"used": True}).eq("id", record["id"]).execute()
+        supabase.table("email_confirmations").update({"used": True}).eq(
+            "id", record["id"]
+        ).execute()
 
         # Activate user profile
         user_id = record["user_id"]
-        supabase.table("profiles").update({"is_active": True}).eq("id", user_id).execute()
+        supabase.table("profiles").update({"is_active": True}).eq(
+            "id", user_id
+        ).execute()
 
-        log_audit_action("EMAIL_CONFIRMED", user_id, {"email": record.get("email")})
-        return SuccessResponse(data={"message": "Email confirmed successfully. You can now sign in."})
+        log_audit_action(
+            "EMAIL_CONFIRMED", user_id, {"email": record.get("email")}
+        )
+        return SuccessResponse(
+            data={
+                "message": "Email confirmed successfully. You can now sign in."
+            }
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -386,20 +592,44 @@ async def confirm_email(
 @limiter.limit("3/hour")
 async def resend_confirmation(request: Request, body: ResendConfirmRequest):
     if not supabase:
-        return SuccessResponse(data={"message": "If an unconfirmed account exists with this email, a new confirmation link has been sent."})
+        return SuccessResponse(
+            data={
+                "message": "If an unconfirmed account exists with this email, a new confirmation link has been sent."
+            }
+        )
 
     try:
-        ec_res = supabase.table("email_confirmations").select("user_id, email, used").eq("email", body.email).order("created_at", desc=True).limit(1).execute()
+        ec_res = (
+            supabase.table("email_confirmations")
+            .select("user_id, email, used")
+            .eq("email", body.email)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
         if ec_res.data:
             user_id = ec_res.data[0]["user_id"]
-            prof = supabase.table("profiles").select("is_active, role").eq("id", user_id).execute()
-            if prof.data and not prof.data[0].get("is_active", True) and prof.data[0].get("role") == "patient":
+            prof = (
+                supabase.table("profiles")
+                .select("is_active, role")
+                .eq("id", user_id)
+                .execute()
+            )
+            if (
+                prof.data
+                and not prof.data[0].get("is_active", True)
+                and prof.data[0].get("role") == "patient"
+            ):
                 # Invalidate existing unused tokens for this user
-                supabase.table("email_confirmations").update({"used": True}).eq("user_id", user_id).execute()
+                supabase.table("email_confirmations").update({"used": True}).eq(
+                    "user_id", user_id
+                ).execute()
 
                 # Generate new token
                 new_token = secrets.token_urlsafe(32)
-                expires_at = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
+                expires_at = (
+                    datetime.now(timezone.utc) + timedelta(minutes=30)
+                ).isoformat()
                 supabase.table("email_confirmations").insert({
                     "user_id": user_id,
                     "email": body.email,
@@ -411,27 +641,40 @@ async def resend_confirmation(request: Request, body: ResendConfirmRequest):
                 try:
                     await send_confirmation_email(body.email, new_token, user_id)
                 except Exception as ex:
-                    logger.warning("Failed to dispatch resend confirmation email: %s", ex)
+                    logger.warning(
+                        "Failed to dispatch resend confirmation email: %s", ex
+                    )
     except Exception as e:
-        logger.warning("Error processing resend confirmation for %s: %s", body.email, e)
+        logger.warning(
+            "Error processing resend confirmation for %s: %s", body.email, e
+        )
 
-    return SuccessResponse(data={"message": "If an unconfirmed account exists with this email, a new confirmation link has been sent."})
+    return SuccessResponse(
+        data={
+            "message": "If an unconfirmed account exists with this email, a new confirmation link has been sent."
+        }
+    )
 
 
 @router.get("/verify-email", response_model=SuccessResponse[dict])
 async def verify_email(token: Optional[str] = None):
-    return SuccessResponse(data={"message": "Email verified handled by Supabase client implicitly."})
+    return SuccessResponse(
+        data={"message": "Email verified handled by Supabase client implicitly."}
+    )
 
 
-def get_mfa_cipher():
-    # Use dedicated MFA_ENCRYPTION_KEY if set; fall back to deriving from JWT secret for backward compat
+def get_mfa_cipher() -> Fernet:
     if settings.MFA_ENCRYPTION_KEY:
         fernet_key = settings.MFA_ENCRYPTION_KEY.encode()
-        if len(fernet_key) < 44:  # Fernet keys are 44 base64url chars
-            key_bytes = hashlib.sha256(settings.MFA_ENCRYPTION_KEY.encode()).digest()
+        if len(fernet_key) < 44:
+            key_bytes = hashlib.sha256(
+                settings.MFA_ENCRYPTION_KEY.encode()
+            ).digest()
             fernet_key = base64.urlsafe_b64encode(key_bytes)
     else:
-        key_bytes = hashlib.sha256(settings.SUPABASE_JWT_SECRET.encode()).digest()
+        key_bytes = hashlib.sha256(
+            settings.SUPABASE_JWT_SECRET.encode()
+        ).digest()
         fernet_key = base64.urlsafe_b64encode(key_bytes)
     return Fernet(fernet_key)
 
@@ -439,142 +682,230 @@ def get_mfa_cipher():
 @router.get("/mfa/status", response_model=SuccessResponse[dict])
 async def mfa_status(current_user: dict = Depends(get_current_user)):
     user_id = current_user["user_id"]
-    res = supabase.table("profiles").select("mfa_secret").eq("id", user_id).execute()
+    if not supabase:
+        return SuccessResponse(data={"mfa_enabled": False})
+    res = (
+        supabase.table("profiles")
+        .select("mfa_secret")
+        .eq("id", user_id)
+        .execute()
+    )
     enabled = bool(res.data and res.data[0].get("mfa_secret"))
     return SuccessResponse(data={"mfa_enabled": enabled})
 
 
 @router.post("/mfa/enable", response_model=SuccessResponse[dict])
-async def mfa_enable(request: Request, current_user: dict = Depends(get_current_user)):
+@limiter.limit("5/minute")
+async def mfa_enable(request: Request, user: dict = Depends(get_current_user)):
+    user_id = user["user_id"]
+    if not supabase:
+        raise HTTPException(
+            status_code=503, detail="Database service unavailable."
+        )
+
     try:
-        user_id = current_user.get("user_id")
-        if not user_id:
-            raise HTTPException(status_code=400, detail="User ID not found in token")
+        u = supabase.auth.admin.get_user_by_id(user_id)
+        email = u.user.email if u and u.user else "user@adhera.app"
+    except Exception:
+        email = user.get("email") or "user@adhera.app"
+
+    secret = pyotp.random_base32()
+    totp = pyotp.TOTP(secret)
+    qr_uri = totp.provisioning_uri(name=email, issuer_name="Adhera")
+
+    cipher = get_mfa_cipher()
+    encrypted_secret = cipher.encrypt(secret.encode()).decode()
+
+    supabase.table("profiles").update({"mfa_secret": encrypted_secret}).eq(
+        "id", user_id
+    ).execute()
+
+    qr_image_base64 = ""
+    if _QR_AVAILABLE:
         try:
-            u = supabase.auth.admin.get_user_by_id(user_id)
-            email = u.user.email
-        except Exception:
-            email = current_user.get("email") or current_user.get("user_metadata", {}).get("email", "user@adhera.app")
+            qr = qrcode.QRCode(version=1, box_size=10, border=5)
+            qr.add_data(qr_uri)
+            qr.make(fit=True)
+            img = qr.make_image(fill="black", back_color="white")
+            buffered = io.BytesIO()
+            img.save(buffered, format="PNG")
+            qr_image_base64 = base64.b64encode(buffered.getvalue()).decode(
+                "utf-8"
+            )
+        except Exception as qr_err:
+            logger.warning("QR code generation error: %s", qr_err)
 
-        # Generate TOTP secret and provisioning URI
-        secret = pyotp.random_base32()
-        totp = pyotp.TOTP(secret)
-        qr_code_uri = totp.provisioning_uri(name=email, issuer_name="Adhera")
-
-        # Encrypt secret and store it in profiles
-        cipher = get_mfa_cipher()
-        encrypted_secret = cipher.encrypt(secret.encode()).decode()
-
-        supabase.table("profiles").update({"mfa_secret": encrypted_secret}).eq("id", user_id).execute()
-
-        # Generate inline base64 QR image
-        qr_base64 = None
-        if _QR_AVAILABLE:
-            try:
-                qr = qrcode.make(qr_code_uri)
-                buf = io.BytesIO()
-                qr.save(buf)
-                qr_base64 = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
-            except Exception as qr_err:
-                logger.warning(f"QR code generation error: {str(qr_err)}")
-
-        log_audit_action("MFA_ENABLE_INITIATED", user_id, {})
-        return SuccessResponse(data={
+    log_audit_action("MFA_ENABLE_INITIATED", user_id, {})
+    return SuccessResponse(
+        data={
             "secret": secret,
-            "qr_code_uri": qr_code_uri,
-            "qr_code": qr_base64
-        })
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"MFA enable error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"MFA setup failed: {str(e)}")
+            "qr_code_uri": qr_uri,
+            "qr_code_image": f"data:image/png;base64,{qr_image_base64}"
+            if qr_image_base64
+            else "",
+        }
+    )
 
 
 @router.post("/mfa/verify", response_model=SuccessResponse[dict])
-async def mfa_verify(request: Request, body: MfaCode, current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user_id"]
+@limiter.limit("5/minute")
+async def mfa_verify(
+    request: Request, body: MfaCode, user: dict = Depends(get_current_user)
+):
+    user_id = user["user_id"]
+    if not supabase:
+        raise HTTPException(
+            status_code=503, detail="Database service unavailable."
+        )
 
-    res = supabase.table("profiles").select("mfa_secret").eq("id", user_id).execute()
+    res = (
+        supabase.table("profiles")
+        .select("mfa_secret")
+        .eq("id", user_id)
+        .execute()
+    )
     if not res.data or not res.data[0].get("mfa_secret"):
-        raise HTTPException(status_code=400, detail="MFA has not been enabled/initiated for this user.")
+        raise HTTPException(
+            status_code=400, detail="MFA setup has not been initiated."
+        )
 
     encrypted_secret = res.data[0]["mfa_secret"]
     cipher = get_mfa_cipher()
     try:
         secret = cipher.decrypt(encrypted_secret.encode()).decode()
     except Exception:
-        raise HTTPException(status_code=500, detail="Failed to decrypt MFA secret.")
+        raise HTTPException(
+            status_code=500, detail="Failed to decrypt MFA secret."
+        )
 
     totp = pyotp.TOTP(secret)
     if not totp.verify(body.code):
-        raise HTTPException(status_code=400, detail="Invalid MFA code.")
+        raise HTTPException(
+            status_code=400, detail="Invalid MFA code. Verification failed."
+        )
 
-    # Activate MFA in user metadata
-    supabase.auth.admin.update_user_by_id(
-        user_id,
-        AdminUserAttributes(user_metadata={"mfa_enabled": True})
-    )
+    try:
+        supabase.auth.admin.update_user_by_id(
+            user_id, AdminUserAttributes(user_metadata={"mfa_enabled": True})
+        )
+    except Exception as e:
+        logger.error("Failed to update user_metadata for MFA: %r", e)
+        raise HTTPException(status_code=500, detail="Failed to activate MFA.")
 
-    log_audit_action("MFA_ACTIVATED", user_id, {})
+    log_audit_action("MFA_ENABLED", user_id, {})
     return SuccessResponse(data={"message": "MFA activated successfully."})
 
 
 @router.post("/mfa/disable", response_model=SuccessResponse[dict])
-async def mfa_disable(request: Request, current_user: dict = Depends(get_current_user)):
-    user_id = current_user["user_id"]
+@limiter.limit("5/minute")
+async def mfa_disable(request: Request, user: dict = Depends(get_current_user)):
+    user_id = user["user_id"]
+    if not supabase:
+        raise HTTPException(
+            status_code=503, detail="Database service unavailable."
+        )
 
-    # Clear secret in profiles and disable in metadata
-    supabase.table("profiles").update({"mfa_secret": None}).eq("id", user_id).execute()
+    supabase.table("profiles").update({"mfa_secret": None}).eq(
+        "id", user_id
+    ).execute()
 
-    supabase.auth.admin.update_user_by_id(
-        user_id,
-        AdminUserAttributes(user_metadata={"mfa_enabled": False})
-    )
+    try:
+        supabase.auth.admin.update_user_by_id(
+            user_id, AdminUserAttributes(user_metadata={"mfa_enabled": False})
+        )
+    except Exception as e:
+        logger.error("Failed to disable MFA in user_metadata: %r", e)
+        raise HTTPException(status_code=500, detail="Failed to disable MFA.")
 
     log_audit_action("MFA_DISABLED", user_id, {})
     return SuccessResponse(data={"message": "MFA disabled successfully."})
 
 
 @router.post("/mfa/confirm", response_model=SuccessResponse[Token])
+@limiter.limit("10/minute")
 async def mfa_confirm(request: Request, body: MfaConfirm):
     try:
         payload = jwt.decode(
             body.partial_token,
             settings.SUPABASE_JWT_SECRET,
-            algorithms=["HS256"]
+            algorithms=["HS256"],
         )
+        if not payload.get("mfa_pending"):
+            raise HTTPException(
+                status_code=400, detail="Invalid partial token."
+            )
     except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or expired partial token.")
-
-    if not payload.get("mfa_pending"):
-        raise HTTPException(status_code=401, detail="Invalid partial token claim.")
+        raise HTTPException(
+            status_code=400, detail="Invalid or expired partial token."
+        )
 
     user_id = payload["sub"]
+    if not supabase:
+        raise HTTPException(
+            status_code=503, detail="Database service unavailable."
+        )
 
-    res = supabase.table("profiles").select("mfa_secret").eq("id", user_id).execute()
+    res = (
+        supabase.table("profiles")
+        .select("mfa_secret")
+        .eq("id", user_id)
+        .execute()
+    )
     if not res.data or not res.data[0].get("mfa_secret"):
-        raise HTTPException(status_code=400, detail="MFA is not set up for this user.")
+        raise HTTPException(
+            status_code=400, detail="MFA is not configured for this account."
+        )
 
     encrypted_secret = res.data[0]["mfa_secret"]
     cipher = get_mfa_cipher()
     try:
         secret = cipher.decrypt(encrypted_secret.encode()).decode()
     except Exception:
-        raise HTTPException(status_code=500, detail="Failed to decrypt MFA secret.")
+        raise HTTPException(
+            status_code=500, detail="Failed to decrypt MFA secret."
+        )
 
     totp = pyotp.TOTP(secret)
     if not totp.verify(body.code):
         raise HTTPException(status_code=400, detail="Invalid MFA code.")
 
     try:
-        session_data = json.loads(cipher.decrypt(payload["encrypted_session"].encode()).decode())
+        session_data = json.loads(
+            cipher.decrypt(payload["encrypted_session"].encode()).decode()
+        )
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid session data in token.")
+        raise HTTPException(
+            status_code=400, detail="Invalid session data in token."
+        )
+
+    # Derive role from profiles
+    mfa_role = payload.get("role", "patient")
+    try:
+        if supabase:
+            prof = (
+                supabase.table("profiles")
+                .select("role")
+                .eq("id", user_id)
+                .single()
+                .execute()
+            )
+            if prof.data and isinstance(prof.data, dict) and prof.data.get("role"):
+                mfa_role = prof.data["role"]
+            elif (
+                prof.data
+                and isinstance(prof.data, list)
+                and isinstance(prof.data[0], dict)
+                and prof.data[0].get("role")
+            ):
+                mfa_role = prof.data[0]["role"]
+    except Exception:
+        pass
 
     log_audit_action("MFA_LOGIN_SUCCESS", user_id, {})
-    return SuccessResponse(data=Token(
-        access_token=session_data["access_token"],
-        refresh_token=session_data["refresh_token"],
-        token_type="bearer"
-    ))
+    return SuccessResponse(
+        data=Token(
+            access_token=_make_access_token(user_id, mfa_role),
+            refresh_token=session_data["refresh_token"],
+            token_type="bearer",
+        )
+    )

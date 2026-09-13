@@ -27,11 +27,10 @@ def mock_supabase(monkeypatch):
 @pytest.fixture(autouse=True)
 def mock_audit_insert():
     """
-    Suppress all real audit writes for every test.
-    audit.py._do_insert is fire-and-forget; without this, failed background
-    inserts from one test corrupt the shared httpx connection pool, causing
-    the subsequent test's supabase.execute() call to see a disconnected
-    client and return db='error' on test_health_returns_ok.
+    Suppress all real audit writes for every test and reset in-memory caches.
     """
+    from app.db.supabase import clear_auth_users_cache
+    clear_auth_users_cache()
     with patch("app.services.audit._do_insert"):
         yield
+    clear_auth_users_cache()

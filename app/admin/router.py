@@ -21,7 +21,7 @@ from app.config import settings
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
 from app.core.utils import calculate_age, safe_csv_cell
-from app.db.supabase import supabase, supabase_auth
+from app.db.supabase import get_auth_email, get_auth_users_map, supabase, supabase_auth
 from app.services.admin_client import admin_supabase
 from app.services.audit import log_audit_action
 
@@ -124,8 +124,7 @@ async def get_critical_feedback(request: Request, user: dict = Depends(require_r
         data = result.data or []
         # Enrich with emails via auth API
         try:
-            auth_users = supabase.auth.admin.list_users()
-            email_map = {u.id: u.email for u in auth_users}
+            email_map, _ = get_auth_users_map(supabase)
             for r in data:
                 pid = (r.get("profiles") or {}).get("id") or r.get("user_id")
                 if pid:
@@ -318,8 +317,7 @@ async def broadcast_announcement(request: Request, payload: dict, user: dict = D
     users_data = query.execute().data or []
     # Get emails from auth
     try:
-        auth_users = supabase.auth.admin.list_users()
-        email_map = {u.id: u.email for u in auth_users}
+        email_map, _ = get_auth_users_map(supabase)
     except Exception:
         email_map = {}
     resend_key = os.environ.get("RESEND_API_KEY")
@@ -372,8 +370,7 @@ async def list_users(
     for p in res.data:
         p["age"] = calculate_age(p.get("date_of_birth"))
     try:
-        auth_users = supabase.auth.admin.list_users()
-        email_map = {u.id: u.email for u in auth_users}
+        email_map, _ = get_auth_users_map(supabase)
         for p in res.data:
             p["email"] = email_map.get(p["id"])
     except Exception:
@@ -503,8 +500,7 @@ async def pending_providers(request: Request, user: dict = Depends(require_role(
     res = supabase.table("profiles").select("*").eq("role", "provider").eq("is_active", False).execute()
     data = [r for r in (res.data or []) if r.get("id") not in suspended_ids]
     try:
-        auth_users = supabase.auth.admin.list_users()
-        email_map = {u.id: u.email for u in auth_users}
+        email_map, _ = get_auth_users_map(supabase)
         for p in data:
             p["email"] = email_map.get(p["id"])
     except Exception:
@@ -561,8 +557,7 @@ async def get_admin_providers_list(request: Request, user: dict = Depends(requir
     try:
         providers = supabase.table("profiles").select("*").eq("role", "provider").order("created_at", desc=True).execute().data or []
         try:
-            auth_users = supabase.auth.admin.list_users()
-            email_map = {u.id: u.email for u in auth_users}
+            email_map, _ = get_auth_users_map(supabase)
         except Exception:
             email_map = {}
         assignments = supabase.table("assignments").select("id, patient_id, provider_id, status").eq("status", "active").execute().data or []
@@ -606,8 +601,7 @@ async def get_admin_patients_list(request: Request, user: dict = Depends(require
     try:
         patients = supabase.table("profiles").select("*").eq("role", "patient").order("created_at", desc=True).execute().data or []
         try:
-            auth_users = supabase.auth.admin.list_users()
-            email_map = {u.id: u.email for u in auth_users}
+            email_map, _ = get_auth_users_map(supabase)
         except Exception:
             email_map = {}
         assignments = supabase.table("assignments").select("patient_id, provider_id").eq("status", "active").execute().data or []
@@ -653,8 +647,7 @@ async def get_admin_pending_patient_requests(request: Request, user: dict = Depe
             p_res = supabase.table("profiles").select("id, full_name").in_("id", user_ids).execute().data or []
             profiles = {p["id"]: p["full_name"] for p in p_res}
         try:
-            auth_users = supabase.auth.admin.list_users()
-            email_map = {u.id: u.email for u in auth_users}
+            email_map, _ = get_auth_users_map(supabase)
         except Exception:
             email_map = {}
         result = []
@@ -692,8 +685,7 @@ async def get_admin_pending_provider_requests(request: Request, user: dict = Dep
             p_res = supabase.table("profiles").select("id, full_name").in_("id", user_ids).execute().data or []
             profiles = {p["id"]: p["full_name"] for p in p_res}
         try:
-            auth_users = supabase.auth.admin.list_users()
-            email_map = {u.id: u.email for u in auth_users}
+            email_map, _ = get_auth_users_map(supabase)
         except Exception:
             email_map = {}
         result = []
@@ -726,8 +718,7 @@ async def get_admin_all_assignments(request: Request, user: dict = Depends(requi
             p_res = supabase.table("profiles").select("id, full_name").in_("id", user_ids).execute().data or []
             profiles = {p["id"]: p["full_name"] for p in p_res}
         try:
-            auth_users = supabase.auth.admin.list_users()
-            email_map = {u.id: u.email for u in auth_users}
+            email_map, _ = get_auth_users_map(supabase)
         except Exception:
             email_map = {}
         result = []
@@ -846,8 +837,7 @@ async def get_providers_with_patients(request: Request, user: dict = Depends(req
         return SuccessResponse(data=[])
 
     try:
-        auth_users = supabase.auth.admin.list_users()
-        email_map = {u.id: u.email for u in auth_users}
+        email_map, _ = get_auth_users_map(supabase)
     except Exception:
         email_map = {}
 
@@ -883,8 +873,7 @@ async def get_unassigned_patients(request: Request, user: dict = Depends(require
     assigned_ids = [r["patient_id"] for r in supabase.table("assignments").select("patient_id").eq("status", "active").execute().data or []]
     unassigned = [p for p in all_patients if p["id"] not in assigned_ids]
     try:
-        auth_users = supabase.auth.admin.list_users()
-        email_map = {u.id: u.email for u in auth_users}
+        email_map, _ = get_auth_users_map(supabase)
         for p in unassigned:
             p["email"] = email_map.get(p["id"], "")
     except Exception:
@@ -902,8 +891,8 @@ async def admin_invite_user(request: Request, payload: InviteUser, user: dict = 
 
         # Check if user already exists in auth.users
         try:
-            auth_users = supabase.auth.admin.list_users()
-            if any(u.email and u.email.strip().lower() == email for u in auth_users):
+            email_map, _ = get_auth_users_map(supabase)
+            if any(em and em.strip().lower() == email for em in email_map.values()):
                 raise HTTPException(status_code=409, detail="A user with this email is already registered.")
         except HTTPException:
             raise
@@ -964,14 +953,7 @@ async def list_directory_users(
         sb = supabase
 
         # 1. Fetch auth users email map
-        email_map: dict[str, str] = {}
-        last_sign_in_map: dict[str, str | None] = {}
-        try:
-            auth_users = sb.auth.admin.list_users(page=1, per_page=1000)
-            email_map = {u.id: (u.email or "") for u in auth_users}
-            last_sign_in_map = {u.id: getattr(u, "last_sign_in_at", None) for u in auth_users}
-        except Exception as auth_err:
-            logger.warning("Failed to fetch auth users in list_directory_users: %s", auth_err)
+        email_map, last_sign_in_map = get_auth_users_map(supabase)
 
         # 2. Base query for non-admin profiles
         q = sb.table("profiles").select("*")
@@ -1086,12 +1068,9 @@ async def get_directory_user_detail(
                 last_sign_in = getattr(auth_user, "last_sign_in_at", None)
         except Exception:
             try:
-                auth_users = supabase.auth.admin.list_users()
-                for u in auth_users:
-                    if u.id == user_id:
-                        email = u.email or ""
-                        last_sign_in = getattr(u, "last_sign_in_at", None)
-                        break
+                email_map, last_sign_in_map = get_auth_users_map(supabase)
+                email = email_map.get(user_id, "")
+                last_sign_in = last_sign_in_map.get(user_id)
             except Exception:
                 pass
 
@@ -1401,8 +1380,7 @@ async def get_directory_user_assignments(
             profiles_map = {p["id"]: p for p in p_data}
 
         try:
-            auth_users = supabase.auth.admin.list_users()
-            email_map = {u.id: (u.email or "") for u in auth_users}
+            email_map, _ = get_auth_users_map(supabase)
         except Exception:
             email_map = {}
 

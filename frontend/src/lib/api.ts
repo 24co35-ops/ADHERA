@@ -49,9 +49,18 @@ export async function adheraFetch(url: string, options: RequestInit = {}): Promi
     headers.set('Authorization', `Bearer ${token}`);
   }
 
+  // Combine user signal with an 8s timeout so no request holds the page open
+  const timeoutMs = 8000;
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  const userSignal = options.signal;
+  const combinedSignal = userSignal
+    ? AbortSignal.any([userSignal, timeoutSignal])
+    : timeoutSignal;
+
   let response = await fetch(fullUrl, {
     ...options,
     headers,
+    signal: combinedSignal,
   });
 
   if (response.status === 401) {

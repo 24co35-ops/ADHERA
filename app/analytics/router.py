@@ -92,7 +92,7 @@ async def get_dashboard(request: Request, patient_id: str = Query(None), user: d
                 .execute()
             )
             d30 = (now - timedelta(days=30)).isoformat()
-            all_adh = supabase.table("adherence").select("status").gte("scheduled_utc", d30).execute()
+            all_adh = supabase.table("adherence").select("status").gte("scheduled_utc", d30).limit(1000).execute()
             return SuccessResponse(data={
                 "overall_adherence_percentage": get_rate(all_adh.data or []),
                 "active_patients_count": active_patients.count or 0,

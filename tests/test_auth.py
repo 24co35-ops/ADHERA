@@ -97,7 +97,12 @@ def test_login_valid(mock_supabase, mock_supabase_auth):
     mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value = MagicMock(data=[{"role": "patient", "is_active": True}])
     response = client.post("/v1/auth/login", json={"email": "test@demo.com", "password": "Pass123!"})
     assert response.status_code == 200
-    assert response.json().get('data', response.json())["access_token"] == "abc"
+    token_data = response.json().get('data', response.json())
+    assert "access_token" in token_data
+    assert token_data["refresh_token"] == "def"
+    decoded = jwt.decode(token_data["access_token"], settings.SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
+    assert decoded["sub"] == TEST_USER_ID
+    assert decoded["role"] == "patient"
 
 @patch("app.auth.router.supabase_auth")
 @patch("app.auth.router.supabase")
@@ -240,8 +245,11 @@ def test_mfa_confirm_success(mock_supabase):
     response = client.post("/v1/auth/mfa/confirm", json={"partial_token": partial_token, "code": valid_code})
     assert response.status_code == 200
     res_data = response.json().get("data", {})
-    assert res_data["access_token"] == "real_access_token"
+    assert "access_token" in res_data
     assert res_data["refresh_token"] == "real_refresh_token"
+    decoded = jwt.decode(res_data["access_token"], settings.SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
+    assert decoded["sub"] == TEST_USER_ID
+    assert decoded["role"] == "patient"
 
 
 @patch("app.auth.router.supabase_auth")
@@ -276,13 +284,17 @@ def test_forgot_password_exception_handled(mock_supabase_auth):
 @patch("app.auth.router.supabase_auth")
 def test_refresh_token_success(mock_supabase_auth):
     mock_supabase_auth.auth.refresh_session.return_value = MagicMock(
-        session=MagicMock(access_token="new_access", refresh_token="new_refresh")
+        session=MagicMock(access_token="new_access", refresh_token="new_refresh"),
+        user=MagicMock(id=TEST_USER_ID, user_metadata={}, app_metadata={"role": "patient"})
     )
     response = client.post("/v1/auth/refresh", json={"refresh_token": "valid_refresh"})
     assert response.status_code == 200
     data = response.json().get("data", {})
-    assert data["access_token"] == "new_access"
+    assert "access_token" in data
     assert data["refresh_token"] == "new_refresh"
+    decoded = jwt.decode(data["access_token"], settings.SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
+    assert decoded["sub"] == TEST_USER_ID
+    assert decoded["role"] == "patient"
 
 
 @patch("app.auth.router.supabase_auth")

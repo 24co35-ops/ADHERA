@@ -8,7 +8,7 @@ from app.auth.dependencies import get_current_user, require_role
 from app.core.exceptions import is_timeout_error
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
-from app.db.supabase import supabase
+from app.db.supabase import get_auth_email, get_auth_users_map, supabase
 
 logger = logging.getLogger("adhera.provider")
 router = APIRouter()
@@ -76,8 +76,7 @@ async def get_provider_dashboard(request: Request, user: dict = Depends(require_
             profiles = {}
 
         try:
-            auth_users = supabase.auth.admin.list_users()
-            email_map = {u.id: u.email for u in auth_users}
+            email_map, _ = get_auth_users_map(supabase)
         except Exception:
             email_map = {}
 
@@ -116,7 +115,9 @@ async def get_provider_dashboard(request: Request, user: dict = Depends(require_
                 .select("user_id, scheduled_utc")
                 .in_("user_id", patient_ids)
                 .eq("status", "taken")
+                .gte("scheduled_utc", d30)
                 .order("scheduled_utc", desc=True)
+                .limit(200)
                 .execute()
             )
             for r in (last_dose_res.data or []):
@@ -340,8 +341,7 @@ async def list_patients(request: Request, user: dict = Depends(require_role("pro
             return SuccessResponse(data=result)
 
         try:
-            users = supabase.auth.admin.list_users()
-            email_map = {u.id: u.email for u in users}
+            email_map, _ = get_auth_users_map(supabase)
         except Exception:
             email_map = {}
 
@@ -562,8 +562,7 @@ async def get_pending_requests(request: Request, user: dict = Depends(require_ro
             return SuccessResponse(data=data)
 
         try:
-            auth_users = supabase.auth.admin.list_users()
-            email_map = {u.id: u.email for u in auth_users}
+            email_map, _ = get_auth_users_map(supabase)
         except Exception:
             email_map = {}
 
@@ -655,8 +654,7 @@ async def search_providers(request: Request, query: str = "", user: dict = Depen
     result = q.limit(20).execute()
     data = result.data or []
     try:
-        auth_users = supabase.auth.admin.list_users()
-        email_map = {u.id: u.email for u in auth_users}
+        email_map, _ = get_auth_users_map(supabase)
         for p in data:
             p["email"] = email_map.get(p["id"], "")
     except Exception:

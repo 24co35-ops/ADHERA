@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.auth.dependencies import get_current_user
-from app.db.supabase import supabase
+from app.db.supabase import get_auth_users_map, supabase
 
 router = APIRouter(tags=["assignments"])
 
@@ -47,8 +47,7 @@ async def search_providers(query: str = "", user=Depends(get_current_user)):
         result = q.limit(20).execute()
         data = result.data or []
         try:
-            auth_users = supabase.auth.admin.list_users()
-            email_map = {u.id: u.email for u in auth_users}
+            email_map, _ = get_auth_users_map(supabase)
             for p in data:
                 p["email"] = email_map.get(p["id"], "")
         except Exception:
