@@ -13,8 +13,9 @@ logger = logging.getLogger("adhera.analytics")
 router = APIRouter()
 
 def get_rate(data: list) -> float:
-    t = len(data)
-    tk = len([x for x in data if x.get('status') == 'taken'])
+    final_doses = [x for x in data if x.get('status') in ('taken', 'missed')]
+    t = len(final_doses)
+    tk = len([x for x in final_doses if x.get('status') == 'taken'])
     return round((tk / t * 100), 1) if t > 0 else 0.0
 
 def _check_assignment(provider_id: str, patient_id: str):

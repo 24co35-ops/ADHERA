@@ -53,6 +53,11 @@ class TestGetRate:
         data = [{"status": "taken"}, {"status": "missed"}]
         assert get_rate(data) == 50.0
 
+    def test_get_rate_with_snoozed(self):
+        from app.analytics.router import get_rate
+        data = [{"status": "taken"}, {"status": "snoozed"}]
+        assert get_rate(data) == 100.0
+
     def test_get_rate_empty(self):
         from app.analytics.router import get_rate
         assert get_rate([]) == 0.0

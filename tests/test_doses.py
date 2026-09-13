@@ -41,6 +41,27 @@ def test_dose_snooze(mock_supabase):
     res = client.post("/v1/doses/r1/snooze", headers=headers())
     assert res.status_code == 200
 
+@patch("app.doses.router.supabase")
+def test_dose_snooze_max_limit(mock_supabase):
+    query_mock = MagicMock()
+    query_mock.eq.return_value = query_mock
+    query_mock.gte.return_value = query_mock
+    query_mock.execute.side_effect = [
+        MagicMock(data=[{"user_id": "11111111-1111-1111-1111-111111111111", "dose_time_utc": "08:00:00"}]),
+        MagicMock(data=[{"timezone": "UTC"}]),
+        MagicMock(data=[{"id": "s1"}, {"id": "s2"}, {"id": "s3"}])
+    ]
+    mock_supabase.table.return_value.select.return_value = query_mock
+    res = client.post("/v1/doses/r1/snooze", headers=headers())
+    assert res.status_code == 422
+    assert "Maximum snooze count" in res.json()["error"]["message"]
+
+@patch("app.doses.router.supabase")
+def test_dose_snooze_not_found(mock_supabase):
+    mock_supabase.table.return_value.select.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[])
+    res = client.post("/v1/doses/r-none/snooze", headers=headers())
+    assert res.status_code == 404
+
 # Edge function auto-expiry (ADH-TEST-051) logic test.
 # Since it's a supabase edge function, we can mock the pg_cron logic via a simulated unit test or just test the logic here.
 def test_auto_expiry_logic():

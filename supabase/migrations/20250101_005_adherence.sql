@@ -3,7 +3,7 @@ create table public.adherence (
   reminder_id     uuid not null references public.reminders(id),
   user_id         uuid not null references auth.users(id),
   scheduled_utc   timestamptz not null,
-  status          text not null check (status in ('taken', 'missed', 'superseded')),
+  status          text not null check (status in ('taken', 'missed', 'snoozed', 'superseded')),
   outcome_utc     timestamptz not null default now(),
   supersedes_id   uuid references public.adherence(id),  -- for admin corrections
   correction_note text,

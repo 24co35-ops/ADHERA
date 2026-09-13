@@ -47,8 +47,9 @@ async def get_provider_dashboard(request: Request, user: dict = Depends(require_
         for r in (adh_res.data or []):
             patient_adh[r["user_id"]].append(r)
         def get_rate(data: list) -> float:
-            t = len(data)
-            tk = len([x for x in data if x['status'] == 'taken'])
+            final_doses = [x for x in data if x.get('status') in ('taken', 'missed')]
+            t = len(final_doses)
+            tk = len([x for x in final_doses if x.get('status') == 'taken'])
             return round((tk / t * 100), 1) if t > 0 else 0.0
 
         # Batch query 1 — last_dose_taken per patient
