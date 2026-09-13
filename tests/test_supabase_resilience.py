@@ -23,7 +23,7 @@ def make_token(role="provider", user_id=TEST_PROVIDER_ID):
     payload = {
         "aud": "authenticated",
         "sub": user_id,
-        "user_metadata": {"role": role}
+        "app_metadata": {"role": role}, "user_metadata": {"role": role}
     }
     return {"Authorization": f"Bearer {jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm='HS256')}"}
 

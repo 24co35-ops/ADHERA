@@ -11,7 +11,7 @@ client = TestClient(app)
 
 def headers(role="provider"):
     token = jwt.encode(
-        {"aud": "authenticated", "sub": str(uuid.uuid4()), "user_metadata": {"role": role}},
+        {"aud": "authenticated", "sub": str(uuid.uuid4()), "app_metadata": {"role": role}, "user_metadata": {"role": role}},
         settings.SUPABASE_JWT_SECRET,
         algorithm="HS256"
     )

@@ -10,7 +10,7 @@ from app.main import app
 client = TestClient(app)
 
 def headers():
-    token = jwt.encode({"aud": "authenticated", "sub": "11111111-1111-1111-1111-111111111111", "user_metadata": {"role": "patient"}}, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+    token = jwt.encode({"aud": "authenticated", "sub": "11111111-1111-1111-1111-111111111111", "app_metadata": {"role": "patient"}, "user_metadata": {"role": "patient"}}, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
     return {"Authorization": f"Bearer {token}"}
 
 @patch("app.doses.router.supabase")

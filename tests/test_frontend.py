@@ -66,7 +66,7 @@ def mock_api(page: Page):
 def set_mock_session(page: Page, role="patient"):
     import base64, json
     # Mock JWT logic needs payload base64 string
-    payload = base64.b64encode(json.dumps({"sub": "user123", "user_metadata": {"role": role}}).encode()).decode()
+    payload = base64.b64encode(json.dumps({"sub": "user123", "app_metadata": {"role": role}, "user_metadata": {"role": role}}).encode()).decode()
     token = f"header.{payload}.sig"
     page.add_init_script(f"sessionStorage.setItem('jwt', '{token}'); sessionStorage.setItem('adhera_token', '{token}');")
 

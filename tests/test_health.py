@@ -14,7 +14,7 @@ def make_token(role="patient", user_id="00000000-0000-0000-0000-000000000001"):
     payload = {
         "aud": "authenticated",
         "sub": user_id,
-        "user_metadata": {"role": role}
+        "app_metadata": {"role": role}, "user_metadata": {"role": role}
     }
     return {"Authorization": f"Bearer {jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm='HS256')}"}
 

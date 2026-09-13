@@ -47,7 +47,7 @@ def headers(role="patient", user_id=TEST_USER_ID, mfa_pending=None):
     payload = {
         "aud": "authenticated",
         "sub": user_id,
-        "user_metadata": {"role": role}
+        "app_metadata": {"role": role}, "user_metadata": {"role": role}
     }
     if mfa_pending is not None:
         payload["mfa_pending"] = mfa_pending
@@ -297,3 +297,16 @@ def test_refresh_token_api_error(mock_supabase_auth):
     mock_supabase_auth.auth.refresh_session.side_effect = create_auth_api_error("Token expired", 401)
     response = client.post("/v1/auth/refresh", json={"refresh_token": "expired_token"})
     assert response.status_code == 401
+
+
+def test_role_escalation_blocked():
+    """Verify patient JWT with role=admin in user_metadata is rejected from admin endpoints."""
+    payload = {
+        "aud": "authenticated",
+        "sub": TEST_USER_ID,
+        "user_metadata": {"role": "admin"}
+    }
+    token = jwt.encode(payload, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+    response = client.get("/v1/admin/users", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 403
+

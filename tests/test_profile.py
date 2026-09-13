@@ -9,7 +9,7 @@ from app.main import app
 client = TestClient(app)
 
 def get_token(role="patient"):
-    return jwt.encode({"aud": "authenticated", "sub": "user-uuid-123", "user_metadata": {"role": role}}, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
+    return jwt.encode({"aud": "authenticated", "sub": "user-uuid-123", "app_metadata": {"role": role}, "user_metadata": {"role": role}}, settings.SUPABASE_JWT_SECRET, algorithm="HS256")
 
 def headers(role="patient"):
     return {"Authorization": f"Bearer {get_token(role)}"}
