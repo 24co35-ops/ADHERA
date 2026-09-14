@@ -1,10 +1,14 @@
 import logging
+import os
+import threading
+import time as time_mod
 from collections import Counter, defaultdict
 from datetime import datetime, time, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.auth.dependencies import get_current_user, require_role
+from app.config import settings
 from app.core.exceptions import is_timeout_error
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
@@ -19,12 +23,26 @@ RISK_THRESHOLDS = {
     "MODERATE": 85
 }
 
+_ASSIGNMENT_CACHE: dict[tuple[str, str], float] = {}
+_ASSIGNMENT_LOCK = threading.Lock()
+_ASSIGNMENT_TTL = 30.0  # seconds
 
-def _check_patient_assignment(provider_id: str, patient_id: str):
+
+def _check_patient_assignment(provider_id: str, patient_id: str, sb=None):
     """Verify provider is assigned to patient. Raises 403 or 504 on failure."""
+    is_test = os.environ.get("ENVIRONMENT") == "test" or getattr(settings, "ENVIRONMENT", "") == "test"
+    now = time_mod.time()
+    key = (provider_id, patient_id)
+
+    if not is_test and sb is None:
+        with _ASSIGNMENT_LOCK:
+            if now < _ASSIGNMENT_CACHE.get(key, 0):
+                return
+
+    client = sb or supabase
     try:
         assignment = (
-            supabase.table("assignments")
+            client.table("assignments")
             .select("id")
             .eq("provider_id", provider_id)
             .eq("patient_id", patient_id)
@@ -33,6 +51,9 @@ def _check_patient_assignment(provider_id: str, patient_id: str):
         )
         if not assignment.data:
             raise HTTPException(status_code=403, detail="Not assigned to this patient")
+        if not is_test and sb is None:
+            with _ASSIGNMENT_LOCK:
+                _ASSIGNMENT_CACHE[key] = now + _ASSIGNMENT_TTL
     except HTTPException:
         raise
     except Exception as e:

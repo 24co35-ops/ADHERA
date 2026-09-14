@@ -1,10 +1,14 @@
 import logging
+import os
+import threading
+import time as time_mod
 from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.auth.dependencies import get_current_user
+from app.config import settings
 from app.core.exceptions import is_timeout_error
 from app.core.rate_limit import limiter
 from app.core.responses import SuccessResponse
@@ -12,6 +16,10 @@ from app.db.supabase import supabase
 
 logger = logging.getLogger("adhera.analytics")
 router = APIRouter()
+
+_ANALYTICS_ASSIGNMENT_CACHE: dict[tuple[str, str], float] = {}
+_ANALYTICS_ASSIGNMENT_LOCK = threading.Lock()
+_ANALYTICS_ASSIGNMENT_TTL = 30.0
 
 
 def get_rate(data: list) -> float:
@@ -21,10 +29,20 @@ def get_rate(data: list) -> float:
     return round((tk / t * 100), 1) if t > 0 else 0.0
 
 
-def _check_assignment(provider_id: str, patient_id: str):
+def _check_assignment(provider_id: str, patient_id: str, sb=None):
+    is_test = os.environ.get("ENVIRONMENT") == "test" or getattr(settings, "ENVIRONMENT", "") == "test"
+    now = time_mod.time()
+    key = (provider_id, patient_id)
+
+    if not is_test and sb is None:
+        with _ANALYTICS_ASSIGNMENT_LOCK:
+            if now < _ANALYTICS_ASSIGNMENT_CACHE.get(key, 0):
+                return
+
+    client = sb or supabase
     try:
         res = (
-            supabase.table("assignments")
+            client.table("assignments")
             .select("id")
             .eq("provider_id", provider_id)
             .eq("patient_id", patient_id)
@@ -33,6 +51,9 @@ def _check_assignment(provider_id: str, patient_id: str):
         )
         if not res.data:
             raise HTTPException(status_code=403, detail="Not assigned to this patient")
+        if not is_test and sb is None:
+            with _ANALYTICS_ASSIGNMENT_LOCK:
+                _ANALYTICS_ASSIGNMENT_CACHE[key] = now + _ANALYTICS_ASSIGNMENT_TTL
     except HTTPException:
         raise
     except Exception as e:
@@ -211,11 +232,15 @@ async def get_dashboard(request: Request, patient_id: str = Query(None), user: d
         def parse_ts(s):
             return datetime.fromisoformat(s.replace("Z", "+00:00")) if s else datetime.min.replace(tzinfo=timezone.utc)
 
-        # Query selective columns for metrics & streak calculation
+        # Query selective columns for metrics & streak calculation (last 90 days)
+        cutoff_90 = (now - timedelta(days=90)).isoformat()
         res = (
             supabase.table("adherence")
             .select("status, scheduled_utc")
             .eq("user_id", uid)
+            .gte("scheduled_utc", cutoff_90)
+            .order("scheduled_utc", desc=True)
+            .limit(500)
             .execute()
         )
         adh_data = res.data or []

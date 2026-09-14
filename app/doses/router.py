@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -9,6 +10,7 @@ from app.core.responses import SuccessResponse
 from app.db.supabase import supabase
 from app.insights.engine import run_insights_for_patient
 
+logger = logging.getLogger("adhera.doses")
 router = APIRouter()
 
 def get_scheduled_utc_for_today(reminder: dict) -> str:
@@ -153,14 +155,21 @@ async def dose_snooze(request: Request, reminder_id: str, user: dict = Depends(g
     except Exception:
         pass
 
-    res = supabase.table("adherence").insert({
-        "reminder_id": reminder_id,
-        "user_id": user["user_id"],
-        "scheduled_utc": scheduled_utc,
-        "status": "snoozed",
-        "outcome_utc": snoozed_until
-    }).execute()
-    return SuccessResponse(data=res.data[0] if res.data else {"snoozed": True, "snooze_count": new_count})
+    adh_data = {"snoozed": True, "snooze_count": new_count, "reminder_id": reminder_id}
+    try:
+        res = supabase.table("adherence").insert({
+            "reminder_id": reminder_id,
+            "user_id": user["user_id"],
+            "scheduled_utc": scheduled_utc,
+            "status": "snoozed",
+            "outcome_utc": snoozed_until
+        }).execute()
+        if res.data:
+            adh_data = res.data[0]
+    except Exception as adh_err:
+        logger.warning("Optional adherence snooze record skipped or constraint unmigrated: %s", adh_err)
+
+    return SuccessResponse(data=adh_data)
 
 @router.get("/upcoming", response_model=SuccessResponse[list])
 @limiter.limit("60/minute")

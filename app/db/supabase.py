@@ -3,8 +3,10 @@ import os
 import threading
 import time
 
+import httpx
+
 from app.config import settings
-from supabase import Client, create_client
+from supabase import Client, ClientOptions, create_client
 
 logger = logging.getLogger("adhera.db")
 
@@ -15,16 +17,26 @@ if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
 
 SUPABASE_JWT_SECRET = settings.SUPABASE_JWT_SECRET or ""
 
+
+def _create_client_options() -> ClientOptions:
+    transport = httpx.HTTPTransport(
+        retries=3,
+        limits=httpx.Limits(max_keepalive_connections=20, max_connections=100, keepalive_expiry=5.0),
+    )
+    http_client = httpx.Client(transport=transport, timeout=15.0)
+    return ClientOptions(postgrest_client_timeout=15.0, httpx_client=http_client)
+
+
 # Public client — uses service role key if available, otherwise anon key to bypass RLS in backend
 supabase: Client = (
-    create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+    create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY, options=_create_client_options())
     if settings.SUPABASE_SERVICE_ROLE_KEY
-    else create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+    else create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY, options=_create_client_options())
 )
 
 # Auth client — separate instance for sign_in/sign_up so it doesn't
 # mutate the shared service-role client's Authorization header
-supabase_auth: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+supabase_auth: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY, options=_create_client_options())
 
 # ─────────────────────────────────────────────────────────────────────────────
 # In-memory Auth User Cache (Prevents repeated slow GoTrue round-trips)
