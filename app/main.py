@@ -1,21 +1,18 @@
 import os
 
 import sentry_sdk
-from sentry_sdk.integrations.fastapi import FastApiIntegration
-from sentry_sdk.integrations.starlette import StarletteIntegration
 
 sentry_sdk.init(
-    # Empty string DSN disables Sentry SDK reporting per SDK specification
-    dsn=os.environ.get("SENTRY_DSN", ""),
-    integrations=[
-        StarletteIntegration(),
-        FastApiIntegration(),
-    ],
-    traces_sample_rate=0.2,
-    profiles_sample_rate=0.1,
+    dsn=os.environ.get(
+        "SENTRY_DSN",
+        "https://4487cf8de0511a9f52665685aebdc2b3@o4511619543465984.ingest.de.sentry.io/4512083369263184",
+    ),
+    send_default_pii=True,
+    enable_logs=True,
+    traces_sample_rate=1.0,
+    profile_session_sample_rate=1.0,
+    profile_lifecycle="trace",
     environment=os.environ.get("ENVIRONMENT", "development"),
-    send_default_pii=False,
-    before_send=lambda event, hint: event if event.get("level") in ("error", "fatal", None) else None,
 )
 
 import contextvars
@@ -253,3 +250,10 @@ app.include_router(assignments_router, prefix="/v1")
 app.include_router(wellness_router, prefix="/v1/wellness", tags=["wellness"])
 app.include_router(chat_router, prefix="/v1/chat", tags=["chat"])
 app.include_router(intelligence_router, prefix="/v1", tags=["intelligence"])
+
+
+@app.get("/sentry-debug")
+async def trigger_error():
+    division_by_zero = 1 / 0
+    return {"result": division_by_zero}
+
